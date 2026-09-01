@@ -7,6 +7,7 @@ en las partes correspondientes (no se crean todavía a propósito).
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
@@ -15,6 +16,14 @@ from app.routers import auth, catalogo, citas, eps, health, pacientes
 configurar_logging()
 
 app = FastAPI(title=settings.app_name)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(health.router, tags=["Health"])
 app.include_router(eps.router, tags=["EPS"])

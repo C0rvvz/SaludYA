@@ -43,7 +43,16 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expire_minutes: int = 60
 
+    # --- CORS (necesario para que el frontend en localhost:5173 pueda
+    # llamar a este backend en localhost:8000 -- el navegador bloquea
+    # las peticiones entre orígenes distintos si no se habilita) ---
+    cors_origins: str = "http://localhost:5173"
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 settings = Settings()

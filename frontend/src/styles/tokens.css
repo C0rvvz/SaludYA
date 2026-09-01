@@ -1,0 +1,58 @@
+/*
+  Tokens de diseño de SaludYA — alineados al prototipo original
+  (azul institucional, tarjetas blancas redondeadas, botones pill).
+*/
+
+:root {
+  /* --- Color --- */
+  --color-ink: #142238;
+  --color-ink-soft: #5b6b82;
+  --color-bg: #eef3fb;
+  --color-surface: #ffffff;
+  --color-navy: #0e1f39;
+
+  --color-primary: #1b5fa8;
+  --color-primary-hover: #154a84;
+  --color-primary-soft: #dceafb;
+
+  --color-mint: #e1f3e8;
+  --color-mint-ink: #1f7a4d;
+
+  --color-line: #e1e8f2;
+  --color-line-soft: #eef2f9;
+
+  --color-error: #b3261e;
+  --color-error-soft: #f8dcda;
+  --color-success: #1f7a4d;
+  --color-success-soft: #e1f3e8;
+  --color-warning-soft: #fbe9d8;
+  --color-warning-ink: #9a5a20;
+
+  /* --- Tipografía (una sola familia, como el prototipo) --- */
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.5rem;
+  --text-xl: 2.125rem;
+  --text-2xl: 2.75rem;
+
+  /* --- Espaciado --- */
+  --space-1: 0.375rem;
+  --space-2: 0.75rem;
+  --space-3: 1.25rem;
+  --space-4: 2rem;
+  --space-5: 3rem;
+  --space-6: 4.5rem;
+
+  /* --- Forma: bien redondeada, como el prototipo --- */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 16px 40px -20px rgba(14, 31, 57, 0.28);
+  --shadow-soft: 0 8px 20px -12px rgba(14, 31, 57, 0.16);
+}
