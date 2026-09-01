@@ -41,3 +41,11 @@ class OtpIncorrectoError(Exception):
 
 class OtpIntentosSuperadosError(Exception):
     """Se superó el número máximo de intentos permitidos para este código."""
+
+
+class DisponibilidadNoEncontradaError(Exception):
+    """No existe ninguna franja de disponibilidad con ese id."""
+
+
+class HorarioYaNoDisponibleError(Exception):
+    """El horario elegido ya no está disponible al momento de confirmar (HU-16, criterio 3)."""

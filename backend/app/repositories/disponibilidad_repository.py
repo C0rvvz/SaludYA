@@ -40,6 +40,21 @@ def listar_disponibilidad(
     return query.order_by(Disponibilidad.fecha, Disponibilidad.hora).all()
 
 
+def obtener_con_lock(db: Session, disponibilidad_id: uuid.UUID) -> Disponibilidad | None:
+    """
+    Igual que obtener por id, pero con SELECT ... FOR UPDATE: bloquea la
+    fila hasta que termine la transacción actual (commit o rollback).
+    Se usa exclusivamente al confirmar una cita (HU-16, criterio 3),
+    para que dos pacientes no puedan confirmar el mismo horario a la vez.
+    """
+    return (
+        db.query(Disponibilidad)
+        .filter(Disponibilidad.id == disponibilidad_id)
+        .with_for_update()
+        .first()
+    )
+
+
 def buscar_disponibilidad(
     db: Session,
     especialidad_id: uuid.UUID | None = None,
