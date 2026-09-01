@@ -1,0 +1,18 @@
+# Entorno
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Docker
+*.log
+
+# Editor
+.vscode/
+.idea/
