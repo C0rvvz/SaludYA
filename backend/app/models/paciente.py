@@ -8,7 +8,7 @@ personales), HU-07 (aceptación de tratamiento de datos) y HU-08
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import String, DateTime, Boolean, ForeignKey, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
@@ -69,7 +69,7 @@ class Paciente(Base):
     )
 
     creado_en: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     eps: Mapped["Eps | None"] = relationship(back_populates="pacientes")

@@ -22,6 +22,20 @@ class Settings(BaseSettings):
     # servicio "api" -> environment -> DATABASE_URL)
     database_url: str
 
+    # --- OTP (HU-02, HU-03, HU-04) — valores ya definidos por el equipo ---
+    otp_expire_minutes: int = 5
+    otp_max_intentos: int = 3
+    otp_reenvio_segundos: int = 60
+
+    # --- WhatsApp Cloud API (HU-02, HU-04) ---
+    # "mock": no envía nada real, solo lo registra en logs (por defecto,
+    #   mientras no haya credenciales reales configuradas).
+    # "real": envía de verdad usando WhatsApp Cloud API de Meta.
+    whatsapp_mode: str = "mock"
+    whatsapp_access_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_verify_token: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 

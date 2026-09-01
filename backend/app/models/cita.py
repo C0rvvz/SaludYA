@@ -13,7 +13,7 @@ paciente, sin repetir datos.
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, String, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
@@ -57,7 +57,7 @@ class Cita(Base):
         SAEnum(EstadoCita, name="estado_cita"), default=EstadoCita.CONFIRMADA, nullable=False
     )
     creado_en: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     # --- HU-17: campos propios del comprobante ---

@@ -9,11 +9,17 @@ en las partes correspondientes (no se crean todavía a propósito).
 from fastapi import FastAPI
 
 from app.core.config import settings
-from app.routers import health
+from app.core.logging_config import configurar_logging
+from app.routers import auth, eps, health, pacientes
+
+configurar_logging()
 
 app = FastAPI(title=settings.app_name)
 
 app.include_router(health.router, tags=["Health"])
+app.include_router(eps.router, tags=["EPS"])
+app.include_router(pacientes.router, tags=["Pacientes"])
+app.include_router(auth.router)
 
 
 @app.get("/")
