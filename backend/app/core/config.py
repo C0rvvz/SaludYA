@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str = ""
     whatsapp_verify_token: str = ""
 
+    # --- JWT (HU-03: se emite tras validar el OTP correctamente) ---
+    # SUPUESTO: la duración no está definida en ninguna fuente; 60
+    # minutos es un valor razonable por defecto para una sesión de
+    # paciente. Cambiable con JWT_EXPIRE_MINUTES sin tocar código.
+    jwt_secret: str
+    jwt_expire_minutes: int = 60
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 

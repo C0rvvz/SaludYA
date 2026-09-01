@@ -3,8 +3,12 @@ Endpoints de autenticación de paciente.
 
 HU-01: POST /auth/paciente/identificar
 HU-02: POST /auth/paciente/otp/enviar
-HU-03: POST /auth/paciente/otp/validar
+HU-03: POST /auth/paciente/otp/validar  (ahora emite el JWT)
 HU-04: POST /auth/paciente/otp/reenviar
+
+Endpoint de prueba (no corresponde a ninguna HU por sí solo, sirve
+para verificar que el JWT funciona antes de construir la Parte 7):
+GET /auth/paciente/me
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,11 +16,15 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.dependencies import get_current_paciente
+from app.core.security import crear_access_token
+from app.models.paciente import Paciente
 from app.schemas.auth import (
     EnviarOTPRequest,
     EnviarOTPResponse,
     IdentificarPacienteRequest,
     IdentificarPacienteResponse,
+    MePacienteResponse,
     ReenviarOTPRequest,
     ReenviarOTPResponse,
     ValidarOTPRequest,
@@ -77,7 +85,7 @@ def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
 @router.post("/otp/validar", response_model=ValidarOTPResponse)
 def validar_otp(datos: ValidarOTPRequest, db: Session = Depends(get_db)):
     try:
-        auth_service.validar_codigo(db, datos.numero_documento, datos.codigo)
+        paciente = auth_service.validar_codigo(db, datos.numero_documento, datos.codigo)
     except PacienteNoRegistradoError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except OtpNoEncontradoError as e:
@@ -89,12 +97,16 @@ def validar_otp(datos: ValidarOTPRequest, db: Session = Depends(get_db)):
     except OtpIntentosSuperadosError as e:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
-    # --- HU-03, criterio 3 ---
-    # El "acceso" real (JWT) se emite en la Parte 6. Aquí solo se
-    # confirma que el código fue validado correctamente.
+    # --- HU-03, criterio 3: código correcto -> se emite el JWT que da acceso ---
+    token, _expira = crear_access_token(paciente.id, rol="paciente")
+
     return ValidarOTPResponse(
         validado=True,
-        mensaje="Código validado correctamente.",
+        access_token=token,
+        expira_en_minutos=settings.jwt_expire_minutes,
+        paciente_id=paciente.id,
+        nombre=paciente.nombre,
+        mensaje="Código validado correctamente. Sesión iniciada.",
     )
 
 
@@ -115,4 +127,18 @@ def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
         telefono_enmascarado=_enmascarar_telefono(paciente.telefono_whatsapp),
         expira_en_minutos=settings.otp_expire_minutes,
         mensaje="Se generó y envió un nuevo código de verificación.",
+    )
+
+
+@router.get("/me", response_model=MePacienteResponse)
+def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
+    """
+    Endpoint de prueba: no corresponde a ninguna HU por sí solo. Sirve
+    para verificar que el JWT protege endpoints correctamente antes de
+    construir la Parte 7, que sí lo usará de verdad.
+    """
+    return MePacienteResponse(
+        id=paciente.id,
+        nombre=paciente.nombre,
+        numero_documento=paciente.numero_documento,
     )

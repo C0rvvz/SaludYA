@@ -2,6 +2,8 @@
 Esquemas de entrada/salida del login de paciente — HU-01, HU-02.
 """
 
+import uuid
+
 from pydantic import BaseModel, field_validator
 
 from app.schemas.validators import validar_formato_numero_documento
@@ -58,6 +60,11 @@ class ValidarOTPRequest(BaseModel):
 
 class ValidarOTPResponse(BaseModel):
     validado: bool
+    access_token: str
+    token_type: str = "bearer"
+    expira_en_minutos: int
+    paciente_id: uuid.UUID
+    nombre: str
     mensaje: str
 
 
@@ -75,3 +82,9 @@ class ReenviarOTPResponse(BaseModel):
     telefono_enmascarado: str
     expira_en_minutos: int
     mensaje: str
+
+
+class MePacienteResponse(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    numero_documento: str
