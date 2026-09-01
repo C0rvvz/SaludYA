@@ -49,3 +49,12 @@ class DisponibilidadNoEncontradaError(Exception):
 
 class HorarioYaNoDisponibleError(Exception):
     """El horario elegido ya no está disponible al momento de confirmar (HU-16, criterio 3)."""
+
+
+class CitaNoEncontradaError(Exception):
+    """No existe ninguna cita con ese id, o no pertenece al paciente autenticado.
+
+    Se usa el mismo error para ambos casos a propósito (no distinguir
+    "no existe" de "no es tuya" evita que alguien confirme, probando
+    ids al azar, cuáles citas de otros pacientes sí existen).
+    """

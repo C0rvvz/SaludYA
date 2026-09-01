@@ -27,4 +27,26 @@ class CitaOut(BaseModel):
     canal_recordatorio: str
     estado: str
     creado_en: datetime
+    numero_comprobante: str
+    comprobante_generado_en: datetime
     mensaje: str
+
+
+class ComprobanteOut(BaseModel):
+    """
+    Los 9 campos mínimos definidos para el comprobante: identificador,
+    nombre del paciente, especialidad, profesional, sede, modalidad,
+    fecha, hora y estado -- más el canal y fecha de envío.
+    """
+
+    numero_comprobante: str
+    paciente_nombre: str
+    especialidad: str
+    profesional: str
+    sede: str
+    modalidad: str
+    fecha: date
+    hora: time
+    estado: str
+    canal_envio: str
+    generado_en: datetime
