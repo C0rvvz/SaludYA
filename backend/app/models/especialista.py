@@ -39,7 +39,7 @@ especialista_modalidades = Table(
     "especialista_modalidades",
     Base.metadata,
     Column("especialista_id", UUID(as_uuid=True), ForeignKey("especialistas.id"), primary_key=True),
-    Column("modalidad", SAEnum(Modalidad, name="modalidad"), primary_key=True),
+    Column("modalidad", SAEnum(Modalidad, name="modalidad", values_callable=lambda x: [e.value for e in x]), primary_key=True),
 )
 
 

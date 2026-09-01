@@ -10,7 +10,7 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
-from app.routers import auth, eps, health, pacientes
+from app.routers import auth, catalogo, eps, health, pacientes
 
 configurar_logging()
 
@@ -20,6 +20,7 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(eps.router, tags=["EPS"])
 app.include_router(pacientes.router, tags=["Pacientes"])
 app.include_router(auth.router)
+app.include_router(catalogo.router)
 
 
 @app.get("/")

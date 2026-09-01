@@ -45,10 +45,10 @@ class CodigoOTP(Base):
 
     codigo: Mapped[str] = mapped_column(String(6), nullable=False)
     canal: Mapped[CanalOTP] = mapped_column(
-        SAEnum(CanalOTP, name="canal_otp"), default=CanalOTP.WHATSAPP, nullable=False
+        SAEnum(CanalOTP, name="canal_otp", values_callable=lambda x: [e.value for e in x]), default=CanalOTP.WHATSAPP, nullable=False
     )
     estado: Mapped[EstadoOTP] = mapped_column(
-        SAEnum(EstadoOTP, name="estado_otp"), default=EstadoOTP.PENDIENTE, nullable=False
+        SAEnum(EstadoOTP, name="estado_otp", values_callable=lambda x: [e.value for e in x]), default=EstadoOTP.PENDIENTE, nullable=False
     )
     intentos_realizados: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 

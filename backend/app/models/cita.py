@@ -51,10 +51,10 @@ class Cita(Base):
 
     # --- HU-16 ---
     canal_recordatorio: Mapped[CanalContacto] = mapped_column(
-        SAEnum(CanalContacto, name="canal_contacto"), nullable=False
+        SAEnum(CanalContacto, name="canal_contacto", values_callable=lambda x: [e.value for e in x]), nullable=False
     )
     estado: Mapped[EstadoCita] = mapped_column(
-        SAEnum(EstadoCita, name="estado_cita"), default=EstadoCita.CONFIRMADA, nullable=False
+        SAEnum(EstadoCita, name="estado_cita", values_callable=lambda x: [e.value for e in x]), default=EstadoCita.CONFIRMADA, nullable=False
     )
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
@@ -63,7 +63,7 @@ class Cita(Base):
     # --- HU-17: campos propios del comprobante ---
     numero_comprobante: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
     canal_envio_comprobante: Mapped[CanalContacto | None] = mapped_column(
-        SAEnum(CanalContacto, name="canal_contacto"), nullable=True
+        SAEnum(CanalContacto, name="canal_contacto", values_callable=lambda x: [e.value for e in x]), nullable=True
     )
     comprobante_generado_en: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

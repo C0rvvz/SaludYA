@@ -48,14 +48,14 @@ class Disponibilidad(Base):
         UUID(as_uuid=True), ForeignKey("sedes.id"), nullable=False, index=True
     )
     modalidad: Mapped[Modalidad] = mapped_column(
-        SAEnum(Modalidad, name="modalidad"), nullable=False
+        SAEnum(Modalidad, name="modalidad", values_callable=lambda x: [e.value for e in x]), nullable=False
     )
 
     fecha: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     hora: Mapped[time] = mapped_column(Time, nullable=False)
 
     estado: Mapped[EstadoDisponibilidad] = mapped_column(
-        SAEnum(EstadoDisponibilidad, name="estado_disponibilidad"),
+        SAEnum(EstadoDisponibilidad, name="estado_disponibilidad", values_callable=lambda x: [e.value for e in x]),
         default=EstadoDisponibilidad.DISPONIBLE,
         nullable=False,
         index=True,

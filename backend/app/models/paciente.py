@@ -39,7 +39,7 @@ class Paciente(Base):
 
     # --- HU-01: identificación ---
     tipo_documento: Mapped[TipoDocumento] = mapped_column(
-        SAEnum(TipoDocumento, name="tipo_documento"), nullable=False
+        SAEnum(TipoDocumento, name="tipo_documento", values_callable=lambda x: [e.value for e in x]), nullable=False
     )
     numero_documento: Mapped[str] = mapped_column(
         String(20), unique=True, index=True, nullable=False
@@ -63,7 +63,7 @@ class Paciente(Base):
         UUID(as_uuid=True), ForeignKey("eps.id"), nullable=True
     )
     estado_afiliacion: Mapped[EstadoAfiliacion] = mapped_column(
-        SAEnum(EstadoAfiliacion, name="estado_afiliacion"),
+        SAEnum(EstadoAfiliacion, name="estado_afiliacion", values_callable=lambda x: [e.value for e in x]),
         default=EstadoAfiliacion.PENDIENTE,
         nullable=False,
     )
