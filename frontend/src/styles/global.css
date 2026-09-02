@@ -78,14 +78,20 @@ select:focus-visible {
 
 /* ============ Header (Home) ============ */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--color-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   gap: var(--space-3);
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-line);
+  box-shadow: 0 1px 0 rgba(14, 31, 57, 0.02);
 }
 
 .site-header__tagline {
@@ -174,7 +180,7 @@ select:focus-visible {
 
 /* ============ Hero (Home) ============ */
 .hero {
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: var(--space-5) var(--space-4);
   display: grid;
@@ -247,12 +253,6 @@ select:focus-visible {
   margin-bottom: var(--space-3);
 }
 
-.appointment-preview__pulse {
-  height: 36px;
-  margin: var(--space-3) 0;
-  opacity: 0.6;
-}
-
 .appointment-preview__reminder {
   display: flex;
   justify-content: space-between;
@@ -264,7 +264,7 @@ select:focus-visible {
 
 /* ============ Secciones genéricas ============ */
 .section {
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: var(--space-5) var(--space-4);
 }
@@ -336,7 +336,7 @@ select:focus-visible {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-2);
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: var(--space-4);
   border-top: 1px solid var(--color-line);
@@ -545,4 +545,400 @@ select:focus-visible {
 .badge--warning {
   background: var(--color-warning-soft);
   color: var(--color-warning-ink);
+}
+
+/* ============ Buscador de citas (Parte 12) ============ */
+.filters-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-soft);
+  margin-bottom: var(--space-4);
+}
+
+.filters-grid {
+  display: grid;
+  gap: var(--space-2) var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+}
+
+.filters-grid .field {
+  margin-bottom: 0;
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.result-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.result-card__info h3 {
+  font-size: var(--text-base);
+  margin-bottom: 0.15rem;
+}
+
+.result-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.result-card__datetime {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.result-card__datetime strong {
+  display: block;
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-5) var(--space-3);
+  color: var(--color-ink-soft);
+}
+
+/* ============ Selección de canal (radio) ============ */
+.radio-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.radio-option:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.radio-option input {
+  accent-color: var(--color-primary);
+}
+
+/* ============ Comprobante ============ */
+.comprobante-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.comprobante-numero {
+  font-family: monospace;
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* ============ Avatar de iniciales ============ */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.avatar--sm {
+  width: 34px;
+  height: 34px;
+  font-size: var(--text-xs);
+}
+
+.avatar--lg {
+  width: 44px;
+  height: 44px;
+  font-size: var(--text-sm);
+}
+
+/* ============ Barra de filtros compacta ============ */
+.filters-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-soft);
+  margin-bottom: var(--space-4);
+}
+
+.filters-grid-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.filters-card .field {
+  margin-bottom: 0;
+}
+
+.filters-card .field label {
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-1);
+}
+
+.filters-card .field input,
+.filters-card .field select {
+  padding: 0.75rem 0.9rem;
+  font-size: var(--text-base);
+}
+
+.filters-card__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ============ Tarjetas de especialista (grid) ============ */
+.specialist-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.specialist-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.specialist-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.specialist-card__head h3 {
+  font-size: var(--text-base);
+  margin-bottom: 0;
+}
+
+.specialist-card__head p {
+  margin-bottom: 0;
+  font-size: var(--text-sm);
+}
+
+.specialist-card__meta {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* ============ Breadcrumb "volver" ============ */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: var(--space-3);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+}
+
+/* ============ Selector de día ============ */
+.day-picker {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.day-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.2rem;
+  background: var(--color-surface);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: var(--text-md);
+  min-width: 76px;
+  transition: border-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+}
+
+.day-chip:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-soft);
+}
+
+.day-chip span:first-child {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.day-chip.is-selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  box-shadow: var(--shadow-soft);
+}
+
+.day-chip.is-selected span:first-child {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ============ Grilla de horarios ============ */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.time-slot {
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.2rem;
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.time-slot:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-soft);
+}
+
+.time-slot__hora {
+  display: block;
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-ink);
+  margin-bottom: 0.35rem;
+}
+
+.time-slot__meta {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  font-weight: 500;
+}
+
+.time-slot.is-selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.time-slot.is-selected .time-slot__hora,
+.time-slot.is-selected .time-slot__meta {
+  color: white;
+}
+
+/* ============ Confirmación en dos columnas ============ */
+.confirm-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr;
+  margin-bottom: var(--space-3);
+}
+
+@media (min-width: 720px) {
+  .confirm-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.confirm-grid .card h3 {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-ink-soft);
+  margin-bottom: var(--space-2);
+}
+
+.confirm-grid .card p {
+  margin-bottom: 0.25rem;
+  color: var(--color-ink);
+}
+
+/* ============ Canal preferido (tarjetas) ============ */
+.channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.channel-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.channel-card:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.channel-card input {
+  accent-color: var(--color-primary);
+}
+
+/* ============ Botón de éxito (confirmar) ============ */
+.btn--success {
+  background: var(--color-success);
+  color: white;
+}
+
+.btn--success:hover:not(:disabled) {
+  background: #16603c;
 }

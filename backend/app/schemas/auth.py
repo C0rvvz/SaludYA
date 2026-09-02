@@ -88,3 +88,5 @@ class MePacienteResponse(BaseModel):
     id: uuid.UUID
     nombre: str
     numero_documento: str
+    telefono_whatsapp: str
+    correo: str | None

@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo";
+import { buscarDisponibilidad } from "../api/catalogo";
+import { formatearFecha, formatearHora, capitalizar } from "../utils/formato";
 
 const PASOS = [
   {
@@ -43,6 +46,17 @@ const ACCESIBILIDAD = [
 ];
 
 export default function HomePage() {
+  // Franja de disponibilidad REAL, sacada en vivo del backend -- no
+  // es un dato inventado para el mockup. Este endpoint es público
+  // (no requiere sesión), así que se puede mostrar desde el Home.
+  const [ejemplo, setEjemplo] = useState(null);
+
+  useEffect(() => {
+    buscarDisponibilidad({})
+      .then((resultados) => setEjemplo(resultados[0] ?? null))
+      .catch(() => setEjemplo(null));
+  }, []);
+
   return (
     <div>
       <header className="site-header">
@@ -72,40 +86,28 @@ export default function HomePage() {
             tu celular, con el código de acceso llegándote directo a tu
             WhatsApp.
           </p>
-          <div className="hero__actions">
-            <Link to="/registrarse" className="btn btn--primary">
-              Registrarme
-            </Link>
-            <Link to="/iniciar-sesion" className="btn btn--outline">
-              Ya tengo cuenta
-            </Link>
-          </div>
         </div>
 
-        <div className="appointment-preview">
-          <div className="appointment-preview__top">
-            <span className="appointment-preview__title">
-              Cardiología · Dr. Carlos Ramírez
-            </span>
-            <span className="badge badge--success">Confirmada</span>
+        {ejemplo && (
+          <div className="appointment-preview">
+            <div className="appointment-preview__top">
+              <span className="appointment-preview__title">
+                {ejemplo.especialista.especialidad.nombre} · {ejemplo.especialista.nombre}
+              </span>
+              <span className="badge badge--success">Disponible</span>
+            </div>
+            <div className="appointment-preview__row">
+              <span>
+                {formatearFecha(ejemplo.fecha)} · {formatearHora(ejemplo.hora)}
+              </span>
+              <span>{ejemplo.sede.nombre}</span>
+            </div>
+            <div className="appointment-preview__reminder">
+              <span>Modalidad</span>
+              <span>{capitalizar(ejemplo.modalidad)}</span>
+            </div>
           </div>
-          <div className="appointment-preview__row">
-            <span>Mar 2 sep · 10:00 a. m.</span>
-            <span>Sede Poblado</span>
-          </div>
-          <svg className="appointment-preview__pulse" viewBox="0 0 300 40" width="100%">
-            <polyline
-              points="0,20 60,20 80,5 100,35 120,20 300,20"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-            />
-          </svg>
-          <div className="appointment-preview__reminder">
-            <span>Comprobante generado</span>
-            <span>SAY-4F2A9C1B</span>
-          </div>
-        </div>
+        )}
       </section>
 
       <section className="section">

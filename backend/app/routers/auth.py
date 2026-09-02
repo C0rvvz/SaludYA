@@ -141,4 +141,6 @@ def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
         id=paciente.id,
         nombre=paciente.nombre,
         numero_documento=paciente.numero_documento,
+        telefono_whatsapp=paciente.telefono_whatsapp,
+        correo=paciente.correo,
     )
