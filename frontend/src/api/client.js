@@ -37,6 +37,12 @@ export async function apiFetch(path, { method = "GET", body, auth = false } = {}
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    // Sin esto, el navegador puede reutilizar una respuesta guardada
+    // para la misma URL (p. ej. GET /auth/paciente/me) aunque el
+    // Authorization sea de otro usuario -- causaba que, al iniciar
+    // sesión con un paciente distinto, siguiera mostrando los datos
+    // del paciente anterior hasta refrescar la página a la fuerza.
+    cache: "no-store",
   });
 
   let payload = null;
