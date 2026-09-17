@@ -942,3 +942,97 @@ select:focus-visible {
 .btn--success:hover:not(:disabled) {
   background: #16603c;
 }
+
+/* ============ Modal (overlay genérico) ============ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 31, 57, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  z-index: 100;
+}
+
+.modal-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  max-width: 560px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-bottom: 1.5px solid var(--color-line);
+}
+
+.modal-card__header h2 {
+  font-size: var(--text-md);
+  margin: 0;
+}
+
+.modal-card__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.modal-card__close:hover {
+  color: var(--color-ink);
+}
+
+.modal-card__body {
+  padding: var(--space-3);
+  overflow-y: auto;
+  color: var(--color-ink);
+}
+
+.modal-card__body h3 {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-ink-soft);
+  margin: var(--space-2) 0 0.35rem;
+}
+
+.modal-card__body p {
+  margin-bottom: var(--space-2);
+  line-height: 1.5;
+}
+
+.modal-card__footer {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1.5px solid var(--color-line);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ============ Enlace en línea (dentro de texto/labels) ============ */
+.link-inline {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--color-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-inline:hover {
+  color: var(--color-primary-hover);
+}

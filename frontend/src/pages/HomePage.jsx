@@ -7,23 +7,23 @@ import { formatearFecha, formatearHora, capitalizar } from "../utils/formato";
 const PASOS = [
   {
     numero: 1,
-    titulo: "Regístrate en segundos",
-    texto: "Tu documento, tu WhatsApp y tu EPS — nada más.",
+    titulo: "Regístrese en segundos",
+    texto: "Su documento, su WhatsApp y su EPS — nada más.",
   },
   {
     numero: 2,
-    titulo: "Verifica tu identidad",
-    texto: "Te llega un código por WhatsApp. Sin contraseñas que memorizar.",
+    titulo: "Verifique su identidad",
+    texto: "Recibirá un código por WhatsApp. Sin contraseñas que memorizar.",
   },
   {
     numero: 3,
-    titulo: "Busca tu especialista",
-    texto: "Filtra por especialidad, sede, modalidad y horario disponible.",
+    titulo: "Busque su especialista",
+    texto: "Filtre por especialidad, sede, modalidad y horario disponible.",
   },
   {
     numero: 4,
-    titulo: "Confirma y listo",
-    texto: "Tu cita queda registrada al instante, con comprobante incluido.",
+    titulo: "Confirme y listo",
+    texto: "Su cita queda registrada de inmediato, con comprobante incluido.",
   },
 ];
 
@@ -31,17 +31,17 @@ const ACCESIBILIDAD = [
   {
     icono: "Aa",
     titulo: "Textos grandes y claros",
-    texto: "Cada pantalla está pensada para leerse sin esfuerzo, sin importar la edad.",
+    texto: "Cada pantalla está diseñada para leerse sin esfuerzo, sin importar la edad.",
   },
   {
     icono: "🔒",
     titulo: "Sin contraseñas que recordar",
-    texto: "Entras con tu documento y un código por WhatsApp — nada que anotar ni olvidar.",
+    texto: "El acceso se realiza con su documento y un código enviado por WhatsApp — nada que anotar ni olvidar.",
   },
   {
     icono: "①",
     titulo: "Un paso a la vez",
-    texto: "Cada formulario avanza de a poco, sin abrumarte con todo junto.",
+    texto: "Cada formulario avanza de forma gradual, sin presentar toda la información a la vez.",
   },
 ];
 
@@ -63,7 +63,7 @@ export default function HomePage() {
         <div>
           <Logo />
           <p className="site-header__tagline">
-            Agenda, confirma y da seguimiento a tus citas médicas sin filas ni
+            Agende, confirme y dé seguimiento a sus citas médicas sin filas ni
             llamadas.
           </p>
         </div>
@@ -72,18 +72,18 @@ export default function HomePage() {
             Iniciar sesión
           </Link>
           <Link to="/registrarse" className="btn btn--primary">
-            Registrarme
+            Registrarse
           </Link>
         </nav>
       </header>
 
       <section className="hero">
         <div>
-          <span className="hero__eyebrow">✨ Tu cita médica, sin vueltas</span>
-          <h1>Tu cita médica, sin filas ni esperas eternas</h1>
+          <span className="hero__eyebrow">✨ Su cita médica, sin complicaciones</span>
+          <h1>Su cita médica, sin filas ni esperas prolongadas</h1>
           <p className="hero__lead">
-            Busca especialista, elige sede y horario, y confirma — todo desde
-            tu celular, con el código de acceso llegándote directo a tu
+            Busque especialista, elija sede y horario, y confirme — todo desde
+            su celular, con el código de acceso enviado directamente a su
             WhatsApp.
           </p>
         </div>
@@ -111,9 +111,10 @@ export default function HomePage() {
       </section>
 
       <section className="section">
-        <h2>Así de simple funciona</h2>
+        <h2>Así de sencillo funciona</h2>
         <p className="section__lead">
-          Cuatro pasos entre buscar tu especialista y tener tu cita confirmada.
+          Cuatro pasos entre la búsqueda del especialista y la confirmación de
+          la cita.
         </p>
         <div className="grid-4">
           {PASOS.map((paso) => (
@@ -129,7 +130,7 @@ export default function HomePage() {
       <section className="section">
         <h2>Pensado para todas las personas</h2>
         <p className="section__lead">
-          Incluyendo a quienes no usan apps todos los días.
+          Incluidas las personas que no utilizan aplicaciones con frecuencia.
         </p>
         <div className="grid-3">
           {ACCESIBILIDAD.map((item) => (
@@ -143,7 +144,7 @@ export default function HomePage() {
       </section>
 
       <footer className="site-footer">
-        <span>SaludYA — Proyecto universitario. Datos e instituciones ficticios.</span>
+        <span>SaludYA — Proyecto universitario. Datos e instituciones ficticios con fines académicos.</span>
         <span>© 2026 SaludYA</span>
       </footer>
     </div>

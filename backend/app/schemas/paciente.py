@@ -20,6 +20,8 @@ from app.models.paciente import TipoDocumento, EstadoAfiliacion
 from app.schemas.eps import EpsOut
 from app.schemas.validators import validar_formato_numero_documento
 
+from pydantic import BaseModel, ConfigDict, EmailStr, ValidationInfo, field_validator
+
 
 class PacienteRegistroRequest(BaseModel):
     # --- HU-01/HU-06: identificación y datos personales ---
@@ -37,8 +39,13 @@ class PacienteRegistroRequest(BaseModel):
 
     @field_validator("numero_documento")
     @classmethod
-    def validar_numero_documento(cls, v: str) -> str:
-        return validar_formato_numero_documento(v)
+    def validar_numero_documento(cls, v: str, info: ValidationInfo) -> str:
+        # Excepción: el pasaporte es el único tipo de documento que
+        # puede incluir letras (p. ej. AV123456). Los demás tipos
+        # (cédula de ciudadanía, cédula de extranjería, tarjeta de
+        # identidad) siguen siendo estrictamente numéricos.
+        es_pasaporte = info.data.get("tipo_documento") == TipoDocumento.PASAPORTE
+        return validar_formato_numero_documento(v, permitir_letras=es_pasaporte)
 
     @field_validator("nombre")
     @classmethod

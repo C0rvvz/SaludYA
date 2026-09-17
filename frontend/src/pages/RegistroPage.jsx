@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
+import ModalTratamientoDatos from "../components/ModalTratamientoDatos";
 import { registrarPaciente } from "../api/pacientes";
 import { listarEps } from "../api/eps";
 
@@ -19,6 +20,7 @@ export default function RegistroPage() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [resultado, setResultado] = useState(null);
+  const [modalTratamientoAbierto, setModalTratamientoAbierto] = useState(false);
 
   const [form, setForm] = useState({
     tipo_documento: "cedula_ciudadania",
@@ -33,7 +35,7 @@ export default function RegistroPage() {
   useEffect(() => {
     listarEps()
       .then(setEpsDisponibles)
-      .catch(() => setError("No pudimos cargar el listado de EPS. Intenta recargar la página."));
+      .catch(() => setError("No fue posible cargar el listado de EPS. Intente recargar la página."));
   }, []);
 
   function actualizarCampo(campo, valor) {
@@ -76,8 +78,8 @@ export default function RegistroPage() {
         <>
           <div className="auth-card__header">
             <p className="auth-card__eyebrow">Crear cuenta</p>
-            <h1>Cuéntanos quién eres</h1>
-            <p className="auth-card__lead">Estos datos quedan asociados a tu cuenta.</p>
+            <h1>Indique sus datos personales</h1>
+            <p className="auth-card__lead">Estos datos quedarán asociados a su cuenta.</p>
           </div>
 
           <form onSubmit={irAPaso2}>
@@ -131,7 +133,7 @@ export default function RegistroPage() {
                 required
               />
               <p className="field__hint">
-                Ahí te vamos a mandar el código para iniciar sesión.
+                A este número se enviará el código para iniciar sesión.
               </p>
             </div>
 
@@ -156,13 +158,13 @@ export default function RegistroPage() {
         <>
           <div className="auth-card__header">
             <p className="auth-card__eyebrow">Crear cuenta</p>
-            <h1>Tu EPS y autorización</h1>
-            <p className="auth-card__lead">Último paso antes de crear tu cuenta.</p>
+            <h1>Su EPS y autorización</h1>
+            <p className="auth-card__lead">Último paso antes de crear su cuenta.</p>
           </div>
 
           <form onSubmit={enviarRegistro}>
             <div className="field">
-              <label htmlFor="eps_id">Tu EPS</label>
+              <label htmlFor="eps_id">Su EPS</label>
               <select
                 id="eps_id"
                 value={form.eps_id}
@@ -170,7 +172,7 @@ export default function RegistroPage() {
                 required
               >
                 <option value="" disabled>
-                  Selecciona tu EPS
+                  Seleccione su EPS
                 </option>
                 {epsDisponibles.map((eps) => (
                   <option key={eps.id} value={eps.id}>
@@ -189,8 +191,15 @@ export default function RegistroPage() {
                 required
               />
               <label htmlFor="acepto_tratamiento_datos">
-                He leído y acepto el tratamiento de mis datos personales por
-                parte de SaludYA, de acuerdo con la política de privacidad.
+                He leído y acepto el{" "}
+                <button
+                  type="button"
+                  className="link-inline"
+                  onClick={() => setModalTratamientoAbierto(true)}
+                >
+                  tratamiento de mis datos personales
+                </button>{" "}
+                por parte de SaludYA.
               </label>
             </div>
 
@@ -212,7 +221,7 @@ export default function RegistroPage() {
       {paso === 3 && resultado && (
         <>
           <div className="auth-card__header">
-            <h1>¡Listo, {form.nombre.split(" ")[0]}!</h1>
+            <h1>¡Registro exitoso, {form.nombre.split(" ")[0]}!</h1>
             <p className="auth-card__lead">{resultado.mensaje}</p>
           </div>
 
@@ -245,8 +254,12 @@ export default function RegistroPage() {
 
       {paso < 3 && (
         <p style={{ marginTop: "1.5rem", fontSize: "var(--text-sm)", textAlign: "center" }}>
-          ¿Ya tienes cuenta? <Link to="/iniciar-sesion">Inicia sesión</Link>
+          ¿Ya tiene una cuenta? <Link to="/iniciar-sesion">Inicie sesión</Link>
         </p>
+      )}
+
+      {modalTratamientoAbierto && (
+        <ModalTratamientoDatos onClose={() => setModalTratamientoAbierto(false)} />
       )}
     </AuthShell>
   );

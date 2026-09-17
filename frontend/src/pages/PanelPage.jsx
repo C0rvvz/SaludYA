@@ -147,7 +147,7 @@ export default function PanelPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setErrorConfirmacion(
-          "Ese horario ya no está disponible -- alguien más lo tomó justo antes. Elige otro."
+          "Ese horario ya no está disponible: otra persona lo reservó momentos antes. Elija otro."
         );
       } else {
         setErrorConfirmacion(err.message);
@@ -197,8 +197,8 @@ export default function PanelPage() {
       <div className="section">
         {paso === "buscar" && (
           <>
-            <h1 style={{ fontSize: "var(--text-xl)" }}>Busca tu especialista</h1>
-            <p>Filtra por lo que te quede mejor — todos los campos son opcionales.</p>
+            <h1 style={{ fontSize: "var(--text-xl)" }}>Busque su especialista</h1>
+            <p>Filtre según sus preferencias — todos los campos son opcionales.</p>
 
             <form className="filters-card" onSubmit={manejarBusqueda}>
               <div className="filters-grid-bar">
@@ -295,7 +295,7 @@ export default function PanelPage() {
 
             {yaConsulto && !buscando && grupos.length === 0 && !errorBusqueda && (
               <div className="empty-state">
-                <p>No encontramos horarios con esos filtros. Prueba ajustándolos.</p>
+                <p>No se encontraron horarios con esos filtros. Intente ajustarlos.</p>
               </div>
             )}
 
@@ -362,7 +362,7 @@ export default function PanelPage() {
               </div>
             </div>
 
-            <h2 style={{ fontSize: "var(--text-md)", marginBottom: "0.75rem" }}>Elige un día</h2>
+            <h2 style={{ fontSize: "var(--text-md)", marginBottom: "0.75rem" }}>Elija un día</h2>
             <div className="day-picker">
               {Array.from(diasDelEspecialista.keys()).map((fecha) => {
                 const { dia, numero } = formatearDiaChip(fecha);
@@ -417,7 +417,7 @@ export default function PanelPage() {
             <button className="back-link" onClick={volverAHorarios}>
               ← Volver a horarios
             </button>
-            <h1 style={{ fontSize: "var(--text-xl)" }}>Confirma tu cita</h1>
+            <h1 style={{ fontSize: "var(--text-xl)" }}>Confirme su cita</h1>
 
             {errorConfirmacion && (
               <div className="alert alert--error">
@@ -486,7 +486,7 @@ export default function PanelPage() {
           >
             <div style={{ maxWidth: 480, width: "100%" }}>
               <p className="auth-card__eyebrow">Cita confirmada</p>
-              <h1 style={{ fontSize: "var(--text-xl)" }}>¡Listo, tu cita quedó agendada!</h1>
+              <h1 style={{ fontSize: "var(--text-xl)" }}>¡Su cita quedó agendada exitosamente!</h1>
               <p className="auth-card__lead">{citaConfirmada.mensaje}</p>
 
               <div className="card" style={{ textAlign: "left" }}>
@@ -530,7 +530,7 @@ export default function PanelPage() {
             </div>
 
             <p className="field__hint" style={{ marginTop: "0.75rem" }}>
-              Guarda el número de comprobante — puedes necesitarlo después.
+              Conserve el número de comprobante — podría necesitarlo más adelante.
             </p>
 
             <button

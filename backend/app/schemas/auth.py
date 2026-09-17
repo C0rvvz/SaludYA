@@ -15,8 +15,11 @@ class IdentificarPacienteRequest(BaseModel):
     @field_validator("numero_documento")
     @classmethod
     def validar_numero_documento(cls, v: str) -> str:
-        return validar_formato_numero_documento(v)
-
+        # El login no conoce el tipo de documento de antemano (se
+        # busca por número), así que se permiten letras aquí también
+        # -- de lo contrario un paciente registrado con pasaporte
+        # nunca podría iniciar sesión.
+        return validar_formato_numero_documento(v, permitir_letras=True)
 
 class IdentificarPacienteResponse(BaseModel):
     registrado: bool
@@ -30,7 +33,11 @@ class EnviarOTPRequest(BaseModel):
     @field_validator("numero_documento")
     @classmethod
     def validar_numero_documento(cls, v: str) -> str:
-        return validar_formato_numero_documento(v)
+        # El login no conoce el tipo de documento de antemano (se
+        # busca por número), así que se permiten letras aquí también
+        # -- de lo contrario un paciente registrado con pasaporte
+        # nunca podría iniciar sesión.
+        return validar_formato_numero_documento(v, permitir_letras=True)
 
 
 class EnviarOTPResponse(BaseModel):
@@ -47,8 +54,12 @@ class ValidarOTPRequest(BaseModel):
     @field_validator("numero_documento")
     @classmethod
     def validar_numero_documento(cls, v: str) -> str:
-        return validar_formato_numero_documento(v)
-
+        # El login no conoce el tipo de documento de antemano (se
+        # busca por número), así que se permiten letras aquí también
+        # -- de lo contrario un paciente registrado con pasaporte
+        # nunca podría iniciar sesión.
+        return validar_formato_numero_documento(v, permitir_letras=True)
+    
     @field_validator("codigo")
     @classmethod
     def validar_codigo(cls, v: str) -> str:
@@ -74,7 +85,11 @@ class ReenviarOTPRequest(BaseModel):
     @field_validator("numero_documento")
     @classmethod
     def validar_numero_documento(cls, v: str) -> str:
-        return validar_formato_numero_documento(v)
+        # El login no conoce el tipo de documento de antemano (se
+        # busca por número), así que se permiten letras aquí también
+        # -- de lo contrario un paciente registrado con pasaporte
+        # nunca podría iniciar sesión.
+        return validar_formato_numero_documento(v, permitir_letras=True)
 
 
 class ReenviarOTPResponse(BaseModel):

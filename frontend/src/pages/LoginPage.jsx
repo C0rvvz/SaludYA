@@ -105,17 +105,17 @@ export default function LoginPage() {
         <>
           <div className="auth-card__header">
             <p className="auth-card__eyebrow">Iniciar sesión</p>
-            <h1>Ingresa tu número de documento</h1>
+            <h1>Ingrese su número de documento</h1>
             <p className="auth-card__lead">
-              Te vamos a enviar un código de verificación por WhatsApp — no
-              necesitas contraseña.
+              Le enviaremos un código de verificación por WhatsApp — no
+              necesita contraseña.
             </p>
           </div>
 
           {noRegistrado && (
             <div className="alert alert--error">
-              No encontramos ningún paciente con ese documento.{" "}
-              <Link to="/registrarse">Regístrate aquí</Link>.
+              No se encontró ningún paciente con ese documento.{" "}
+              <Link to="/registrarse">Regístrese aquí</Link>.
             </div>
           )}
           {error && <div className="alert alert--error">{error}</div>}
@@ -146,10 +146,10 @@ export default function LoginPage() {
         <>
           <div className="auth-card__header">
             <p className="auth-card__eyebrow">Iniciar sesión</p>
-            <h1>Ingresa el código</h1>
+            <h1>Ingrese el código</h1>
             <p className="auth-card__lead">
-              Hola {nombrePaciente}, enviamos un código de 6 dígitos a tu WhatsApp
-              terminado en <strong>{telefonoEnmascarado?.slice(-4)}</strong>.
+              Hola {nombrePaciente}, le enviamos un código de 6 dígitos a su
+              WhatsApp terminado en <strong>{telefonoEnmascarado?.slice(-4)}</strong>.
             </p>
           </div>
 
@@ -185,7 +185,7 @@ export default function LoginPage() {
             style={{ marginTop: "1rem" }}
           >
             {segundosRestantes > 0
-              ? `Reenviar código (espera ${segundosRestantes}s)`
+              ? `Reenviar código (espere ${segundosRestantes}s)`
               : "Reenviar código"}
           </button>
         </>
