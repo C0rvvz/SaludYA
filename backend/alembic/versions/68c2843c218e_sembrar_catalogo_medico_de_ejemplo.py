@@ -71,6 +71,11 @@ disponibilidad_t = table(
     column("hora", sa.Time),
     column("estado", sa.String),
 )
+citas_t = table(
+    "citas",
+    column("id", UUID(as_uuid=True)),
+    column("disponibilidad_id", UUID(as_uuid=True)),
+)
 
 HORAS_DEL_DIA = [time(8, 0), time(10, 0), time(15, 0)]
 
@@ -179,6 +184,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Cualquier cita en la base de datos solo puede apuntar a una
+    # disponibilidad sembrada por esta misma migración (es la única
+    # fuente de disponibilidad de toda la app), así que hay que
+    # borrarlas primero -- si no, la restricción de llave foránea
+    # citas.disponibilidad_id impide borrar disponibilidad.
+    op.execute(citas_t.delete())
     op.execute(disponibilidad_t.delete())
     op.execute(especialista_modalidades_t.delete())
     op.execute(especialista_sedes_t.delete())
