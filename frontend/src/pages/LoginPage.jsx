@@ -4,14 +4,23 @@ import AuthShell from "../components/AuthShell";
 import { identificarPaciente, enviarOtp, reenviarOtp, validarOtp } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { validarNumeroDocumento, validarCodigoOtp } from "../utils/validaciones";
 
 const SEGUNDOS_ENFRIAMIENTO = 60; // igual a OTP_REENVIO_SEGUNDOS en el backend
+
+const TIPOS_DOCUMENTO = [
+  { value: "cedula_ciudadania", label: "Cédula de ciudadanía" },
+  { value: "cedula_extranjeria", label: "Cédula de extranjería" },
+  { value: "tarjeta_identidad", label: "Tarjeta de identidad" },
+  { value: "pasaporte", label: "Pasaporte" },
+];
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { iniciarSesion } = useAuth();
 
   const [paso, setPaso] = useState("cedula"); // "cedula" | "otp"
+  const [tipoDocumento, setTipoDocumento] = useState("cedula_ciudadania");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [codigo, setCodigo] = useState("");
   const [telefonoEnmascarado, setTelefonoEnmascarado] = useState("");
@@ -20,6 +29,8 @@ export default function LoginPage() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [noRegistrado, setNoRegistrado] = useState(false);
+  const [errorDocumento, setErrorDocumento] = useState("");
+  const [errorCodigo, setErrorCodigo] = useState("");
 
   const [segundosRestantes, setSegundosRestantes] = useState(0);
   const intervalRef = useRef(null);
@@ -46,6 +57,11 @@ export default function LoginPage() {
     evento.preventDefault();
     setError("");
     setNoRegistrado(false);
+
+    const mensajeError = validarNumeroDocumento(numeroDocumento, tipoDocumento);
+    setErrorDocumento(mensajeError);
+    if (mensajeError) return;
+
     setCargando(true);
     try {
       // HU-01: verificar que la cédula esté registrada
@@ -86,6 +102,11 @@ export default function LoginPage() {
   async function manejarValidacion(evento) {
     evento.preventDefault();
     setError("");
+
+    const mensajeError = validarCodigoOtp(codigo);
+    setErrorCodigo(mensajeError);
+    if (mensajeError) return;
+
     setCargando(true);
     try {
       const resultado = await validarOtp(numeroDocumento, codigo);
@@ -107,8 +128,7 @@ export default function LoginPage() {
             <p className="auth-card__eyebrow">Iniciar sesión</p>
             <h1>Ingrese su número de documento</h1>
             <p className="auth-card__lead">
-              Le enviaremos un código de verificación por WhatsApp — no
-              necesita contraseña.
+              Le enviaremos un código de verificación por WhatsApp.
             </p>
           </div>
 
@@ -120,19 +140,42 @@ export default function LoginPage() {
           )}
           {error && <div className="alert alert--error">{error}</div>}
 
-          <form onSubmit={manejarEnvioCedula}>
+          <form onSubmit={manejarEnvioCedula} noValidate>
+            <div className="field">
+              <label htmlFor="tipo_documento">Tipo de documento</label>
+              <select
+                id="tipo_documento"
+                value={tipoDocumento}
+                onChange={(e) => setTipoDocumento(e.target.value)}
+              >
+                {TIPOS_DOCUMENTO.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="field">
               <label htmlFor="numero_documento">Número de documento</label>
               <input
                 id="numero_documento"
                 type="text"
-                inputMode="numeric"
+                // Único caso con letras: el pasaporte (p. ej. AV123456).
+                // Los demás tipos de documento son siempre numéricos, así
+                // que ahí sí mostramos el teclado numérico en celular.
+                inputMode={tipoDocumento === "pasaporte" ? "text" : "numeric"}
+                className={errorDocumento ? "has-error" : ""}
+                aria-invalid={Boolean(errorDocumento)}
                 autoComplete="off"
                 value={numeroDocumento}
-                onChange={(e) => setNumeroDocumento(e.target.value)}
-                placeholder="Ej. 1038456210"
-                required
+                onChange={(e) => {
+                  setNumeroDocumento(e.target.value);
+                  if (errorDocumento) setErrorDocumento("");
+                }}
+                placeholder={tipoDocumento === "pasaporte" ? "Ej. AV123456" : "Ej. 1038456210"}
               />
+              {errorDocumento && <p className="field__error">{errorDocumento}</p>}
             </div>
 
             <button className="btn btn--primary btn--block" type="submit" disabled={cargando}>
@@ -155,7 +198,7 @@ export default function LoginPage() {
 
           {error && <div className="alert alert--error">{error}</div>}
 
-          <form onSubmit={manejarValidacion}>
+          <form onSubmit={manejarValidacion} noValidate>
             <div className="field">
               <label htmlFor="codigo">Código de verificación</label>
               <input
@@ -163,13 +206,21 @@ export default function LoginPage() {
                 type="text"
                 inputMode="numeric"
                 maxLength={6}
+                className={errorCodigo ? "has-error" : ""}
+                aria-invalid={Boolean(errorCodigo)}
                 autoComplete="one-time-code"
                 value={codigo}
-                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => {
+                  setCodigo(e.target.value.replace(/\D/g, ""));
+                  if (errorCodigo) setErrorCodigo("");
+                }}
                 placeholder="000000"
-                required
               />
-              <p className="field__hint">El código vence a los 5 minutos.</p>
+              {errorCodigo ? (
+                <p className="field__error">{errorCodigo}</p>
+              ) : (
+                <p className="field__hint">El código vence a los 5 minutos.</p>
+              )}
             </div>
 
             <button className="btn btn--primary btn--block" type="submit" disabled={cargando}>

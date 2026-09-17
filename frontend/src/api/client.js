@@ -33,17 +33,29 @@ export async function apiFetch(path, { method = "GET", body, auth = false } = {}
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-    // Sin esto, el navegador puede reutilizar una respuesta guardada
-    // para la misma URL (p. ej. GET /auth/paciente/me) aunque el
-    // Authorization sea de otro usuario -- causaba que, al iniciar
-    // sesión con un paciente distinto, siguiera mostrando los datos
-    // del paciente anterior hasta refrescar la página a la fuerza.
-    cache: "no-store",
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      // Sin esto, el navegador puede reutilizar una respuesta guardada
+      // para la misma URL (p. ej. GET /auth/paciente/me) aunque el
+      // Authorization sea de otro usuario -- causaba que, al iniciar
+      // sesión con un paciente distinto, siguiera mostrando los datos
+      // del paciente anterior hasta refrescar la página a la fuerza.
+      cache: "no-store",
+    });
+  } catch {
+    // fetch() rechaza (sin llegar a haber respuesta) cuando no hay
+    // conexión, el servidor está caído, o el navegador bloquea la
+    // petición -- se traduce a un mensaje entendible en vez de dejar
+    // pasar el error técnico original (ej. "Failed to fetch").
+    throw new ApiError(
+      0,
+      "No fue posible conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo."
+    );
+  }
 
   let payload = null;
   try {

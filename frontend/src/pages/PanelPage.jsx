@@ -78,11 +78,17 @@ export default function PanelPage() {
   const [confirmando, setConfirmando] = useState(false);
   const [errorConfirmacion, setErrorConfirmacion] = useState("");
   const [citaConfirmada, setCitaConfirmada] = useState(null);
+  const [errorCatalogos, setErrorCatalogos] = useState("");
 
   useEffect(() => {
-    listarEspecialidades().then(setEspecialidades).catch(() => {});
-    listarSedes().then(setSedes).catch(() => {});
-    ejecutarBusqueda(FILTROS_VACIOS);
+    listarEspecialidades()
+      .then(setEspecialidades)
+      .catch((err) => setErrorCatalogos(err.message));
+    listarSedes()
+      .then(setSedes)
+      .catch((err) => setErrorCatalogos(err.message));
+    // No se busca disponibilidad automáticamente al entrar: se espera
+    // a que el paciente use el botón "Buscar" (con o sin filtros).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -198,7 +204,13 @@ export default function PanelPage() {
         {paso === "buscar" && (
           <>
             <h1 style={{ fontSize: "var(--text-xl)" }}>Busque su especialista</h1>
-            <p>Filtre según sus preferencias — todos los campos son opcionales.</p>
+            <p>Filtre según sus preferencias. Todos los campos son opcionales.</p>
+
+            {errorCatalogos && (
+              <div className="alert alert--error">
+                No pudimos cargar por completo los filtros: {errorCatalogos}
+              </div>
+            )}
 
             <form className="filters-card" onSubmit={manejarBusqueda}>
               <div className="filters-grid-bar">
@@ -508,7 +520,7 @@ export default function PanelPage() {
               <div className="summary-row">
                 <span className="summary-row__label">Sede</span>
                 <span className="summary-row__value">
-                  {citaConfirmada.sede.nombre} — {citaConfirmada.sede.ciudad}
+                  {citaConfirmada.sede.nombre} · {citaConfirmada.sede.ciudad}
                 </span>
               </div>
               <div className="summary-row">
@@ -530,7 +542,7 @@ export default function PanelPage() {
             </div>
 
             <p className="field__hint" style={{ marginTop: "0.75rem" }}>
-              Conserve el número de comprobante — podría necesitarlo más adelante.
+              Conserve el número de comprobante. Podría necesitarlo más adelante.
             </p>
 
             <button

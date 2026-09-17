@@ -8,7 +8,7 @@ const PASOS = [
   {
     numero: 1,
     titulo: "Regístrese en segundos",
-    texto: "Su documento, su WhatsApp y su EPS — nada más.",
+    texto: "Su documento, su WhatsApp y su EPS, nada más.",
   },
   {
     numero: 2,
@@ -36,7 +36,7 @@ const ACCESIBILIDAD = [
   {
     icono: "🔒",
     titulo: "Sin contraseñas que recordar",
-    texto: "El acceso se realiza con su documento y un código enviado por WhatsApp — nada que anotar ni olvidar.",
+    texto: "El acceso se realiza con su documento y un código enviado por WhatsApp, sin nada que anotar ni olvidar.",
   },
   {
     icono: "①",
@@ -82,7 +82,7 @@ export default function HomePage() {
           <span className="hero__eyebrow">✨ Su cita médica, sin complicaciones</span>
           <h1>Su cita médica, sin filas ni esperas prolongadas</h1>
           <p className="hero__lead">
-            Busque especialista, elija sede y horario, y confirme — todo desde
+            Busque especialista, elija sede y horario, y confirme. Todo desde
             su celular, con el código de acceso enviado directamente a su
             WhatsApp.
           </p>
@@ -144,7 +144,7 @@ export default function HomePage() {
       </section>
 
       <footer className="site-footer">
-        <span>SaludYA — Proyecto universitario. Datos e instituciones ficticios con fines académicos.</span>
+        <span>SaludYA: proyecto universitario. Datos e instituciones ficticios con fines académicos.</span>
         <span>© 2026 SaludYA</span>
       </footer>
     </div>

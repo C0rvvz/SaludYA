@@ -14,13 +14,11 @@ import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, ValidationInfo, field_validator
 
 from app.models.paciente import TipoDocumento, EstadoAfiliacion
 from app.schemas.eps import EpsOut
 from app.schemas.validators import validar_formato_numero_documento
-
-from pydantic import BaseModel, ConfigDict, EmailStr, ValidationInfo, field_validator
 
 
 class PacienteRegistroRequest(BaseModel):
