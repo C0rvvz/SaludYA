@@ -17,4 +17,8 @@ COPY ./alembic.ini .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Aplica las migraciones pendientes antes de arrancar la API: así la base
+# queda al día en cualquier PC sin correr "alembic upgrade head" a mano.
+# Si una migración falla, la API no arranca (mejor que correr con la base
+# desactualizada).
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
