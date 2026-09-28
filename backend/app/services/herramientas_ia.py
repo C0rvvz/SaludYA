@@ -49,6 +49,7 @@ from app.services.exceptions import (
     CitaNoEncontradaError,
     CitaNoModificableError,
     DisponibilidadNoEncontradaError,
+    FueraDeHorarioDeLlegadaError,
     HorarioYaNoDisponibleError,
     ReprogramacionInvalidaError,
 )
@@ -419,6 +420,25 @@ def _confirmar_asistencia(
     return {"cita": resumen, "mensaje": "Asistencia confirmada."}
 
 
+def _registrar_llegada(
+    db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict
+) -> dict:
+    datos = _validar(_NumeroArgs, args, "registrar_llegada")
+    cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
+    try:
+        citas_service.registrar_llegada(db, paciente.id, cita.id)
+    except (CitaNoModificableError, FueraDeHorarioDeLlegadaError) as e:
+        raise _ErrorParaElModelo(str(e))
+
+    resumen = _cita_para_ia(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
+    estado.eventos.append(("llegada_registrada", resumen))
+    return {
+        "cita": resumen,
+        "mensaje": "Llegada registrada. Indícale que espere su turno y que muestre su "
+        "número de comprobante en recepción si se lo piden.",
+    }
+
+
 class _CancelarArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -532,6 +552,7 @@ _MANEJADORES: dict[str, _Manejador] = {
     "consultar_cita": _consultar_cita,
     "crear_cita": _crear_cita,
     "confirmar_asistencia": _confirmar_asistencia,
+    "registrar_llegada": _registrar_llegada,
     "cancelar_cita": _cancelar_cita,
     "reprogramar_cita": _reprogramar_cita,
 }

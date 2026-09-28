@@ -15,7 +15,13 @@ POST /citas/{id}/confirmar-asistencia   -> HU-29 / HU-23
 POST /citas/{id}/cancelar               -> HU-21
 POST /citas/{id}/reprogramar            -> HU-20
 
-Todos exigen JWT y solo actúan sobre citas del paciente autenticado.
+Bloque 6 — el día de la consulta:
+POST /citas/{id}/registrar-llegada      -> HU-24
+POST /citas/confirmar-asistencia/enlace -> HU-23 (desde el recordatorio)
+
+Todos exigen JWT y solo actúan sobre citas del paciente autenticado,
+salvo el enlace del recordatorio, que no pide sesión: su token firmado
+solo permite confirmar la asistencia a esa cita.
 """
 
 import uuid
@@ -33,7 +39,9 @@ from app.schemas.cita import (
     CancelarCitaRequest,
     CitaOut,
     ComprobanteOut,
+    ConfirmacionPorEnlaceOut,
     ConfirmarCitaRequest,
+    ConfirmarPorEnlaceRequest,
     MiCitaOut,
     ReprogramarCitaRequest,
 )
@@ -42,6 +50,8 @@ from app.services.exceptions import (
     CitaNoEncontradaError,
     CitaNoModificableError,
     DisponibilidadNoEncontradaError,
+    EnlaceInvalidoError,
+    FueraDeHorarioDeLlegadaError,
     HorarioYaNoDisponibleError,
     ReprogramacionInvalidaError,
 )
@@ -53,6 +63,7 @@ def _mi_cita_out(cita: Cita) -> MiCitaOut:
     visible = citas_service.estado_visible(cita)
     activa = citas_service.esta_activa(cita)
     franja = cita.disponibilidad
+    llegada_desde, _ = citas_service.ventana_de_llegada(cita)
     return MiCitaOut(
         id=cita.id,
         numero_comprobante=cita.numero_comprobante,
@@ -70,6 +81,8 @@ def _mi_cita_out(cita: Cita) -> MiCitaOut:
         cancelada_en=cita.cancelada_en,
         motivo_cancelacion=cita.motivo_cancelacion,
         recordatorio_enviado_en=cita.recordatorio_enviado_en,
+        llegada_registrada_en=cita.llegada_registrada_en,
+        cerrada_en=cita.cerrada_en,
         reprogramada_desde=(
             cita.reprogramada_desde.numero_comprobante if cita.reprogramada_desde else None
         ),
@@ -77,6 +90,8 @@ def _mi_cita_out(cita: Cita) -> MiCitaOut:
         puede_confirmar_asistencia=activa and cita.asistencia_confirmada_en is None,
         puede_cancelar=activa,
         puede_reprogramar=activa,
+        puede_registrar_llegada=citas_service.puede_registrar_llegada(cita),
+        llegada_disponible_desde=llegada_desde if activa else None,
         historial=citas_service.historial_de_estado(cita),
     )
 
@@ -87,7 +102,9 @@ def _error_http(e: Exception) -> HTTPException:
         DisponibilidadNoEncontradaError: status.HTTP_404_NOT_FOUND,
         CitaNoModificableError: status.HTTP_409_CONFLICT,
         HorarioYaNoDisponibleError: status.HTTP_409_CONFLICT,
+        FueraDeHorarioDeLlegadaError: status.HTTP_409_CONFLICT,
         ReprogramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
+        EnlaceInvalidoError: status.HTTP_400_BAD_REQUEST,
     }
     return HTTPException(status_code=codigos[type(e)], detail=str(e))
 
@@ -97,7 +114,9 @@ _ERRORES_DE_CITA = (
     DisponibilidadNoEncontradaError,
     CitaNoModificableError,
     HorarioYaNoDisponibleError,
+    FueraDeHorarioDeLlegadaError,
     ReprogramacionInvalidaError,
+    EnlaceInvalidoError,
 )
 
 
@@ -213,6 +232,45 @@ def reprogramar_cita(
     # su propio comprobante, igual que al agendar (HU-17).
     nueva = comprobante_service.generar_comprobante(db, nueva)
     return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, nueva.id))
+
+
+@router.post("/citas/{cita_id}/registrar-llegada", response_model=MiCitaOut)
+def registrar_llegada(
+    cita_id: uuid.UUID,
+    paciente: Paciente = Depends(get_current_paciente),
+    db: Session = Depends(get_db),
+):
+    """HU-24: el paciente se presenta a su cita (check-in)."""
+    try:
+        cita = citas_service.registrar_llegada(db, paciente.id, cita_id)
+    except _ERRORES_DE_CITA as e:
+        raise _error_http(e)
+    return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
+
+
+@router.post("/citas/confirmar-asistencia/enlace", response_model=ConfirmacionPorEnlaceOut)
+def confirmar_asistencia_por_enlace(datos: ConfirmarPorEnlaceRequest, db: Session = Depends(get_db)):
+    """
+    HU-23, criterio 1: el enlace del recordatorio permite confirmar la
+    asistencia con un toque, sin iniciar sesión. No usa JWT de sesión:
+    el token del enlace solo sirve para esto, para esa cita, y vence
+    cuando la cita empieza.
+    """
+    try:
+        cita, ya_estaba = citas_service.confirmar_asistencia_por_enlace(db, datos.token)
+    except _ERRORES_DE_CITA as e:
+        raise _error_http(e)
+
+    franja = cita.disponibilidad
+    return ConfirmacionPorEnlaceOut(
+        especialidad=franja.especialista.especialidad.nombre,
+        profesional=franja.especialista.nombre,
+        sede=franja.sede.nombre,
+        modalidad=franja.modalidad.value,
+        fecha=franja.fecha,
+        hora=franja.hora,
+        ya_estaba_confirmada=ya_estaba,
+    )
 
 
 @router.get("/citas/{cita_id}/comprobante", response_model=ComprobanteOut)

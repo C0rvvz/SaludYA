@@ -62,6 +62,21 @@ def listar_por_paciente(db: Session, paciente_id: uuid.UUID) -> list[Cita]:
     )
 
 
+def por_cerrar(db: Session, hasta_fecha: date) -> list[Cita]:
+    """
+    HU-25: citas todavía "confirmadas" cuya fecha ya llegó (el servicio
+    filtra por hora exacta). Con SKIP LOCKED, igual que los recordatorios.
+    """
+    return (
+        db.query(Cita)
+        .join(Cita.disponibilidad)
+        .options(contains_eager(Cita.disponibilidad))
+        .filter(Cita.estado == EstadoCita.CONFIRMADA, Disponibilidad.fecha <= hasta_fecha)
+        .with_for_update(of=Cita, skip_locked=True)
+        .all()
+    )
+
+
 def pendientes_de_recordatorio(
     db: Session, desde: date, hasta: date, max_intentos: int
 ) -> list[Cita]:

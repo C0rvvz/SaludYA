@@ -43,16 +43,27 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expire_minutes: int = 60
 
+    # --- Tareas en segundo plano (recordatorios HU-22, cierre de citas HU-25) ---
+    tareas_periodicas_activas: bool = True
+    tareas_intervalo_segundos: int = 300
+
     # --- Recordatorios de cita (HU-22) ---
     # SUPUESTO: "anticipación suficiente" no está definida en ninguna
     # fuente; 24 horas es lo habitual en citas médicas. Cambiable sin
     # tocar código.
-    recordatorios_activos: bool = True
     recordatorio_anticipacion_horas: int = 24
-    recordatorio_intervalo_segundos: int = 300
     recordatorio_max_intentos: int = 3
     # Enlace que va en el recordatorio para confirmar la asistencia (HU-23).
     frontend_url: str = "http://localhost:5173"
+
+    # --- El día de la consulta (HU-24, HU-25) ---
+    # SUPUESTO: ninguna fuente define estas ventanas. Registrar la
+    # llegada se habilita 2 h antes de la cita y hasta 30 min después;
+    # 60 min después del inicio la cita se cierra como "atendida" (si
+    # registró su llegada) o "no asistió" (si no).
+    llegada_minutos_antes: int = 120
+    llegada_minutos_despues: int = 30
+    cierre_minutos_despues: int = 60
 
     # --- Asistente conversacional con IA (HU-33) ---
     # Cualquier proveedor compatible con la API de OpenAI: el paquete

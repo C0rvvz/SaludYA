@@ -11,7 +11,14 @@ from app.schemas.especialista import EspecialistaBasicoOut
 from app.schemas.sede import SedeOut
 
 EstadoVisible = Literal[
-    "pendiente_confirmar", "asistencia_confirmada", "finalizada", "cancelada", "reprogramada"
+    "pendiente_confirmar",
+    "asistencia_confirmada",
+    "llegada_registrada",
+    "finalizada",
+    "atendida",
+    "no_asistio",
+    "cancelada",
+    "reprogramada",
 ]
 
 
@@ -65,13 +72,38 @@ class MiCitaOut(BaseModel):
     cancelada_en: datetime | None
     motivo_cancelacion: str | None
     recordatorio_enviado_en: datetime | None
+    llegada_registrada_en: datetime | None
+    cerrada_en: datetime | None
     reprogramada_desde: str | None  # número de comprobante de la cita original
     reprogramada_a: str | None  # número de comprobante de la cita nueva
     # Qué puede hacer el paciente con esta cita ahora (HU-27, criterio 4).
     puede_confirmar_asistencia: bool
     puede_cancelar: bool
     puede_reprogramar: bool
+    puede_registrar_llegada: bool
+    # HU-24: desde qué momento (hora de Colombia) se puede registrar la llegada.
+    llegada_disponible_desde: datetime | None
     historial: list[EventoCitaOut]
+
+
+class ConfirmarPorEnlaceRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=1000)
+
+
+class ConfirmacionPorEnlaceOut(BaseModel):
+    """
+    Respuesta PÚBLICA (sin sesión) del enlace del recordatorio (HU-23):
+    solo los datos de la cita necesarios para que el paciente sepa qué
+    confirmó; nada de sus datos personales.
+    """
+
+    especialidad: str
+    profesional: str
+    sede: str
+    modalidad: str
+    fecha: date
+    hora: time
+    ya_estaba_confirmada: bool
 
 
 class CancelarCitaRequest(BaseModel):

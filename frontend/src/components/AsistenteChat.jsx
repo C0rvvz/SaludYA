@@ -28,6 +28,7 @@ const CANALES = {
 const TARJETAS = {
   cita_agendada: { texto: "Cita confirmada", clase: "badge--success" },
   asistencia_confirmada: { texto: "Asistencia confirmada", clase: "badge--success" },
+  llegada_registrada: { texto: "Llegada registrada", clase: "badge--success" },
   cita_reprogramada: { texto: "Cita reprogramada", clase: "badge--success" },
   cita_cancelada: { texto: "Cita cancelada", clase: "badge--error" },
 };

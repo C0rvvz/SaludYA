@@ -1,7 +1,7 @@
 """
 Recordatorios de cita — HU-22 (y HU-23, criterio 1).
 
-Una tarea de fondo (ver main.py) llama periódicamente a
+Una tarea de fondo (ver tareas_periodicas.py) llama periódicamente a
 enviar_recordatorios_pendientes(): toma las citas activas que empiezan
 dentro de la ventana de anticipación (RECORDATORIO_ANTICIPACION_HORAS)
 y todavía no tienen recordatorio, y lo envía por el canal que eligió
@@ -12,25 +12,29 @@ el paciente al agendar.
   menos anticipación recibe el recordatorio en la siguiente pasada.
 - Criterio 2: el mensaje incluye fecha y hora.
 - Criterio 3: se envía por el canal seleccionado.
-- HU-23, criterio 1: el mensaje explica cómo confirmar la asistencia.
+- HU-23, criterio 1: el mensaje trae un enlace para confirmar la
+  asistencia con un toque, sin iniciar sesión.
 - Si el envío falla, se reintenta en las siguientes pasadas hasta
   RECORDATORIO_MAX_INTENTOS.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import SessionLocal
 from app.integrations.notificaciones import enviar_por_canal
 from app.models.cita import Cita
 from app.repositories import cita_repository
+from app.services import citas_service
 from app.utils.tiempo import ahora_colombia, fecha_legible, hora_legible
 
 logger = logging.getLogger("saludya.recordatorios")
+
+
+def enlace_confirmacion(cita: Cita) -> str:
+    return f"{settings.frontend_url}/confirmar-asistencia?token={citas_service.token_de_confirmacion(cita)}"
 
 
 def mensaje_recordatorio(cita: Cita) -> str:
@@ -40,7 +44,7 @@ def mensaje_recordatorio(cita: Cita) -> str:
         f"con {franja.especialista.nombre} el {fecha_legible(franja.fecha)} a las "
         f"{hora_legible(franja.hora)}, {franja.sede.nombre} ({franja.modalidad.value}). "
         f"Comprobante {cita.numero_comprobante}. "
-        f"Para confirmar su asistencia, ingrese a {settings.frontend_url}/mis-citas"
+        f"Confirme su asistencia aquí: {enlace_confirmacion(cita)}"
     )
 
 
@@ -72,23 +76,3 @@ def enviar_recordatorios_pendientes(db: Session) -> int:
 
     db.commit()
     return enviados
-
-
-def _una_pasada() -> None:
-    db = SessionLocal()
-    try:
-        enviados = enviar_recordatorios_pendientes(db)
-        if enviados:
-            logger.info("Recordatorios enviados: %s", enviados)
-    finally:
-        db.close()
-
-
-async def ejecutar_periodicamente() -> None:
-    """Bucle de la tarea de fondo. Un error en una pasada no detiene las siguientes."""
-    while True:
-        try:
-            await asyncio.to_thread(_una_pasada)
-        except Exception:
-            logger.exception("Falló la revisión de recordatorios; se reintenta en la próxima pasada.")
-        await asyncio.sleep(settings.recordatorio_intervalo_segundos)

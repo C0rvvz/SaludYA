@@ -15,17 +15,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
 from app.routers import auth, catalogo, chat, citas, eps, health, pacientes
-from app.services import recordatorios_service
+from app.services import tareas_periodicas
 
 configurar_logging()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # HU-22: tarea de fondo que envía los recordatorios de cita.
+    # HU-22 / HU-25: recordatorios y cierre de citas pasadas en segundo plano.
     tarea = None
-    if settings.recordatorios_activos:
-        tarea = asyncio.create_task(recordatorios_service.ejecutar_periodicamente())
+    if settings.tareas_periodicas_activas:
+        tarea = asyncio.create_task(tareas_periodicas.ejecutar_periodicamente())
     yield
     if tarea is not None:
         tarea.cancel()

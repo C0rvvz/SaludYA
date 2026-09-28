@@ -1460,6 +1460,13 @@ select:focus-visible {
   border-color: var(--color-error-soft);
 }
 
+/* HU-24: aviso al registrar la llegada, con el número para recepción */
+.aviso-llegada {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.6;
+}
+
 /* Línea de tiempo del estado de la cita (HU-18) */
 .linea-tiempo {
   list-style: none;

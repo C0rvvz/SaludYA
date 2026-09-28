@@ -30,6 +30,9 @@ class EstadoCita(str, enum.Enum):
     # HU-20: fue reemplazada por otra cita (la nueva apunta a esta con
     # reprogramada_desde_id).
     REPROGRAMADA = "reprogramada"
+    # HU-25: resultado de la cita, registrado después de la consulta.
+    ATENDIDA = "atendida"
+    NO_ASISTIO = "no_asistio"
 
 
 class CanalContacto(str, enum.Enum):
@@ -98,6 +101,13 @@ class Cita(Base):
     reprogramada_desde_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("citas.id", name="fk_citas_reprogramada_desde"), nullable=True
     )
+
+    # --- HU-24: el paciente registró su llegada (check-in) ---
+    llegada_registrada_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # --- HU-25: cuándo se registró el resultado (atendida / no asistió) ---
+    cerrada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # --- HU-22: recordatorio ---
     recordatorio_enviado_en: Mapped[datetime | None] = mapped_column(

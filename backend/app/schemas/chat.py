@@ -43,6 +43,7 @@ class ChatResponse(BaseModel):
         "cita_cancelada",
         "cita_reprogramada",
         "asistencia_confirmada",
+        "llegada_registrada",
     ]
     cita: CitaChatOut | None = None
 

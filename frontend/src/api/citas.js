@@ -32,6 +32,17 @@ export function confirmarAsistencia(citaId) {
   return apiFetch(`/citas/${citaId}/confirmar-asistencia`, { method: "POST", auth: true });
 }
 
+// HU-24: el paciente se presenta a su cita (check-in).
+export function registrarLlegada(citaId) {
+  return apiFetch(`/citas/${citaId}/registrar-llegada`, { method: "POST", auth: true });
+}
+
+// HU-23: desde el enlace del recordatorio, SIN sesión (el token del
+// enlace ya autoriza esta única acción).
+export function confirmarAsistenciaPorEnlace(token) {
+  return apiFetch("/citas/confirmar-asistencia/enlace", { method: "POST", body: { token } });
+}
+
 // HU-21: el motivo es opcional.
 export function cancelarCita(citaId, motivo) {
   return apiFetch(`/citas/${citaId}/cancelar`, {

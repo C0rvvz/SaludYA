@@ -130,6 +130,12 @@ _DEFINICIONES: list[dict] = [
         {"numero_comprobante": {"type": "string", "description": _NUMERO_DESC}},
     ),
     _tool(
+        "registrar_llegada",
+        "Registra que el paciente ya llegó a la sede para su cita de hoy (HU-24). "
+        "Úsala cuando el paciente diga que ya está en la sede o que ya llegó.",
+        {"numero_comprobante": {"type": "string", "description": _NUMERO_DESC}},
+    ),
+    _tool(
         "cancelar_cita",
         "Cancela una cita del paciente y libera el cupo. La primera llamada NO "
         "cancela: devuelve un resumen para que el paciente confirme. Vuelve a "
@@ -156,7 +162,13 @@ _DEFINICIONES: list[dict] = [
 ]
 
 TOOLS_LECTURA = {"buscar_especialidades", "buscar_sedes", "buscar_horarios", "consultar_cita"}
-TOOLS_ESCRITURA = {"crear_cita", "confirmar_asistencia", "cancelar_cita", "reprogramar_cita"}
+TOOLS_ESCRITURA = {
+    "crear_cita",
+    "confirmar_asistencia",
+    "registrar_llegada",
+    "cancelar_cita",
+    "reprogramar_cita",
+}
 
 # Una función nueva se define arriba, se conecta en herramientas_ia.py y
 # se activa aquí: si no está en este conjunto, el modelo no la ve.
@@ -186,6 +198,7 @@ Qué puedes hacer:
 - Agendar una cita.
 - Consultar las citas del paciente y su estado.
 - Confirmar la asistencia a una cita, cancelarla o reprogramarla.
+- El día de la cita, registrar que el paciente ya llegó a la sede.
 
 Cómo trabajar:
 - Para agendar necesitas especialidad, sede (o ciudad) y fecha. Pregunta solo por lo que falte, de a un dato a la vez, y no vuelvas a preguntar lo que el paciente ya dijo.

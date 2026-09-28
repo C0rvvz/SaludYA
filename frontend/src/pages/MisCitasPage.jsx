@@ -8,6 +8,7 @@ import {
   confirmarAsistencia,
   listarMisCitas,
   obtenerMiCita,
+  registrarLlegada,
   reprogramarCita,
 } from "../api/citas";
 import {
@@ -29,6 +30,8 @@ import {
  * HU-18: estado claro de cada cita y su línea de tiempo.
  * HU-20: reprogramar (elegir un nuevo horario de la misma especialidad).
  * HU-21: cancelar, con confirmación y motivo opcional.
+ * HU-24: registrar la llegada el día de la cita (check-in).
+ * HU-25: resultado de la cita después de la consulta (atendida / no asistió).
  */
 
 const CANALES = {
@@ -41,12 +44,18 @@ const CANALES = {
 const CLASE_ESTADO = {
   pendiente_confirmar: "badge--warning",
   asistencia_confirmada: "badge--success",
+  llegada_registrada: "badge--success",
   finalizada: "badge--neutral",
+  atendida: "badge--success",
+  no_asistio: "badge--error",
   cancelada: "badge--error",
   reprogramada: "badge--neutral",
 };
 
-const ACTIVAS = ["pendiente_confirmar", "asistencia_confirmada"];
+const ACTIVAS = ["pendiente_confirmar", "asistencia_confirmada", "llegada_registrada"];
+
+// "8:00 a. m." a partir de la fecha y hora (de Colombia) que envía el backend.
+const horaDe = (fechaHora) => formatearHora(fechaHora.split("T")[1]);
 
 const PESTANAS = [
   {
@@ -316,6 +325,14 @@ function DetalleCita({ citaId, avisoInicial, onVolver, onCambio, onAbrirNumero }
     if (actualizada) setCita(actualizada);
   }
 
+  async function llegar() {
+    const actualizada = await ejecutar(
+      () => registrarLlegada(citaId),
+      "Listo. Registramos su llegada. Espere su turno."
+    );
+    if (actualizada) setCita(actualizada);
+  }
+
   async function cancelar(motivo) {
     const actualizada = await ejecutar(
       () => cancelarCita(citaId, motivo),
@@ -386,9 +403,34 @@ function DetalleCita({ citaId, avisoInicial, onVolver, onCambio, onAbrirNumero }
             )}
           </div>
 
+          {/* HU-24, criterio 2: los datos de la cita a la mano al llegar a la sede. */}
+          {cita.estado_visible === "llegada_registrada" && (
+            <div className="alert alert--success aviso-llegada">
+              Ya registró su llegada. Espere su turno.
+              <br />
+              Si se lo piden en recepción, muestre este número:{" "}
+              <strong className="comprobante-numero">{cita.numero_comprobante}</strong>
+            </div>
+          )}
+
+          {modo === "ver" && cita.llegada_disponible_desde && !cita.puede_registrar_llegada && (
+            <p className="field__hint">
+              {/* Sin punto final: la hora ya termina en "a. m." / "p. m." */}
+              El día de su cita podrá registrar su llegada desde las {horaDe(cita.llegada_disponible_desde)}
+            </p>
+          )}
+
           {modo === "ver" &&
-            (cita.puede_confirmar_asistencia || cita.puede_reprogramar || cita.puede_cancelar) && (
+            (cita.puede_registrar_llegada ||
+              cita.puede_confirmar_asistencia ||
+              cita.puede_reprogramar ||
+              cita.puede_cancelar) && (
               <div className="acciones-cita">
+                {cita.puede_registrar_llegada && (
+                  <button className="btn btn--primary" disabled={ocupado} onClick={llegar}>
+                    {ocupado ? "Registrando..." : "Registrar mi llegada"}
+                  </button>
+                )}
                 {cita.puede_confirmar_asistencia && (
                   <button className="btn btn--success" disabled={ocupado} onClick={confirmar}>
                     {ocupado ? "Confirmando..." : "Confirmar asistencia"}
@@ -446,7 +488,7 @@ export default function MisCitasPage() {
   const [pestana, setPestana] = useState(null);
   const [seleccion, setSeleccion] = useState(null); // { id, aviso }
   const [aviso, setAviso] = useState(null); // { tipo, texto }
-  const [confirmandoId, setConfirmandoId] = useState(null);
+  const [procesandoId, setProcesandoId] = useState(null);
 
   const cargar = useCallback(
     () =>
@@ -478,22 +520,19 @@ export default function MisCitasPage() {
   let visibles = citas.filter(actual.filtro);
   if (actual.id === "historial") visibles = [...visibles].reverse(); // lo más reciente primero
 
-  async function confirmarDesdeLista(cita) {
-    setConfirmandoId(cita.id);
+  // Acciones rápidas desde la lista: confirmar asistencia (HU-29) o
+  // registrar la llegada (HU-24), sin tener que abrir el detalle.
+  async function accionDesdeLista(cita, accion, texto) {
+    setProcesandoId(cita.id);
     setAviso(null);
     try {
-      await confirmarAsistencia(cita.id);
-      setAviso({
-        tipo: "success",
-        texto: `Listo. Confirmó su asistencia a ${cita.especialista.especialidad.nombre} el ${formatearFechaLarga(
-          cita.fecha
-        ).toLowerCase()}.`,
-      });
+      await accion(cita.id);
+      setAviso({ tipo: "success", texto });
       await cargar();
     } catch (err) {
       setAviso({ tipo: "error", texto: err.message });
     } finally {
-      setConfirmandoId(null);
+      setProcesandoId(null);
     }
   }
 
@@ -585,15 +624,40 @@ export default function MisCitasPage() {
                       </span>
                       <span className="cita-item__ver">Ver detalle ›</span>
                     </button>
-                    {c.puede_confirmar_asistencia && (
+                    {c.puede_registrar_llegada ? (
                       <button
                         type="button"
-                        className="btn btn--success cita-item__confirmar"
-                        disabled={confirmandoId === c.id}
-                        onClick={() => confirmarDesdeLista(c)}
+                        className="btn btn--primary cita-item__confirmar"
+                        disabled={procesandoId === c.id}
+                        onClick={() =>
+                          accionDesdeLista(
+                            c,
+                            registrarLlegada,
+                            `Listo. Registramos su llegada a ${c.especialista.especialidad.nombre}. Espere su turno.`
+                          )
+                        }
                       >
-                        {confirmandoId === c.id ? "Confirmando..." : "Confirmar asistencia"}
+                        {procesandoId === c.id ? "Registrando..." : "Registrar mi llegada"}
                       </button>
+                    ) : (
+                      c.puede_confirmar_asistencia && (
+                        <button
+                          type="button"
+                          className="btn btn--success cita-item__confirmar"
+                          disabled={procesandoId === c.id}
+                          onClick={() =>
+                            accionDesdeLista(
+                              c,
+                              confirmarAsistencia,
+                              `Listo. Confirmó su asistencia a ${c.especialista.especialidad.nombre} el ${formatearFechaLarga(
+                                c.fecha
+                              ).toLowerCase()}.`
+                            )
+                          }
+                        >
+                          {procesandoId === c.id ? "Confirmando..." : "Confirmar asistencia"}
+                        </button>
+                      )
                     )}
                   </div>
                 ))}

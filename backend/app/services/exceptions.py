@@ -71,6 +71,15 @@ class ReprogramacionInvalidaError(Exception):
     especialidad o es el mismo horario actual (HU-20)."""
 
 
+class EnlaceInvalidoError(Exception):
+    """El enlace del recordatorio para confirmar la asistencia no es válido o
+    ya venció (HU-23)."""
+
+
+class FueraDeHorarioDeLlegadaError(Exception):
+    """Se intentó registrar la llegada fuera de la ventana de la cita (HU-24)."""
+
+
 class AsistenteNoDisponibleError(Exception):
     """El asistente con IA no puede responder: falta la API key, el
     proveedor no respondió a tiempo o devolvió un error."""
