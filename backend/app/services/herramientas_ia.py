@@ -9,14 +9,18 @@ catálogo real, y cualquier problema se le devuelve al modelo como un
 error en texto para que le pregunte al paciente, nunca como una
 excepción que rompa la conversación.
 
-Las escrituras (crear_cita) se validan además contra lo que el backend
-recuerda de la conversación (EstadoConversacion), no contra lo que el
-modelo dice que pasó: solo se puede agendar un horario que el backend
-realmente le mostró al paciente, y solo después de que el paciente
-haya respondido.
+Las escrituras se validan además contra lo que el backend recuerda de
+la conversación (EstadoConversacion), no contra lo que el modelo dice
+que pasó:
+- solo se agenda o reprograma hacia un horario que el backend realmente
+  le mostró al paciente en esta conversación;
+- agendar, cancelar y reprogramar exigen confirmación: la primera
+  llamada solo devuelve un resumen, y la acción se ejecuta únicamente si
+  el modelo la vuelve a pedir, con los mismos datos, en un mensaje
+  POSTERIOR del paciente.
 
 No se escribe ninguna consulta nueva: todo pasa por los repositorios
-y servicios que ya usan los endpoints del Sprint 1.
+y servicios que ya usan los endpoints.
 """
 
 import json
@@ -41,7 +45,14 @@ from app.repositories import (
     sede_repository,
 )
 from app.services import citas_service, comprobante_service, ia
-from app.services.exceptions import DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError
+from app.services.exceptions import (
+    CitaNoEncontradaError,
+    CitaNoModificableError,
+    DisponibilidadNoEncontradaError,
+    HorarioYaNoDisponibleError,
+    ReprogramacionInvalidaError,
+)
+from app.utils.tiempo import DIAS_SEMANA, ahora_colombia, hoy_en_colombia
 
 # Tope de resultados por búsqueda: la lista completa podría tener
 # cientos de franjas, y todo lo que se devuelve viaja al modelo.
@@ -62,12 +73,6 @@ class _HorarioOfrecido:
 
 
 @dataclass
-class _ConfirmacionPendiente:
-    canal: CanalContacto
-    turno: int  # mensaje del paciente en el que se le mostró el resumen
-
-
-@dataclass
 class EstadoConversacion:
     """
     Lo que el backend recuerda de una conversación para validar las
@@ -77,13 +82,18 @@ class EstadoConversacion:
 
     turno: int = 0
     horarios_ofrecidos: dict[uuid.UUID, _HorarioOfrecido] = field(default_factory=dict)
-    # disponibilidad_id -> resumen mostrado y esperando el "sí" del paciente.
-    confirmaciones_pendientes: dict[uuid.UUID, _ConfirmacionPendiente] = field(
-        default_factory=dict
-    )
+    # Acción esperando el "sí" del paciente -> turno en que se le mostró
+    # el resumen. La clave incluye todos los datos de la acción (p. ej.
+    # ("crear", horario, canal)): si el paciente cambia algo, es otra
+    # acción y hay que volver a confirmar.
+    confirmaciones_pendientes: dict[tuple, int] = field(default_factory=dict)
     # disponibilidad_id -> resumen de la cita, para no agendar dos veces
     # si el modelo repite la llamada.
     citas_creadas: dict[uuid.UUID, dict] = field(default_factory=dict)
+    # Acciones completadas, para que el chat muestre el resultado como
+    # tarjeta: ("cita_agendada" | "cita_cancelada" | "cita_reprogramada"
+    # | "asistencia_confirmada", resumen de la cita).
+    eventos: list[tuple[str, dict]] = field(default_factory=list)
 
 
 class _ErrorParaElModelo(Exception):
@@ -99,10 +109,6 @@ def _validar(modelo: type[M], args: dict, funcion: str) -> M:
         return modelo.model_validate(args)
     except ValidationError as e:
         raise _ErrorParaElModelo(f"Parámetros inválidos para {funcion}: {e.errors()[0]['msg']}")
-
-
-def _ahora_colombia() -> datetime:
-    return datetime.now(ia.ZONA_COLOMBIA).replace(tzinfo=None)
 
 
 def _normalizar(texto: str) -> str:
@@ -150,7 +156,7 @@ def _franja_para_ia(d: Disponibilidad) -> dict:
         "ciudad": d.sede.ciudad,
         "modalidad": d.modalidad.value,
         "fecha": d.fecha.isoformat(),
-        "dia": ia.DIAS_SEMANA[d.fecha.weekday()],
+        "dia": DIAS_SEMANA[d.fecha.weekday()],
         "hora": d.hora.strftime("%H:%M"),
     }
 
@@ -164,7 +170,7 @@ def _cita_para_ia(cita: Cita) -> dict:
         "numero_comprobante": cita.numero_comprobante,
         **_franja_para_ia(cita.disponibilidad),
         "recordatorio_por": cita.canal_recordatorio.value,
-        "estado": cita.estado.value,
+        "estado": citas_service.ESTADOS_VISIBLES[citas_service.estado_visible(cita)],
     }
 
 
@@ -172,7 +178,7 @@ def _futuros(horarios: list[Disponibilidad]) -> list[Disponibilidad]:
     # El repositorio filtra por fecha >= hoy, pero no descarta las horas
     # que ya pasaron hoy; el asistente no debe ofrecer una cita a las
     # 10:00 si ya son las 15:00.
-    ahora = _ahora_colombia()
+    ahora = ahora_colombia()
     return [h for h in horarios if datetime.combine(h.fecha, h.hora) > ahora]
 
 
@@ -181,6 +187,33 @@ def _registrar_ofrecidos(estado: EstadoConversacion, horarios: list[Disponibilid
         estado.horarios_ofrecidos[h.id] = _HorarioOfrecido(
             datetime.combine(h.fecha, h.hora), _franja_para_ia(h)
         )
+
+
+def _pedir_confirmacion(estado: EstadoConversacion, clave: tuple, respuesta: dict) -> dict | None:
+    """
+    Confirmación obligatoria, impuesta por el backend. Devuelve None si
+    la acción ya fue confirmada (el modelo la pide de nuevo, con los
+    mismos datos, en un mensaje posterior del paciente); si no, registra
+    la acción como pendiente y devuelve el resumen para mostrarle al
+    paciente. Así el modelo no puede ejecutar por su cuenta en el mismo
+    turno, ni saltarse el "¿confirma?".
+    """
+    turno_mostrado = estado.confirmaciones_pendientes.get(clave)
+    if turno_mostrado is not None and estado.turno > turno_mostrado:
+        del estado.confirmaciones_pendientes[clave]
+        return None
+    estado.confirmaciones_pendientes[clave] = estado.turno
+    return {"requiere_confirmacion": True, **respuesta}
+
+
+def _cita_por_numero(db: Session, paciente: Paciente, numero: str) -> Cita:
+    # Siempre entre las citas del paciente del JWT: el modelo no tiene
+    # forma de llegar a una cita de otra persona.
+    buscado = numero.strip().upper()
+    for cita in cita_repository.listar_por_paciente(db, paciente.id):
+        if (cita.numero_comprobante or "").upper() == buscado:
+            return cita
+    raise _ErrorParaElModelo(f"El paciente no tiene ninguna cita con el número {buscado}.")
 
 
 # --- Solo lectura: catálogo (HU-09, HU-10, HU-11, HU-13, HU-14) ---
@@ -240,7 +273,7 @@ def _buscar_horarios(
                 f"La {sede.nombre} queda en {sede.ciudad}, no en {ciudad}. Pregúntale al paciente cuál prefiere."
             )
 
-    if filtros.fecha is not None and filtros.fecha < ia.hoy_en_colombia():
+    if filtros.fecha is not None and filtros.fecha < hoy_en_colombia():
         raise _ErrorParaElModelo(f"La fecha {filtros.fecha.isoformat()} ya pasó.")
 
     horarios = _futuros(
@@ -278,7 +311,7 @@ def _buscar_horarios(
     return resultado
 
 
-# --- Citas del paciente autenticado (HU-16, HU-17, HU-26) ---
+# --- Citas del paciente autenticado (HU-16/17, HU-18, HU-20, HU-21, HU-26/27, HU-29) ---
 
 
 class _ConsultarCitaArgs(BaseModel):
@@ -289,25 +322,13 @@ class _ConsultarCitaArgs(BaseModel):
 
 def _consultar_cita(db: Session, paciente: Paciente, _e: EstadoConversacion, args: dict) -> dict:
     datos = _validar(_ConsultarCitaArgs, args, "consultar_cita")
-    # Siempre filtrado por el paciente del JWT: el modelo no tiene forma
-    # de pedir citas de otra persona.
-    citas = cita_repository.listar_por_paciente(db, paciente.id)
 
     if datos.numero_comprobante and datos.numero_comprobante.strip():
-        buscado = datos.numero_comprobante.strip().upper()
-        citas = [c for c in citas if (c.numero_comprobante or "").upper() == buscado]
-        if not citas:
-            raise _ErrorParaElModelo(
-                f"El paciente no tiene ninguna cita con el número {buscado}."
-            )
-    else:
-        ahora = _ahora_colombia()
-        citas = [
-            c
-            for c in citas
-            if datetime.combine(c.disponibilidad.fecha, c.disponibilidad.hora) > ahora
-        ]
+        # HU-18: el estado de una cita concreta, en cualquier estado.
+        return {"total": 1, "citas": [_cita_para_ia(_cita_por_numero(db, paciente, datos.numero_comprobante))]}
 
+    # HU-27: próximas citas activas.
+    citas = [c for c in cita_repository.listar_por_paciente(db, paciente.id) if citas_service.esta_activa(c)]
     resultado = {"total": len(citas), "citas": [_cita_para_ia(c) for c in citas[:_MAX_CITAS]]}
     if len(citas) > _MAX_CITAS:
         resultado["nota"] = f"Se muestran las {_MAX_CITAS} más próximas de {len(citas)}."
@@ -331,7 +352,6 @@ def _crear_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, arg
             "nota": "Esta cita ya había quedado agendada en esta conversación.",
         }
 
-    # --- Validaciones propias del chat, antes de tocar la base de datos ---
     ofrecido = estado.horarios_ofrecidos.get(datos.disponibilidad_id)
     if ofrecido is None:
         # Un id inventado, o copiado de otro lado: solo se agenda lo que
@@ -340,28 +360,22 @@ def _crear_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, arg
             "Ese horario no salió de ninguna búsqueda de esta conversación. "
             "Usa buscar_horarios y deja que el paciente elija."
         )
-    if ofrecido.inicio <= _ahora_colombia():
+    if ofrecido.inicio <= ahora_colombia():
         raise _ErrorParaElModelo("Ese horario ya pasó. Busca otro y ofréceselo al paciente.")
 
-    # --- Confirmación obligatoria, impuesta por el backend ---
-    # La primera llamada solo devuelve el resumen. La cita se crea
-    # únicamente si el modelo vuelve a pedirla con los mismos datos en
-    # un mensaje POSTERIOR del paciente, es decir, después de que el
-    # paciente vio el resumen y respondió. Así el modelo no puede
-    # agendar por su cuenta en el mismo turno (ni saltarse el "¿confirma?").
-    pendiente = estado.confirmaciones_pendientes.get(datos.disponibilidad_id)
-    if pendiente is None or pendiente.canal != datos.canal_recordatorio or estado.turno <= pendiente.turno:
-        estado.confirmaciones_pendientes[datos.disponibilidad_id] = _ConfirmacionPendiente(
-            datos.canal_recordatorio, estado.turno
-        )
-        return {
-            "requiere_confirmacion": True,
+    pendiente = _pedir_confirmacion(
+        estado,
+        ("crear", datos.disponibilidad_id, datos.canal_recordatorio),
+        {
             "resumen": {**ofrecido.resumen, "recordatorio_por": datos.canal_recordatorio.value},
             "instruccion": (
                 "Todavía NO está agendada. Muéstrale este resumen al paciente y pregúntale si "
                 "confirma. Solo si responde que sí, vuelve a llamar crear_cita con los mismos datos."
             ),
-        }
+        },
+    )
+    if pendiente is not None:
+        return pendiente
 
     # --- La misma lógica que POST /citas (HU-16 + HU-17) ---
     # confirmar_cita bloquea la fila y verifica que el horario siga libre.
@@ -380,8 +394,133 @@ def _crear_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, arg
 
     resumen = _cita_para_ia(cita)
     estado.citas_creadas[datos.disponibilidad_id] = resumen
-    del estado.confirmaciones_pendientes[datos.disponibilidad_id]
+    estado.eventos.append(("cita_agendada", resumen))
     return {"cita": resumen, "mensaje": "Cita agendada y comprobante generado."}
+
+
+class _NumeroArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    numero_comprobante: str = Field(min_length=1, max_length=20)
+
+
+def _confirmar_asistencia(
+    db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict
+) -> dict:
+    datos = _validar(_NumeroArgs, args, "confirmar_asistencia")
+    cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
+    try:
+        citas_service.confirmar_asistencia(db, paciente.id, cita.id)
+    except CitaNoModificableError as e:
+        raise _ErrorParaElModelo(str(e))
+
+    resumen = _cita_para_ia(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
+    estado.eventos.append(("asistencia_confirmada", resumen))
+    return {"cita": resumen, "mensaje": "Asistencia confirmada."}
+
+
+class _CancelarArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    numero_comprobante: str = Field(min_length=1, max_length=20)
+    motivo: str | None = Field(default=None, max_length=300)
+
+
+def _cancelar_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict) -> dict:
+    datos = _validar(_CancelarArgs, args, "cancelar_cita")
+    cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
+    if not citas_service.esta_activa(cita):
+        raise _ErrorParaElModelo(
+            f"Esa cita no se puede cancelar: está {_cita_para_ia(cita)['estado'].lower()}."
+        )
+
+    # HU-21, criterio 2: confirmación antes de cancelar.
+    pendiente = _pedir_confirmacion(
+        estado,
+        ("cancelar", cita.id),
+        {
+            "resumen": _cita_para_ia(cita),
+            "instruccion": (
+                "Todavía NO está cancelada. Muéstrale al paciente cuál cita se cancelaría y "
+                "pregúntale si confirma. Solo si dice que sí, vuelve a llamar cancelar_cita."
+            ),
+        },
+    )
+    if pendiente is not None:
+        return pendiente
+
+    try:
+        cancelada = citas_service.cancelar_cita(db, paciente.id, cita.id, datos.motivo)
+    except (CitaNoEncontradaError, CitaNoModificableError) as e:
+        raise _ErrorParaElModelo(str(e))
+
+    resumen = _cita_para_ia(cancelada)
+    estado.eventos.append(("cita_cancelada", resumen))
+    return {"cita": resumen, "mensaje": "Cita cancelada y cupo liberado."}
+
+
+class _ReprogramarArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    numero_comprobante: str = Field(min_length=1, max_length=20)
+    nueva_disponibilidad_id: uuid.UUID
+
+
+def _reprogramar_cita(
+    db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict
+) -> dict:
+    datos = _validar(_ReprogramarArgs, args, "reprogramar_cita")
+    cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
+    if not citas_service.esta_activa(cita):
+        raise _ErrorParaElModelo(
+            f"Esa cita no se puede reprogramar: está {_cita_para_ia(cita)['estado'].lower()}."
+        )
+
+    ofrecido = estado.horarios_ofrecidos.get(datos.nueva_disponibilidad_id)
+    if ofrecido is None:
+        raise _ErrorParaElModelo(
+            "Ese horario nuevo no salió de ninguna búsqueda de esta conversación. "
+            "Usa buscar_horarios con la misma especialidad y deja que el paciente elija."
+        )
+
+    # HU-20, criterio 4 + confirmación obligatoria antes de cambiar nada.
+    pendiente = _pedir_confirmacion(
+        estado,
+        ("reprogramar", cita.id, datos.nueva_disponibilidad_id),
+        {
+            "cita_actual": _cita_para_ia(cita),
+            "nuevo_horario": ofrecido.resumen,
+            "instruccion": (
+                "Todavía NO se ha cambiado. Muéstrale al paciente el cambio (de qué fecha y "
+                "hora a cuál) y pregúntale si confirma. Solo si dice que sí, vuelve a llamar "
+                "reprogramar_cita con los mismos datos."
+            ),
+        },
+    )
+    if pendiente is not None:
+        return pendiente
+
+    try:
+        nueva = citas_service.reprogramar_cita(
+            db, paciente.id, cita.id, datos.nueva_disponibilidad_id
+        )
+    except (
+        CitaNoEncontradaError,
+        CitaNoModificableError,
+        DisponibilidadNoEncontradaError,
+        HorarioYaNoDisponibleError,
+        ReprogramacionInvalidaError,
+    ) as e:
+        raise _ErrorParaElModelo(f"{e} Busca otro horario y ofréceselo al paciente.")
+    nueva = comprobante_service.generar_comprobante(db, nueva)
+
+    resumen = _cita_para_ia(nueva)
+    estado.eventos.append(("cita_reprogramada", resumen))
+    return {
+        "cita": resumen,
+        "cita_anterior": datos.numero_comprobante.upper(),
+        "mensaje": "Cita reprogramada: la nueva cita tiene su propio comprobante.",
+    }
 
 
 _Manejador = Callable[[Session, Paciente, EstadoConversacion, dict], dict]
@@ -392,6 +531,9 @@ _MANEJADORES: dict[str, _Manejador] = {
     "buscar_horarios": _buscar_horarios,
     "consultar_cita": _consultar_cita,
     "crear_cita": _crear_cita,
+    "confirmar_asistencia": _confirmar_asistencia,
+    "cancelar_cita": _cancelar_cita,
+    "reprogramar_cita": _reprogramar_cita,
 }
 
 

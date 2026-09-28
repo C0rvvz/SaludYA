@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expire_minutes: int = 60
 
+    # --- Recordatorios de cita (HU-22) ---
+    # SUPUESTO: "anticipación suficiente" no está definida en ninguna
+    # fuente; 24 horas es lo habitual en citas médicas. Cambiable sin
+    # tocar código.
+    recordatorios_activos: bool = True
+    recordatorio_anticipacion_horas: int = 24
+    recordatorio_intervalo_segundos: int = 300
+    recordatorio_max_intentos: int = 3
+    # Enlace que va en el recordatorio para confirmar la asistencia (HU-23).
+    frontend_url: str = "http://localhost:5173"
+
     # --- Asistente conversacional con IA (HU-33) ---
     # Cualquier proveedor compatible con la API de OpenAI: el paquete
     # "openai" solo necesita la URL base, la llave y el modelo.

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Logo from "../components/Logo";
 import AsistenteChat from "../components/AsistenteChat";
+import EncabezadoPaciente from "../components/EncabezadoPaciente";
 import { listarEspecialidades, listarSedes, buscarDisponibilidad } from "../api/catalogo";
 import { confirmarCita } from "../api/citas";
 import { ApiError } from "../api/client";
@@ -59,7 +60,7 @@ function agruparPorDia(franjas) {
 }
 
 export default function PanelPage() {
-  const { paciente, cerrarSesion } = useAuth();
+  const { paciente } = useAuth();
 
   const [paso, setPaso] = useState("buscar"); // buscar | horarios | confirmar | comprobante
 
@@ -189,17 +190,7 @@ export default function PanelPage() {
 
   return (
     <div>
-      <header className="site-header">
-        <Logo />
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--color-ink-soft)" }}>
-            Hola, {paciente?.nombre?.split(" ")[0]}
-          </span>
-          <button className="btn btn--outline" onClick={cerrarSesion}>
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
+      <EncabezadoPaciente />
 
       <div className="section">
         {paso === "buscar" && (
@@ -546,13 +537,16 @@ export default function PanelPage() {
               Conserve el número de comprobante. Podría necesitarlo más adelante.
             </p>
 
-            <button
-              className="btn btn--primary"
-              onClick={agendarOtraCita}
-              style={{ marginTop: "1rem" }}
+            <div
+              style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap", marginTop: "1rem" }}
             >
-              Agendar otra cita
-            </button>
+              <Link to="/mis-citas" className="btn btn--primary">
+                Ver mis citas
+              </Link>
+              <button className="btn btn--outline" onClick={agendarOtraCita}>
+                Agendar otra cita
+              </button>
+            </div>
             </div>
           </div>
         )}

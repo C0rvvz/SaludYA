@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import get_current_paciente
 from app.models.paciente import Paciente
-from app.schemas.chat import ChatRequest, ChatResponse, CitaAgendadaOut, MensajeHistorialOut
+from app.schemas.chat import ChatRequest, ChatResponse, CitaChatOut, MensajeHistorialOut
 from app.services import chatbot
 from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError
 
@@ -38,11 +38,12 @@ def conversar(
 
     if resultado.urgencia:
         return ChatResponse(respuesta=resultado.texto, tipo="urgencia")
-    if resultado.citas_agendadas:
+    if resultado.eventos:
+        # Una sola acción de escritura por mensaje (ver chatbot.py): el
+        # último evento es el resultado de este mensaje.
+        tipo, cita = resultado.eventos[-1]
         return ChatResponse(
-            respuesta=resultado.texto,
-            tipo="cita_agendada",
-            cita=CitaAgendadaOut.model_validate(resultado.citas_agendadas[-1]),
+            respuesta=resultado.texto, tipo=tipo, cita=CitaChatOut.model_validate(cita)
         )
     return ChatResponse(respuesta=resultado.texto, tipo="mensaje")
 

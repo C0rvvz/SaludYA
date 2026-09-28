@@ -60,6 +60,17 @@ class CitaNoEncontradaError(Exception):
     """
 
 
+class CitaNoModificableError(Exception):
+    """La acción no aplica al estado actual de la cita: ya fue cancelada o
+    reprogramada, ya pasó, o la asistencia ya estaba confirmada (HU-20,
+    HU-21, HU-29)."""
+
+
+class ReprogramacionInvalidaError(Exception):
+    """El horario nuevo no sirve para reprogramar esa cita: es de otra
+    especialidad o es el mismo horario actual (HU-20)."""
+
+
 class AsistenteNoDisponibleError(Exception):
     """El asistente con IA no puede responder: falta la API key, el
     proveedor no respondió a tiempo o devolvió un error."""

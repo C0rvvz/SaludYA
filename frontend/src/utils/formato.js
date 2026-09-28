@@ -28,6 +28,38 @@ export function formatearDiaChip(fechaIso) {
   return { dia, numero: fecha.getDate() };
 }
 
+// "Martes, 29 de septiembre"
+export function formatearFechaLarga(fechaIso) {
+  const fecha = new Date(`${fechaIso}T00:00:00`);
+  const texto = new Intl.DateTimeFormat("es-CO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(fecha);
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+// "SEPT" (para el bloque de fecha de las tarjetas de "Mis citas")
+export function formatearMesCorto(fechaIso) {
+  const fecha = new Date(`${fechaIso}T00:00:00`);
+  return new Intl.DateTimeFormat("es-CO", { month: "short" })
+    .format(fecha)
+    .replace(".", "")
+    .toUpperCase();
+}
+
+// Fecha y hora de un evento (ISO con zona), p. ej. "28 sept 2026, 3:40 p. m."
+export function formatearFechaHora(fechaHoraIso) {
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(fechaHoraIso));
+}
+
 export function capitalizar(texto) {
   if (!texto) return texto;
   return texto.charAt(0).toUpperCase() + texto.slice(1);

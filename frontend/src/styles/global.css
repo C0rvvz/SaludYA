@@ -1272,3 +1272,232 @@ select:focus-visible {
 .chat-panel__entrada .btn {
   padding: 0.8rem 1.25rem;
 }
+
+/* ============ Navegación del paciente ("Agendar cita" / "Mis citas") ============ */
+.nav-paciente {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.nav-paciente__enlace {
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-pill);
+  color: var(--color-ink-soft);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nav-paciente__enlace:hover {
+  color: var(--color-primary);
+}
+
+.nav-paciente__enlace.is-active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* ============ Estados y acciones de cita (Bloque 5) ============ */
+.badge--error {
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+
+.badge--neutral {
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+}
+
+.btn--peligro {
+  background: var(--color-error);
+  color: white;
+}
+
+.btn--peligro-outline {
+  background: var(--color-surface);
+  color: var(--color-error);
+  border-color: var(--color-error-soft);
+}
+
+.btn--peligro-outline:hover:not(:disabled) {
+  border-color: var(--color-error);
+}
+
+/* ============ Mis citas (HU-26, HU-27, HU-29, HU-18, HU-20, HU-21) ============ */
+.mis-citas {
+  max-width: 820px;
+}
+
+.pestanas-citas {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.pestana-cita {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pestana-cita.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+}
+
+.pestana-cita__conteo {
+  min-width: 1.6rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-soft);
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+}
+
+.lista-citas {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cita-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.cita-item:hover {
+  border-color: var(--color-primary);
+}
+
+.cita-item__principal {
+  flex: 1 1 300px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bloque-fecha {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bloque-fecha strong {
+  font-size: var(--text-lg);
+}
+
+.cita-item__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.cita-item__info strong {
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.cita-item__ver {
+  margin-left: auto;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cita-item__confirmar {
+  flex: 0 0 auto;
+}
+
+.detalle-cita {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.acciones-cita {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.panel-accion h2 {
+  font-size: var(--text-md);
+}
+
+.panel-accion--peligro {
+  border-color: var(--color-error-soft);
+}
+
+/* Línea de tiempo del estado de la cita (HU-18) */
+.linea-tiempo {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0 0 0 var(--space-3);
+  border-left: 2px solid var(--color-line);
+}
+
+.linea-tiempo li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-2);
+  color: var(--color-ink-soft);
+}
+
+.linea-tiempo li::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-3) - 7px);
+  top: 0.35rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-line);
+}
+
+.linea-tiempo li.is-actual {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.linea-tiempo li.is-actual::before {
+  background: var(--color-primary);
+}
+
+.linea-tiempo__fecha {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--color-ink-soft);
+}

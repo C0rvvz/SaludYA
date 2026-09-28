@@ -18,7 +18,7 @@ consultar ni modificar citas de otra persona aunque se lo pidan.
 """
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 import openai
@@ -27,10 +27,15 @@ from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.services.exceptions import AsistenteNoDisponibleError
+from app.utils.tiempo import DIAS_SEMANA, hoy_en_colombia
 
 logger = logging.getLogger("saludya.ia")
 
 _UUID_DESC = "Identificador tal como lo devolvió una función anterior. Nunca lo inventes."
+_NUMERO_DESC = (
+    "Número de comprobante de la cita (p. ej. SAY-1A2B3C4D), tal como lo devolvió "
+    "consultar_cita o lo dijo el paciente."
+)
 
 
 def _tool(nombre: str, descripcion: str, propiedades: dict) -> dict:
@@ -97,8 +102,9 @@ _DEFINICIONES: list[dict] = [
     # --- Lectura de datos del paciente autenticado ---
     _tool(
         "consultar_cita",
-        "Consulta las citas del paciente que está conversando. Con "
-        "numero_comprobante en null devuelve todas sus citas vigentes.",
+        "Consulta las citas del paciente que está conversando, con su estado. "
+        "Con numero_comprobante en null devuelve sus próximas citas activas; "
+        "con un número, devuelve esa cita en cualquier estado.",
         {"numero_comprobante": {"type": ["string", "null"]}},
     ),
     # --- Escritura: el backend vuelve a validar todo antes de ejecutar ---
@@ -118,47 +124,45 @@ _DEFINICIONES: list[dict] = [
         },
     ),
     _tool(
+        "confirmar_asistencia",
+        "Registra que el paciente asistirá a una de sus próximas citas (HU-29). "
+        "Úsala cuando el paciente diga que sí va a asistir a esa cita.",
+        {"numero_comprobante": {"type": "string", "description": _NUMERO_DESC}},
+    ),
+    _tool(
         "cancelar_cita",
-        "Cancela una cita del paciente. Úsala solo después de que el paciente "
-        "confirme de forma explícita cuál cita quiere cancelar.",
-        {"cita_id": {"type": "string", "description": _UUID_DESC}},
+        "Cancela una cita del paciente y libera el cupo. La primera llamada NO "
+        "cancela: devuelve un resumen para que el paciente confirme. Vuelve a "
+        "llamarla con los mismos datos solo si el paciente dice que sí.",
+        {
+            "numero_comprobante": {"type": "string", "description": _NUMERO_DESC},
+            "motivo": {
+                "type": ["string", "null"],
+                "description": "Motivo que dio el paciente, si lo dio. No insistas si no quiere darlo.",
+            },
+        },
     ),
     _tool(
         "reprogramar_cita",
-        "Mueve una cita del paciente a otro horario devuelto por buscar_horarios. "
-        "Úsala solo después de que el paciente confirme de forma explícita la "
-        "cita y el nuevo horario.",
+        "Mueve una cita del paciente a otro horario de la misma especialidad "
+        "devuelto por buscar_horarios. La primera llamada NO reprograma: "
+        "devuelve un resumen para que el paciente confirme. Vuelve a llamarla "
+        "con los mismos datos solo si el paciente dice que sí.",
         {
-            "cita_id": {"type": "string", "description": _UUID_DESC},
+            "numero_comprobante": {"type": "string", "description": _NUMERO_DESC},
             "nueva_disponibilidad_id": {"type": "string", "description": _UUID_DESC},
         },
     ),
 ]
 
 TOOLS_LECTURA = {"buscar_especialidades", "buscar_sedes", "buscar_horarios", "consultar_cita"}
-TOOLS_ESCRITURA = {"crear_cita", "cancelar_cita", "reprogramar_cita"}
+TOOLS_ESCRITURA = {"crear_cita", "confirmar_asistencia", "cancelar_cita", "reprogramar_cita"}
 
-# Cancelar (HU-21) y reprogramar (HU-20) quedan definidas pero apagadas
-# hasta que exista su lógica en citas_service: el modelo no las ve, así
-# que no le ofrece al paciente algo que todavía no se puede hacer. Para
-# activarlas basta con agregarlas aquí y conectarlas en chatbot.py.
-TOOLS_HABILITADAS = {
-    "buscar_especialidades",
-    "buscar_sedes",
-    "buscar_horarios",
-    "consultar_cita",
-    "crear_cita",
-}
+# Una función nueva se define arriba, se conecta en herramientas_ia.py y
+# se activa aquí: si no está en este conjunto, el modelo no la ve.
+TOOLS_HABILITADAS = TOOLS_LECTURA | TOOLS_ESCRITURA
 
 TOOLS: list[dict] = [t for t in _DEFINICIONES if t["function"]["name"] in TOOLS_HABILITADAS]
-
-# Colombia no tiene horario de verano: UTC-5 fijo todo el año.
-ZONA_COLOMBIA = timezone(timedelta(hours=-5), "America/Bogota")
-DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-
-
-def hoy_en_colombia() -> date:
-    return datetime.now(ZONA_COLOMBIA).date()
 
 
 def instrucciones_sistema(nombre_paciente: str) -> str:
@@ -180,8 +184,8 @@ Estás hablando con {nombre_paciente}, que ya inició sesión: su identidad est�
 Qué puedes hacer:
 - Mostrar especialidades, sedes y horarios disponibles.
 - Agendar una cita.
-- Consultar las citas del paciente.
-Cancelar o reprogramar citas todavía no está disponible por este chat; si lo piden, dilo con amabilidad.
+- Consultar las citas del paciente y su estado.
+- Confirmar la asistencia a una cita, cancelarla o reprogramarla.
 
 Cómo trabajar:
 - Para agendar necesitas especialidad, sede (o ciudad) y fecha. Pregunta solo por lo que falte, de a un dato a la vez, y no vuelvas a preguntar lo que el paciente ya dijo.
@@ -191,6 +195,9 @@ Cómo trabajar:
 - Cuando el paciente elija un horario, pregúntale por qué medio quiere el recordatorio (WhatsApp, mensaje de texto, correo o llamada) si no lo ha dicho. Luego llama crear_cita: te devolverá un resumen; muéstraselo en pocas líneas y pregunta "¿Confirma la cita?". Solo si dice que sí, vuelve a llamar crear_cita con los mismos datos.
 - Si hay un horario disponible que el paciente quiere, no le niegues la cita.
 - Si no hay cupo exactamente como lo pidió, dilo en una frase y ofrece los horarios más cercanos de la misma especialidad.
+- Para cancelar, reprogramar o confirmar asistencia, primero identifica la cita con consultar_cita. Si tiene varias, pregúntale cuál.
+- Para cancelar, puedes preguntar una sola vez el motivo (es opcional). Luego llama cancelar_cita: te devolverá un resumen; pregunta "¿Confirma que desea cancelar esta cita?" y solo si dice que sí, vuelve a llamarla con los mismos datos.
+- Para reprogramar, busca horarios de la misma especialidad con buscar_horarios y deja que el paciente elija. Luego llama reprogramar_cita: te devolverá un resumen; pregunta "¿Confirma el cambio?" y solo si dice que sí, vuelve a llamarla con los mismos datos.
 
 Límites:
 - No das diagnósticos, no interpretas síntomas y no recomiendas tratamientos ni medicamentos.

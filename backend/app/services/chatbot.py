@@ -57,9 +57,10 @@ class _Conversacion:
 @dataclass
 class RespuestaChat:
     texto: str
-    # Citas creadas en ESTE mensaje, para que el frontend las muestre
-    # como resultado dentro del chat.
-    citas_agendadas: list[dict] = field(default_factory=list)
+    # Acciones completadas en ESTE mensaje (agendar, cancelar, reprogramar,
+    # confirmar asistencia), para que el frontend muestre el resultado
+    # dentro del chat: [(tipo, resumen de la cita), ...].
+    eventos: list[tuple[str, dict]] = field(default_factory=list)
     # El mensaje activó la detección de urgencias (la IA no intervino).
     urgencia: bool = False
 
@@ -183,7 +184,7 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
 
     try:
         inicio = len(conv.mensajes)
-        citas_antes = set(conv.estado.citas_creadas)
+        eventos_antes = len(conv.estado.eventos)
         conv.estado.turno += 1
         conv.mensajes.append({"role": "user", "content": texto})
 
@@ -198,15 +199,14 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
             # confirmación, se devuelve la misma en vez de duplicarla.)
             del conv.mensajes[inicio:]
             conv.estado.confirmaciones_pendientes = {
-                k: v
-                for k, v in conv.estado.confirmaciones_pendientes.items()
-                if v.turno < conv.estado.turno
+                clave: turno
+                for clave, turno in conv.estado.confirmaciones_pendientes.items()
+                if turno < conv.estado.turno
             }
             raise
 
         _recortar(conv)
-        nuevas = [c for k, c in conv.estado.citas_creadas.items() if k not in citas_antes]
-        return RespuestaChat(texto=respuesta, citas_agendadas=nuevas)
+        return RespuestaChat(texto=respuesta, eventos=conv.estado.eventos[eventos_antes:])
     finally:
         conv.ultima_actividad = datetime.now(timezone.utc)
         conv.ocupada.release()

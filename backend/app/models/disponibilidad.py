@@ -63,4 +63,6 @@ class Disponibilidad(Base):
 
     especialista: Mapped["Especialista"] = relationship(back_populates="disponibilidad")
     sede: Mapped["Sede"] = relationship()
-    cita: Mapped["Cita | None"] = relationship(back_populates="disponibilidad")
+    # Todas las citas que tuvo esta franja: como máximo una activa, más
+    # las canceladas o reprogramadas que la ocuparon antes (HU-20/HU-21).
+    citas: Mapped[list["Cita"]] = relationship(back_populates="disponibilidad")

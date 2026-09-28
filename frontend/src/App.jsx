@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegistroPage from "./pages/RegistroPage";
 import PanelPage from "./pages/PanelPage";
+import MisCitasPage from "./pages/MisCitasPage";
 
 export default function App() {
   return (
@@ -19,6 +20,14 @@ export default function App() {
             element={
               <RutaProtegida>
                 <PanelPage />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/mis-citas"
+            element={
+              <RutaProtegida>
+                <MisCitasPage />
               </RutaProtegida>
             }
           />

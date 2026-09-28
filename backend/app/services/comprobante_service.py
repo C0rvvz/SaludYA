@@ -9,19 +9,16 @@ definido: Registrar cita -> Generar certificado), pero vive en su
 propio servicio, separado de citas_service.py.
 """
 
-import logging
 import secrets
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.integrations.whatsapp.client import enviar_mensaje_whatsapp
-from app.models.cita import CanalContacto, Cita
+from app.integrations.notificaciones import enviar_por_canal
+from app.models.cita import Cita
 from app.repositories import cita_repository
 from app.services.exceptions import CitaNoEncontradaError
-
-logger = logging.getLogger("saludya.comprobante")
 
 
 def _generar_numero_comprobante() -> str:
@@ -48,15 +45,9 @@ def generar_comprobante(db: Session, cita: Cita) -> Cita:
         f"Tu comprobante de cita SaludYA ({cita.numero_comprobante}) fue generado. "
         f"Estado: CONFIRMADA."
     )
-
-    if cita.canal_recordatorio == CanalContacto.WHATSAPP:
-        enviar_mensaje_whatsapp(cita.paciente.telefono_whatsapp, mensaje)
-    else:
-        # No existe integración real de SMS/correo/llamada en el
-        # alcance del Sprint 1 (solo WhatsApp Cloud API) -- se deja
-        # igual de simulado que el resto del proyecto, documentado
-        # como tal, no oculto.
-        logger.info("[ENVÍO SIMULADO - %s] %s", cita.canal_recordatorio.value, mensaje)
+    # SMS/correo/llamada siguen simulados (solo existe integración real
+    # con WhatsApp Cloud API): ver integrations/notificaciones.py.
+    enviar_por_canal(cita.paciente, cita.canal_recordatorio, mensaje)
 
     db.commit()
     db.refresh(cita)

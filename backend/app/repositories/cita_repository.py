@@ -1,10 +1,11 @@
-"""Acceso a datos de Cita — HU-16, HU-17, HU-33."""
+"""Acceso a datos de Cita — HU-16, HU-17, HU-20, HU-21, HU-22, HU-26, HU-33."""
 
 import uuid
+from datetime import date
 
 from sqlalchemy.orm import Session, contains_eager, joinedload
 
-from app.models.cita import Cita
+from app.models.cita import Cita, EstadoCita
 from app.models.disponibilidad import Disponibilidad
 from app.models.especialista import Especialista
 
@@ -31,11 +32,20 @@ def obtener_por_id(db: Session, cita_id: uuid.UUID) -> Cita | None:
     )
 
 
+def obtener_con_lock(db: Session, cita_id: uuid.UUID) -> Cita | None:
+    """
+    SELECT ... FOR UPDATE sobre la cita (sin joins: FOR UPDATE no admite
+    el lado opcional de un LEFT JOIN). Se usa al confirmar asistencia,
+    cancelar o reprogramar, para que dos acciones simultáneas sobre la
+    misma cita se apliquen una después de la otra.
+    """
+    return db.query(Cita).filter(Cita.id == cita_id).with_for_update().first()
+
+
 def listar_por_paciente(db: Session, paciente_id: uuid.UUID) -> list[Cita]:
     """
-    Todas las citas de un paciente, de la más próxima a la más lejana.
-    La usa el asistente (HU-33, "Ver mis citas"); HU-26/HU-27 pueden
-    reutilizarla cuando se implementen.
+    Todas las citas de un paciente, en cualquier estado, de la más
+    próxima a la más lejana (HU-26 "Mis citas", HU-27, HU-29, HU-33).
     """
     return (
         db.query(Cita)
@@ -48,5 +58,39 @@ def listar_por_paciente(db: Session, paciente_id: uuid.UUID) -> list[Cita]:
         )
         .filter(Cita.paciente_id == paciente_id)
         .order_by(Disponibilidad.fecha, Disponibilidad.hora)
+        .all()
+    )
+
+
+def pendientes_de_recordatorio(
+    db: Session, desde: date, hasta: date, max_intentos: int
+) -> list[Cita]:
+    """
+    HU-22: citas activas, sin recordatorio enviado, con intentos
+    disponibles y cuya fecha cae entre `desde` y `hasta` (el servicio
+    filtra luego por hora exacta).
+
+    FOR UPDATE SKIP LOCKED sobre las citas: si algún día corren varios
+    procesos de la API, cada cita la toma uno solo y nadie recibe el
+    mismo recordatorio dos veces.
+    """
+    return (
+        db.query(Cita)
+        .join(Cita.disponibilidad)
+        .options(
+            contains_eager(Cita.disponibilidad)
+            .joinedload(Disponibilidad.especialista)
+            .joinedload(Especialista.especialidad),
+            contains_eager(Cita.disponibilidad).joinedload(Disponibilidad.sede),
+            joinedload(Cita.paciente),
+        )
+        .filter(
+            Cita.estado == EstadoCita.CONFIRMADA,
+            Cita.recordatorio_enviado_en.is_(None),
+            Cita.recordatorio_intentos < max_intentos,
+            Disponibilidad.fecha >= desde,
+            Disponibilidad.fecha <= hasta,
+        )
+        .with_for_update(of=Cita, skip_locked=True)
         .all()
     )

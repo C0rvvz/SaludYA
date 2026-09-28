@@ -24,6 +24,14 @@ const CANALES = {
   llamada: "Llamada",
 };
 
+// Encabezado de la tarjeta según la acción que hizo el asistente.
+const TARJETAS = {
+  cita_agendada: { texto: "Cita confirmada", clase: "badge--success" },
+  asistencia_confirmada: { texto: "Asistencia confirmada", clase: "badge--success" },
+  cita_reprogramada: { texto: "Cita reprogramada", clase: "badge--success" },
+  cita_cancelada: { texto: "Cita cancelada", clase: "badge--error" },
+};
+
 // Respuestas rápidas según lo último que dijo el asistente: así se
 // puede tocar una opción en vez de escribirla.
 function sugerenciasPara(texto) {
@@ -44,11 +52,12 @@ function IconoChat() {
   );
 }
 
-function TarjetaCita({ cita }) {
+function TarjetaCita({ cita, tipo }) {
+  const encabezado = TARJETAS[tipo] ?? TARJETAS.cita_agendada;
   return (
     <div className="card chat-cita">
       <div className="comprobante-header">
-        <span className="badge badge--success">Cita confirmada</span>
+        <span className={`badge ${encabezado.clase}`}>{encabezado.texto}</span>
         <span className="comprobante-numero">{cita.numero_comprobante}</span>
       </div>
       <div className="summary-row">
@@ -115,12 +124,17 @@ function Mensaje({ mensaje }) {
   return (
     <>
       <div className="chat-burbuja chat-burbuja--asistente">{mensaje.texto}</div>
-      {mensaje.cita && <TarjetaCita cita={mensaje.cita} />}
+      {mensaje.cita && <TarjetaCita cita={mensaje.cita} tipo={mensaje.tipo} />}
     </>
   );
 }
 
-export default function AsistenteChat() {
+/**
+ * `onCambioCitas` (opcional): se llama cuando el asistente agenda,
+ * cancela, reprograma o confirma una cita, para que la página que lo
+ * contiene (p. ej. "Mis citas") actualice lo que muestra.
+ */
+export default function AsistenteChat({ onCambioCitas }) {
   const { paciente, cerrarSesion } = useAuth();
 
   const [abierto, setAbierto] = useState(false);
@@ -181,6 +195,7 @@ export default function AsistenteChat() {
         ...prev,
         { id: nuevoId(), rol: "asistente", texto: r.respuesta, tipo: r.tipo, cita: r.cita },
       ]);
+      if (r.cita) onCambioCitas?.();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         cerrarSesion();
