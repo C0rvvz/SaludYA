@@ -6,7 +6,7 @@ archivo .env de la raíz del proyecto) usando pydantic-settings.
 
 IMPORTANTE: en esta Parte 1 solo existen las variables necesarias para
 levantar FastAPI y conectarse a PostgreSQL. Variables futuras
-(JWT_SECRET, WHATSAPP_*, RESEND_API_KEY, OPENAI_API_KEY) se agregarán
+(JWT_SECRET, WHATSAPP_*, RESEND_API_KEY, IA_API_KEY) se agregarán
 aquí mismo cuando lleguemos a las partes que las necesiten — no se
 agregan antes para no dejar configuración "muerta" sin usar.
 """
@@ -42,6 +42,19 @@ class Settings(BaseSettings):
     # paciente. Cambiable con JWT_EXPIRE_MINUTES sin tocar código.
     jwt_secret: str
     jwt_expire_minutes: int = 60
+
+    # --- Asistente conversacional con IA (HU-33) ---
+    # Cualquier proveedor compatible con la API de OpenAI: el paquete
+    # "openai" solo necesita la URL base, la llave y el modelo.
+    #   - Gemini (plan gratuito): IA_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+    #   - OpenAI: IA_BASE_URL vacía y IA_MODELO=gpt-4o-mini
+    # La API key vive SOLO aquí, en el backend: el frontend nunca la ve.
+    # Vacía por defecto para que la API arranque aunque no esté
+    # configurada; en ese caso solo el chat responde con un error claro.
+    ia_api_key: str = ""
+    ia_base_url: str = ""
+    ia_modelo: str = "gpt-4o-mini"
+    ia_timeout_segundos: float = 30.0
 
     # --- CORS (necesario para que el frontend en localhost:5173 pueda
     # llamar a este backend en localhost:8000 -- el navegador bloquea

@@ -58,3 +58,8 @@ class CitaNoEncontradaError(Exception):
     "no existe" de "no es tuya" evita que alguien confirme, probando
     ids al azar, cuáles citas de otros pacientes sí existen).
     """
+
+
+class AsistenteNoDisponibleError(Exception):
+    """El asistente con IA no puede responder: falta la API key, OpenAI
+    no respondió a tiempo o devolvió un error."""
