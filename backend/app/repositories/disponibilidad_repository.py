@@ -10,6 +10,7 @@ import uuid
 from datetime import date, time
 
 from sqlalchemy import and_, or_
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
@@ -120,3 +121,22 @@ def buscar_disponibilidad(
         query = query.filter(Disponibilidad.hora == hora)
 
     return query.order_by(Disponibilidad.fecha, Disponibilidad.hora).all()
+
+
+def hay_franjas_despues_de(db: Session, fecha: date) -> bool:
+    """Si existe alguna franja (disponible o reservada) posterior a esa fecha."""
+    return db.query(Disponibilidad.id).filter(Disponibilidad.fecha > fecha).first() is not None
+
+
+def insertar_franjas(db: Session, filas: list[dict]) -> int:
+    """
+    Inserta franjas nuevas y omite las que ya existen (misma franja, ver
+    uq_disponibilidad_franja). Devuelve cuántas creó.
+    """
+    resultado = db.execute(
+        insert(Disponibilidad)
+        .values(filas)
+        .on_conflict_do_nothing(constraint="uq_disponibilidad_franja")
+    )
+    db.commit()
+    return resultado.rowcount
