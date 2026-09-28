@@ -1036,3 +1036,239 @@ select:focus-visible {
 .link-inline:hover {
   color: var(--color-primary-hover);
 }
+
+/* ============ Asistente conversacional (HU-33) ============
+   Letra más grande que el resto del panel y botones amplios: muchos
+   pacientes son adultos mayores. En celular el chat ocupa la pantalla
+   completa; en escritorio es una ventana en la esquina. */
+
+.chat-launcher {
+  position: fixed;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.95rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: white;
+  font-size: var(--text-md);
+  font-weight: 700;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.chat-launcher:hover {
+  background: var(--color-primary-hover);
+}
+
+.chat-launcher svg {
+  width: 26px;
+  height: 26px;
+}
+
+.chat-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+@media (min-width: 720px) {
+  .chat-panel {
+    inset: auto var(--space-3) var(--space-3) auto;
+    width: 440px;
+    height: min(700px, calc(100vh - 2 * var(--space-3)));
+    border: 1.5px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+}
+
+.chat-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary);
+}
+
+.chat-panel__header h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  color: white;
+}
+
+.chat-panel__header p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: white;
+  opacity: 0.85;
+}
+
+.chat-panel__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chat-panel__nueva {
+  padding: 0;
+  border: none;
+  background: none;
+  color: white;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.chat-panel__nueva:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.chat-panel__cerrar {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-panel__cerrar:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.chat-panel__mensajes {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.chat-burbuja {
+  max-width: 85%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.chat-burbuja--asistente {
+  align-self: flex-start;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-line);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-burbuja--paciente {
+  align-self: flex-end;
+  background: var(--color-primary);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-burbuja--escribiendo {
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+
+.chat-aviso {
+  margin: 0;
+}
+
+.chat-cita {
+  align-self: stretch;
+}
+
+.chat-urgencia {
+  align-self: stretch;
+  padding: var(--space-3);
+  border: 2px solid var(--color-error);
+  border-radius: var(--radius-md);
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.chat-urgencia__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  white-space: normal;
+}
+
+.chat-urgencia__llamar {
+  background: var(--color-error);
+  color: white;
+  text-decoration: none;
+}
+
+.chat-sugerencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.chat-sugerencia {
+  padding: 0.6rem 1rem;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-sugerencia:hover {
+  background: var(--color-primary-soft);
+}
+
+.chat-panel__entrada {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1.5px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+.chat-panel__entrada input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.8rem 1rem;
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-md);
+}
+
+.chat-panel__entrada input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.chat-panel__entrada .btn {
+  padding: 0.8rem 1.25rem;
+}

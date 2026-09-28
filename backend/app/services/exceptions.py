@@ -61,5 +61,10 @@ class CitaNoEncontradaError(Exception):
 
 
 class AsistenteNoDisponibleError(Exception):
-    """El asistente con IA no puede responder: falta la API key, OpenAI
-    no respondió a tiempo o devolvió un error."""
+    """El asistente con IA no puede responder: falta la API key, el
+    proveedor no respondió a tiempo o devolvió un error."""
+
+
+class ConversacionOcupadaError(Exception):
+    """Llegó un mensaje nuevo mientras el asistente todavía respondía el
+    anterior del mismo paciente (p. ej., doble clic o dos pestañas)."""

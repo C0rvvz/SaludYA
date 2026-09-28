@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import Logo from "../components/Logo";
+import AsistenteChat from "../components/AsistenteChat";
 import { listarEspecialidades, listarSedes, buscarDisponibilidad } from "../api/catalogo";
 import { confirmarCita } from "../api/citas";
 import { ApiError } from "../api/client";
@@ -556,6 +557,9 @@ export default function PanelPage() {
           </div>
         )}
       </div>
+
+      {/* HU-33: alternativa conversacional al flujo por pasos de arriba. */}
+      <AsistenteChat />
     </div>
   );
 }

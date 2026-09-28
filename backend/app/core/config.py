@@ -54,10 +54,18 @@ class Settings(BaseSettings):
     ia_api_key: str = ""
     ia_base_url: str = ""
     ia_modelo: str = "gpt-4o-mini"
-    # Se usa solo si el principal responde "alta demanda", límite de
+    # Modelos de respaldo, separados por coma, en orden de preferencia.
+    # Se usan solo si el anterior responde "alta demanda", límite de
     # solicitudes o no responde a tiempo. Vacío = sin respaldo.
-    ia_modelo_respaldo: str = ""
-    ia_timeout_segundos: float = 25.0
+    ia_modelos_respaldo: str = ""
+    # Las respuestas normales tardan 1-9 s. Por mensaje, se deja de
+    # probar modelos de respaldo tras 2x este valor en total.
+    ia_timeout_segundos: float = 15.0
+
+    @property
+    def ia_modelos(self) -> list[str]:
+        respaldo = [m.strip() for m in self.ia_modelos_respaldo.split(",") if m.strip()]
+        return [self.ia_modelo, *respaldo]
 
     # --- CORS (necesario para que el frontend en localhost:5173 pueda
     # llamar a este backend en localhost:8000 -- el navegador bloquea

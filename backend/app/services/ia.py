@@ -104,9 +104,10 @@ _DEFINICIONES: list[dict] = [
     # --- Escritura: el backend vuelve a validar todo antes de ejecutar ---
     _tool(
         "crear_cita",
-        "Agenda una cita en un horario devuelto por buscar_horarios. Úsala solo "
-        "después de mostrarle al paciente el horario exacto y de que lo "
-        "confirme de forma explícita.",
+        "Agenda una cita en un horario devuelto por buscar_horarios, cuando el "
+        "paciente ya eligió el horario y el medio de recordatorio. La primera "
+        "llamada NO agenda: devuelve un resumen para que el paciente confirme. "
+        "Vuelve a llamarla con los mismos datos solo si el paciente dice que sí.",
         {
             "disponibilidad_id": {"type": "string", "description": _UUID_DESC},
             "canal_recordatorio": {
@@ -184,16 +185,18 @@ Cancelar o reprogramar citas todavía no está disponible por este chat; si lo p
 
 Cómo trabajar:
 - Para agendar necesitas especialidad, sede (o ciudad) y fecha. Pregunta solo por lo que falte, de a un dato a la vez, y no vuelvas a preguntar lo que el paciente ya dijo.
-- Si el mensaje es ambiguo o no tiene que ver con citas médicas, pide que lo aclare. No adivines.
+- Si el mensaje es ambiguo, pide que lo aclare. No adivines.
+- Si el mensaje no tiene que ver con citas médicas en SaludYA (preguntas generales, tareas, chistes, etc.), no lo respondas: di que solo puede ayudar con citas médicas y pregunta en qué le puede ayudar.
 - Usa solo datos que vengan de las funciones. Nunca inventes especialidades, sedes, horarios ni identificadores.
-- Antes de agendar, muestra un resumen corto (especialidad, profesional, sede, modalidad, fecha y hora), pregunta por qué medio quiere el recordatorio (WhatsApp, mensaje de texto, correo o llamada) y espera a que el paciente confirme.
+- Cuando el paciente elija un horario, pregúntale por qué medio quiere el recordatorio (WhatsApp, mensaje de texto, correo o llamada) si no lo ha dicho. Luego llama crear_cita: te devolverá un resumen; muéstraselo en pocas líneas y pregunta "¿Confirma la cita?". Solo si dice que sí, vuelve a llamar crear_cita con los mismos datos.
 - Si hay un horario disponible que el paciente quiere, no le niegues la cita.
 - Si no hay cupo exactamente como lo pidió, dilo en una frase y ofrece los horarios más cercanos de la misma especialidad.
 
 Límites:
 - No das diagnósticos, no interpretas síntomas y no recomiendas tratamientos ni medicamentos.
+- Si el paciente cuenta síntomas, no los comentes ni los evalúes: solo pregúntale con qué especialidad quiere la cita.
 - Da solo lo que el paciente pidió. No sugieras especialidades, servicios ni trámites que no haya pedido. Si pide una especialidad que no existe, dile que no está disponible y nombra las que sí hay, sin recomendar ninguna.
-- Si el paciente describe algo que podría ser una urgencia, dile que llame a la línea de emergencias 123 o vaya al servicio de urgencias más cercano, y no intentes agendar nada.
+- Solo si el paciente describe claramente una emergencia (por ejemplo, dolor en el pecho o que no puede respirar), dile que llame a la línea de emergencias 123 o vaya al servicio de urgencias más cercano, y no intentes agendar nada.
 
 Estilo (muchos pacientes son personas mayores; que sea muy fácil de leer):
 - Trato de "usted", español sencillo, sin palabras técnicas.
@@ -214,10 +217,26 @@ def _cliente() -> OpenAI:
         # None -> API oficial de OpenAI; cualquier otra URL -> proveedor compatible.
         base_url=settings.ia_base_url or None,
         timeout=settings.ia_timeout_segundos,
-        # Un reintento por modelo para errores transitorios; si persiste,
-        # completar() pasa al modelo de respaldo en vez de insistir.
-        max_retries=1,
+        # Sin reintentos sobre el mismo modelo: ante un fallo, completar()
+        # pasa de inmediato al de respaldo. Reintentar un modelo sin cupo
+        # o colgado solo alarga la espera del paciente.
+        max_retries=0,
     )
+
+
+# Modelo -> momento hasta el que no se usa, tras responder "límite de
+# solicitudes" (429). Evita gastar una llamada, y segundos del paciente,
+# en un modelo que ya sabemos que no tiene cupo.
+_pausados: dict[str, datetime] = {}
+_PAUSA_TRAS_LIMITE = timedelta(seconds=60)
+
+
+def _modelos_en_orden() -> list[str]:
+    modelos = settings.ia_modelos
+    ahora = datetime.now(timezone.utc)
+    disponibles = [m for m in modelos if _pausados.get(m, ahora) <= ahora]
+    # Si todos están pausados, se intenta igual: peor es no responder.
+    return disponibles or modelos
 
 
 def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMessage:
@@ -234,12 +253,12 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
     if usar_tools:
         extra = {"tools": TOOLS, "tool_choice": "auto", "parallel_tool_calls": False}
 
-    modelos = [settings.ia_modelo]
-    if settings.ia_modelo_respaldo:
-        modelos.append(settings.ia_modelo_respaldo)
-
     ultimo_error: openai.OpenAIError | None = None
-    for modelo in modelos:
+    limite = datetime.now(timezone.utc) + timedelta(seconds=2 * settings.ia_timeout_segundos)
+    for modelo in _modelos_en_orden():
+        if ultimo_error is not None and datetime.now(timezone.utc) >= limite:
+            # El paciente ya esperó demasiado: mejor avisarle que seguir probando.
+            break
         try:
             respuesta = _cliente().chat.completions.create(
                 model=modelo,
@@ -248,10 +267,14 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
                 **extra,
             )
             return respuesta.choices[0].message
-        except (openai.RateLimitError, openai.InternalServerError, openai.APIConnectionError) as e:
-            # Transitorios (frecuentes en planes gratuitos): se intenta con
-            # el siguiente modelo, que tiene su propio cupo.
-            logger.warning("Modelo %s no disponible (%s); probando respaldo.", modelo, type(e).__name__)
+        except openai.RateLimitError as e:
+            _pausados[modelo] = datetime.now(timezone.utc) + _PAUSA_TRAS_LIMITE
+            logger.warning("Modelo %s sin cupo (429); en pausa %s.", modelo, _PAUSA_TRAS_LIMITE)
+            ultimo_error = e
+        except (openai.InternalServerError, openai.APIConnectionError) as e:
+            # Transitorios (alta demanda, timeout): se intenta con el
+            # siguiente modelo, que tiene su propio cupo.
+            logger.warning("Modelo %s no disponible (%s); probando el siguiente.", modelo, type(e).__name__)
             ultimo_error = e
         except openai.OpenAIError as e:
             # Llave inválida, API desactivada, petición mal formada: cambiar
