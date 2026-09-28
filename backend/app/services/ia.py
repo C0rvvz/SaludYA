@@ -17,6 +17,7 @@ siempre del JWT, nunca de lo que diga el modelo. Así la IA no puede
 consultar ni modificar citas de otra persona aunque se lo pidan.
 """
 
+import logging
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 
@@ -26,6 +27,8 @@ from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import settings
 from app.services.exceptions import AsistenteNoDisponibleError
+
+logger = logging.getLogger("saludya.ia")
 
 _UUID_DESC = "Identificador tal como lo devolvió una función anterior. Nunca lo inventes."
 
@@ -183,14 +186,21 @@ Cómo trabajar:
 - Para agendar necesitas especialidad, sede (o ciudad) y fecha. Pregunta solo por lo que falte, de a un dato a la vez, y no vuelvas a preguntar lo que el paciente ya dijo.
 - Si el mensaje es ambiguo o no tiene que ver con citas médicas, pide que lo aclare. No adivines.
 - Usa solo datos que vengan de las funciones. Nunca inventes especialidades, sedes, horarios ni identificadores.
-- Antes de agendar, muestra un resumen (especialidad, profesional, sede, modalidad, fecha y hora), pregunta por qué canal quiere el recordatorio (WhatsApp, SMS, correo o llamada) y espera a que el paciente confirme.
+- Antes de agendar, muestra un resumen corto (especialidad, profesional, sede, modalidad, fecha y hora), pregunta por qué medio quiere el recordatorio (WhatsApp, mensaje de texto, correo o llamada) y espera a que el paciente confirme.
 - Si hay un horario disponible que el paciente quiere, no le niegues la cita.
+- Si no hay cupo exactamente como lo pidió, dilo en una frase y ofrece los horarios más cercanos de la misma especialidad.
 
 Límites:
-- No das diagnósticos, no interpretas síntomas y no recomiendas tratamientos, medicamentos ni especialidades. Si el paciente describe síntomas, muéstrale las especialidades y deja que él elija.
+- No das diagnósticos, no interpretas síntomas y no recomiendas tratamientos ni medicamentos.
+- Da solo lo que el paciente pidió. No sugieras especialidades, servicios ni trámites que no haya pedido. Si pide una especialidad que no existe, dile que no está disponible y nombra las que sí hay, sin recomendar ninguna.
 - Si el paciente describe algo que podría ser una urgencia, dile que llame a la línea de emergencias 123 o vaya al servicio de urgencias más cercano, y no intentes agendar nada.
 
-Estilo: español sencillo, trato de "usted", frases cortas. Muchos pacientes son personas mayores."""
+Estilo (muchos pacientes son personas mayores; que sea muy fácil de leer):
+- Trato de "usted", español sencillo, sin palabras técnicas.
+- Mensajes cortos: máximo 4 líneas y una sola pregunta por mensaje.
+- Muestra máximo 3 opciones, numeradas (1., 2., 3.), para que el paciente pueda responder solo con el número.
+- Fechas como "martes 29 de septiembre" y horas como "10:00 a. m." o "3:00 p. m.". Nunca uses el formato 2026-09-29 ni la hora de 24 horas.
+- Solo texto plano: sin negritas, asteriscos, títulos ni emojis."""
 
 
 @lru_cache
@@ -204,9 +214,9 @@ def _cliente() -> OpenAI:
         # None -> API oficial de OpenAI; cualquier otra URL -> proveedor compatible.
         base_url=settings.ia_base_url or None,
         timeout=settings.ia_timeout_segundos,
-        # El plan gratuito de Gemini responde 503 ("alta demanda") con
-        # frecuencia; el SDK reintenta solo esos errores transitorios.
-        max_retries=2,
+        # Un reintento por modelo para errores transitorios; si persiste,
+        # completar() pasa al modelo de respaldo en vez de insistir.
+        max_retries=1,
     )
 
 
@@ -224,21 +234,37 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
     if usar_tools:
         extra = {"tools": TOOLS, "tool_choice": "auto", "parallel_tool_calls": False}
 
-    try:
-        respuesta = _cliente().chat.completions.create(
-            model=settings.ia_modelo,
-            messages=mensajes,
-            temperature=0.2,
-            **extra,
-        )
-    except openai.RateLimitError as e:
-        # Frecuente en planes gratuitos: límite de solicitudes por minuto.
+    modelos = [settings.ia_modelo]
+    if settings.ia_modelo_respaldo:
+        modelos.append(settings.ia_modelo_respaldo)
+
+    ultimo_error: openai.OpenAIError | None = None
+    for modelo in modelos:
+        try:
+            respuesta = _cliente().chat.completions.create(
+                model=modelo,
+                messages=mensajes,
+                temperature=0.2,
+                **extra,
+            )
+            return respuesta.choices[0].message
+        except (openai.RateLimitError, openai.InternalServerError, openai.APIConnectionError) as e:
+            # Transitorios (frecuentes en planes gratuitos): se intenta con
+            # el siguiente modelo, que tiene su propio cupo.
+            logger.warning("Modelo %s no disponible (%s); probando respaldo.", modelo, type(e).__name__)
+            ultimo_error = e
+        except openai.OpenAIError as e:
+            # Llave inválida, API desactivada, petición mal formada: cambiar
+            # de modelo no lo arregla.
+            logger.error("Error del proveedor de IA con %s: %s", modelo, e)
+            raise AsistenteNoDisponibleError(
+                "El asistente no está disponible en este momento. Intente de nuevo en unos minutos."
+            ) from e
+
+    if isinstance(ultimo_error, openai.RateLimitError):
         raise AsistenteNoDisponibleError(
             "El asistente está recibiendo muchas solicitudes. Intente de nuevo en un minuto."
-        ) from e
-    except openai.OpenAIError as e:
-        raise AsistenteNoDisponibleError(
-            "El asistente no está disponible en este momento. Intenta de nuevo en unos minutos."
-        ) from e
-
-    return respuesta.choices[0].message
+        ) from ultimo_error
+    raise AsistenteNoDisponibleError(
+        "El asistente no está disponible en este momento. Intente de nuevo en unos minutos."
+    ) from ultimo_error

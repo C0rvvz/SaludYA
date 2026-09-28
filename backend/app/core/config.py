@@ -54,7 +54,10 @@ class Settings(BaseSettings):
     ia_api_key: str = ""
     ia_base_url: str = ""
     ia_modelo: str = "gpt-4o-mini"
-    ia_timeout_segundos: float = 30.0
+    # Se usa solo si el principal responde "alta demanda", límite de
+    # solicitudes o no responde a tiempo. Vacío = sin respaldo.
+    ia_modelo_respaldo: str = ""
+    ia_timeout_segundos: float = 25.0
 
     # --- CORS (necesario para que el frontend en localhost:5173 pueda
     # llamar a este backend en localhost:8000 -- el navegador bloquea

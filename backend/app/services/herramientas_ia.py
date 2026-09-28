@@ -31,7 +31,9 @@ from app.services import ia
 # Tope de resultados por búsqueda: la lista completa podría tener
 # cientos de franjas, y todo lo que se devuelve viaja al modelo.
 _MAX_HORARIOS = 8
-_MAX_ALTERNATIVAS = 5
+# El asistente muestra máximo 3 opciones al paciente; más alternativas
+# solo gastarían tokens.
+_MAX_ALTERNATIVAS = 3
 
 T = TypeVar("T")
 
