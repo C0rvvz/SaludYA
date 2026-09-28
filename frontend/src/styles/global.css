@@ -1437,8 +1437,51 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.cita-item__confirmar {
-  flex: 0 0 auto;
+/* HU-30: opciones de cada cita, a la vista en la lista */
+.cita-item__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.btn--compacto {
+  padding: 0.6rem 1.1rem;
+  font-size: var(--text-sm);
+}
+
+/* HU-28: historial por mes, con filtros por resultado */
+.filtros-historial {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.filtro-historial {
+  padding: 0.5rem 1rem;
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filtro-historial.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.grupo-mes + .grupo-mes {
+  margin-top: var(--space-4);
+}
+
+.grupo-mes__titulo {
+  font-size: var(--text-md);
+  color: var(--color-ink-soft);
 }
 
 .detalle-cita {

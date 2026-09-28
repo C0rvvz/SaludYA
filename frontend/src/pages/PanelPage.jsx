@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AsistenteChat from "../components/AsistenteChat";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
@@ -66,7 +66,11 @@ export default function PanelPage() {
 
   const [especialidades, setEspecialidades] = useState([]);
   const [sedes, setSedes] = useState([]);
-  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
+  // HU-30: "Agendar de nuevo" desde "Mis citas" llega con ?especialidad=
+  // para no tener que empezar la búsqueda desde cero.
+  const [parametros] = useSearchParams();
+  const especialidadInicial = parametros.get("especialidad") ?? "";
+  const [filtros, setFiltros] = useState(() => ({ ...FILTROS_VACIOS, especialidad_id: especialidadInicial }));
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [errorBusqueda, setErrorBusqueda] = useState("");
@@ -89,8 +93,17 @@ export default function PanelPage() {
     listarSedes()
       .then(setSedes)
       .catch((err) => setErrorCatalogos(err.message));
-    // No se busca disponibilidad automáticamente al entrar: se espera
-    // a que el paciente use el botón "Buscar" (con o sin filtros).
+    // Normalmente no se busca al entrar: se espera a que el paciente use
+    // el botón "Buscar". La excepción es "Agendar de nuevo" (HU-30), que
+    // llega con la especialidad elegida y muestra sus horarios de una vez.
+    if (especialidadInicial) {
+      buscarDisponibilidad({ especialidad_id: especialidadInicial })
+        .then((resp) => {
+          setResultados(resp);
+          setYaConsulto(true);
+        })
+        .catch((err) => setErrorBusqueda(err.message));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

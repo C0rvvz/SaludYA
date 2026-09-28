@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { enviarMensaje, obtenerConversacion, reiniciarConversacion } from "../api/chat";
 import { ApiError } from "../api/client";
+import { CANALES } from "../utils/citas";
 import { formatearFecha, formatearHora, capitalizar } from "../utils/formato";
 
 /**
@@ -16,13 +17,6 @@ import { formatearFecha, formatearHora, capitalizar } from "../utils/formato";
 
 // HU-33, criterio 1: sugerencias rápidas para empezar.
 const SUGERENCIAS_INICIALES = ["Solicitar una cita", "Ver mis citas"];
-
-const CANALES = {
-  whatsapp: "WhatsApp",
-  sms: "Mensaje de texto",
-  correo: "Correo electrónico",
-  llamada: "Llamada",
-};
 
 // Encabezado de la tarjeta según la acción que hizo el asistente.
 const TARJETAS = {

@@ -175,14 +175,6 @@ def _cita_para_ia(cita: Cita) -> dict:
     }
 
 
-def _futuros(horarios: list[Disponibilidad]) -> list[Disponibilidad]:
-    # El repositorio filtra por fecha >= hoy, pero no descarta las horas
-    # que ya pasaron hoy; el asistente no debe ofrecer una cita a las
-    # 10:00 si ya son las 15:00.
-    ahora = ahora_colombia()
-    return [h for h in horarios if datetime.combine(h.fecha, h.hora) > ahora]
-
-
 def _registrar_ofrecidos(estado: EstadoConversacion, horarios: list[Disponibilidad]) -> None:
     for h in horarios:
         estado.horarios_ofrecidos[h.id] = _HorarioOfrecido(
@@ -277,15 +269,14 @@ def _buscar_horarios(
     if filtros.fecha is not None and filtros.fecha < hoy_en_colombia():
         raise _ErrorParaElModelo(f"La fecha {filtros.fecha.isoformat()} ya pasó.")
 
-    horarios = _futuros(
-        disponibilidad_repository.buscar_disponibilidad(
-            db,
-            especialidad_id=especialidad_id,
-            ciudad=ciudad,
-            sede_id=sede.id if sede else None,
-            modalidad=filtros.modalidad,
-            fecha=filtros.fecha,
-        )
+    # El repositorio ya devuelve solo franjas libres que todavía no empiezan.
+    horarios = disponibilidad_repository.buscar_disponibilidad(
+        db,
+        especialidad_id=especialidad_id,
+        ciudad=ciudad,
+        sede_id=sede.id if sede else None,
+        modalidad=filtros.modalidad,
+        fecha=filtros.fecha,
     )
     mostrados = horarios[:_MAX_HORARIOS]
     resultado = {"total": len(horarios), "horarios": [_horario_para_ia(h) for h in mostrados]}
@@ -298,8 +289,8 @@ def _buscar_horarios(
     # si hay disponibilidad en otra parte).
     hubo_otros_filtros = any([sede, ciudad, filtros.fecha, filtros.modalidad])
     if not horarios and hubo_otros_filtros:
-        alternativas = _futuros(
-            disponibilidad_repository.buscar_disponibilidad(db, especialidad_id=especialidad_id)
+        alternativas = disponibilidad_repository.buscar_disponibilidad(
+            db, especialidad_id=especialidad_id
         )[:_MAX_ALTERNATIVAS]
         mostrados = alternativas
         resultado["alternativas"] = [_horario_para_ia(h) for h in alternativas]
@@ -328,11 +319,29 @@ def _consultar_cita(db: Session, paciente: Paciente, _e: EstadoConversacion, arg
         # HU-18: el estado de una cita concreta, en cualquier estado.
         return {"total": 1, "citas": [_cita_para_ia(_cita_por_numero(db, paciente, datos.numero_comprobante))]}
 
-    # HU-27: próximas citas activas.
-    citas = [c for c in cita_repository.listar_por_paciente(db, paciente.id) if citas_service.esta_activa(c)]
+    # HU-27: próximas citas (las mismas de la pestaña "Próximas" de "Mis citas").
+    citas = [
+        c
+        for c in cita_repository.listar_por_paciente(db, paciente.id)
+        if citas_service.estado_visible(c) in citas_service.ESTADOS_ACTIVOS
+    ]
     resultado = {"total": len(citas), "citas": [_cita_para_ia(c) for c in citas[:_MAX_CITAS]]}
     if len(citas) > _MAX_CITAS:
         resultado["nota"] = f"Se muestran las {_MAX_CITAS} más próximas de {len(citas)}."
+    return resultado
+
+
+def _consultar_historial(db: Session, paciente: Paciente, _e: EstadoConversacion, _a: dict) -> dict:
+    # HU-28: anteriores, canceladas y reprogramadas, de la más reciente a
+    # la más antigua; siempre del paciente del JWT.
+    citas = [c for c in cita_repository.listar_por_paciente(db, paciente.id) if citas_service.es_del_historial(c)]
+    citas.reverse()
+    resultado = {"total": len(citas), "citas": [_cita_para_ia(c) for c in citas[:_MAX_CITAS]]}
+    if len(citas) > _MAX_CITAS:
+        resultado["nota"] = (
+            f"Se muestran las {_MAX_CITAS} más recientes de {len(citas)}. "
+            "El historial completo está en 'Mis citas' > 'Historial'."
+        )
     return resultado
 
 
@@ -550,6 +559,7 @@ _MANEJADORES: dict[str, _Manejador] = {
     "buscar_sedes": _buscar_sedes,
     "buscar_horarios": _buscar_horarios,
     "consultar_cita": _consultar_cita,
+    "consultar_historial": _consultar_historial,
     "crear_cita": _crear_cita,
     "confirmar_asistencia": _confirmar_asistencia,
     "registrar_llegada": _registrar_llegada,

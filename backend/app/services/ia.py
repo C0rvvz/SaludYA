@@ -107,6 +107,13 @@ _DEFINICIONES: list[dict] = [
         "con un número, devuelve esa cita en cualquier estado.",
         {"numero_comprobante": {"type": ["string", "null"]}},
     ),
+    _tool(
+        "consultar_historial",
+        "Consulta el historial de citas anteriores del paciente (atendidas, a las "
+        "que no asistió, canceladas y reprogramadas), de la más reciente a la más "
+        "antigua. Úsala cuando pregunte por citas pasadas o atenciones que ya recibió.",
+        {},
+    ),
     # --- Escritura: el backend vuelve a validar todo antes de ejecutar ---
     _tool(
         "crear_cita",
@@ -161,7 +168,13 @@ _DEFINICIONES: list[dict] = [
     ),
 ]
 
-TOOLS_LECTURA = {"buscar_especialidades", "buscar_sedes", "buscar_horarios", "consultar_cita"}
+TOOLS_LECTURA = {
+    "buscar_especialidades",
+    "buscar_sedes",
+    "buscar_horarios",
+    "consultar_cita",
+    "consultar_historial",
+}
 TOOLS_ESCRITURA = {
     "crear_cita",
     "confirmar_asistencia",
@@ -196,7 +209,7 @@ Estás hablando con {nombre_paciente}, que ya inició sesión: su identidad est�
 Qué puedes hacer:
 - Mostrar especialidades, sedes y horarios disponibles.
 - Agendar una cita.
-- Consultar las citas del paciente y su estado.
+- Consultar las citas del paciente y su estado, y su historial de citas anteriores.
 - Confirmar la asistencia a una cita, cancelarla o reprogramarla.
 - El día de la cita, registrar que el paciente ya llegó a la sede.
 

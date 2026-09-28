@@ -156,22 +156,27 @@ def confirmar_cita(
 
 @router.get("/citas", response_model=list[MiCitaOut])
 def listar_mis_citas(
-    vista: Literal["todas", "proximas", "pendientes_confirmar"] = Query(
+    vista: Literal["todas", "proximas", "pendientes_confirmar", "historial"] = Query(
         default="todas",
         description=(
             "todas: HU-26 (el frontend las agrupa por estado) · "
             "proximas: HU-27 (citas futuras activas) · "
-            "pendientes_confirmar: HU-29 (futuras sin asistencia confirmada)"
+            "pendientes_confirmar: HU-29 (futuras sin asistencia confirmada) · "
+            "historial: HU-28 (anteriores, canceladas y reprogramadas; de la más reciente a la más antigua)"
         ),
     ),
     paciente: Paciente = Depends(get_current_paciente),
     db: Session = Depends(get_db),
 ):
+    # HU-28, criterio 4: siempre y solo las citas del paciente del JWT.
     citas = cita_repository.listar_por_paciente(db, paciente.id)
     if vista == "proximas":
-        citas = [c for c in citas if citas_service.esta_activa(c)]
+        citas = [c for c in citas if citas_service.estado_visible(c) in citas_service.ESTADOS_ACTIVOS]
     elif vista == "pendientes_confirmar":
         citas = [c for c in citas if citas_service.estado_visible(c) == "pendiente_confirmar"]
+    elif vista == "historial":
+        # HU-28, criterio 2: organizadas por fecha, lo más reciente primero.
+        citas = [c for c in citas if citas_service.es_del_historial(c)][::-1]
     return [_mi_cita_out(c) for c in citas]
 
 

@@ -2,18 +2,35 @@
 Acceso a datos de Disponibilidad — HU-10, HU-11, HU-13, HU-14.
 
 Filtra siempre por estado DISPONIBLE (HU-10, criterio 3: no mostrar
-horarios ocupados) y por fecha >= hoy (no tiene sentido ofrecer
-franjas pasadas).
+horarios ocupados) y solo franjas que todavía no empiezan (no tiene
+sentido ofrecer franjas pasadas).
 """
 
 import uuid
 from datetime import date, time
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.models.especialista import Especialista, Modalidad
 from app.models.sede import Sede
+from app.utils.tiempo import ahora_colombia
+
+
+def _todavia_no_empieza():
+    """
+    Franjas futuras, en hora de Colombia: de días siguientes, o de hoy
+    con hora posterior a la actual. (Antes se comparaba solo la fecha
+    con date.today(), que además usa la zona del servidor -- UTC --, así
+    que se ofrecían horas de hoy que ya habían pasado y, de 7 p. m. a
+    medianoche, se escondían las de esa misma noche.)
+    """
+    ahora = ahora_colombia()
+    return or_(
+        Disponibilidad.fecha > ahora.date(),
+        and_(Disponibilidad.fecha == ahora.date(), Disponibilidad.hora > ahora.time()),
+    )
 
 
 def listar_disponibilidad(
@@ -28,7 +45,7 @@ def listar_disponibilidad(
         .filter(
             Disponibilidad.especialista_id == especialista_id,
             Disponibilidad.estado == EstadoDisponibilidad.DISPONIBLE,
-            Disponibilidad.fecha >= date.today(),
+            _todavia_no_empieza(),
         )
     )
     # --- HU-13, criterio 3 / HU-14, criterio 3: la disponibilidad debe
@@ -86,7 +103,7 @@ def buscar_disponibilidad(
         )
         .filter(
             Disponibilidad.estado == EstadoDisponibilidad.DISPONIBLE,
-            Disponibilidad.fecha >= date.today(),
+            _todavia_no_empieza(),
         )
     )
     if especialidad_id is not None:

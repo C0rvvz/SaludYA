@@ -67,6 +67,15 @@ ESTADOS_VISIBLES = {
     "reprogramada": "Reprogramada",
 }
 
+# Citas que todavía van a ocurrir (o están ocurriendo); el resto forma
+# el historial del paciente (HU-28).
+ESTADOS_ACTIVOS = {"pendiente_confirmar", "asistencia_confirmada", "llegada_registrada"}
+
+
+def es_del_historial(cita: Cita) -> bool:
+    """HU-28: citas anteriores, atendidas o no, incluidas las canceladas y reprogramadas."""
+    return estado_visible(cita) not in ESTADOS_ACTIVOS
+
 
 def _ahora_utc() -> datetime:
     return datetime.now(timezone.utc)
