@@ -1,5 +1,5 @@
 """
-Servicio de citas del paciente.
+Servicio de citas.
 
 HU-16 (confirmar cita): confirmar_cita.
 HU-15 (seleccionar fecha/hora) ya queda resuelta por los endpoints de
@@ -22,10 +22,17 @@ Bloque 6 — el día de la consulta:
 - HU-24: registrar_llegada (check-in dentro de la ventana de la cita).
 - HU-25: cerrar_citas_pasadas (atendida / no asistió).
 
-Todas las acciones del paciente reciben el paciente autenticado y
-verifican que la cita sea suya: nunca se actúa sobre una cita solo por
-conocer su id. La única excepción es el enlace del recordatorio, que ya
-es una autorización firmada para esa cita y esa acción.
+Apartado de administración (HU-38 a HU-40, HU-43): el personal usa las
+mismas funciones con paciente_id=None (su permiso ya lo verificó el
+endpoint), y registrar_resultado corrige el cierre automático de HU-25.
+
+Cuando actúa un paciente, se verifica que la cita sea suya: nunca se
+actúa sobre una cita solo por conocer su id. La única excepción es el
+enlace del recordatorio, que ya es una autorización firmada para esa
+cita y esa acción.
+
+Toda acción recibe `actor` y queda en la auditoría (HU-80 a HU-85), en
+la misma transacción que la acción.
 """
 
 import uuid
@@ -44,6 +51,8 @@ from app.integrations.notificaciones import enviar_por_canal
 from app.models.cita import CanalContacto, Cita, EstadoCita
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.repositories import cita_repository, disponibilidad_repository
+from app.services import auditoria_service
+from app.services.auditoria_service import SISTEMA, Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
     CitaNoModificableError,
@@ -52,6 +61,7 @@ from app.services.exceptions import (
     FueraDeHorarioDeLlegadaError,
     HorarioYaNoDisponibleError,
     ReprogramacionInvalidaError,
+    ResultadoNoRegistrableError,
 )
 from app.utils.tiempo import ZONA_COLOMBIA, ahora_colombia, fecha_legible, hora_legible
 
@@ -125,6 +135,14 @@ def puede_registrar_llegada(cita: Cita) -> bool:
     )
 
 
+def puede_registrar_resultado(cita: Cita) -> bool:
+    """El personal registra o corrige el resultado cuando la cita ya empezó (HU-25, HU-43)."""
+    return (
+        cita.estado in (EstadoCita.CONFIRMADA, EstadoCita.ATENDIDA, EstadoCita.NO_ASISTIO)
+        and inicio_de(cita) <= ahora_colombia()
+    )
+
+
 def estado_visible(cita: Cita) -> str:
     """Estado como lo entiende el paciente (clave de ESTADOS_VISIBLES)."""
     if cita.estado == EstadoCita.CANCELADA:
@@ -141,6 +159,10 @@ def estado_visible(cita: Cita) -> str:
         # Ya empezó y todavía no se cierra (ver cerrar_citas_pasadas).
         return "finalizada"
     return "asistencia_confirmada" if cita.asistencia_confirmada_en else "pendiente_confirmar"
+
+
+def texto_estado(cita: Cita) -> str:
+    return ESTADOS_VISIBLES[estado_visible(cita)]
 
 
 def historial_de_estado(cita: Cita) -> list[dict]:
@@ -185,17 +207,23 @@ def _por_que_no_se_puede(cita: Cita) -> str:
     if cita.estado == EstadoCita.REPROGRAMADA:
         return "Esta cita ya fue reprogramada. Use la cita nueva."
     if cita.llegada_registrada_en:
-        return "Usted ya registró su llegada a esta cita."
+        return "El paciente ya registró su llegada a esta cita."
     return "Esta cita ya pasó."
 
 
-def _del_paciente_con_lock(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID) -> Cita:
-    # Con bloqueo de fila: si llegan dos acciones sobre la misma cita a
-    # la vez (p. ej., cancelar y reprogramar), la segunda espera y vuelve
-    # a validar el estado ya actualizado.
+def _con_lock(db: Session, cita_id: uuid.UUID, paciente_id: uuid.UUID | None) -> Cita:
+    """
+    Carga la cita con bloqueo de fila: si llegan dos acciones sobre la
+    misma cita a la vez (p. ej., cancelar y reprogramar), la segunda
+    espera y vuelve a validar el estado ya actualizado.
+
+    paciente_id: el paciente que actúa (debe ser el dueño). None cuando
+    actúa el personal, cuyo permiso ya verificó el endpoint.
+    """
     cita = cita_repository.obtener_con_lock(db, cita_id)
     # Mismo error si no existe o si es de otro paciente (ver CitaNoEncontradaError).
-    if cita is None or cita.paciente_id != paciente_id:
+    if cita is None or (paciente_id is not None and cita.paciente_id != paciente_id):
+        db.rollback()
         raise CitaNoEncontradaError("No encontramos esa cita entre sus citas.")
     return cita
 
@@ -212,6 +240,8 @@ def confirmar_cita(
     paciente_id: uuid.UUID,
     disponibilidad_id: uuid.UUID,
     canal_recordatorio: CanalContacto,
+    *,
+    actor: Actor,
 ) -> Cita:
     # --- HU-16, criterio 3: comprobar que el horario SIGA disponible ---
     # con bloqueo de fila, para que dos pacientes no puedan confirmar el
@@ -244,6 +274,11 @@ def confirmar_cita(
     db.add(cita)
 
     try:
+        db.flush()  # asigna el id de la cita para la auditoría
+        auditoria_service.registrar(
+            db, actor, "agendar", "Agendó la cita",
+            cita=cita, estado_nuevo=texto_estado(cita),
+        )
         db.commit()
     except IntegrityError:
         # Red de seguridad adicional: si dos confirmaciones llegaran
@@ -258,16 +293,23 @@ def confirmar_cita(
     return cita
 
 
-def confirmar_asistencia(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID) -> Cita:
-    """HU-29 / HU-23: el paciente confirma que asistirá."""
-    cita = _del_paciente_con_lock(db, paciente_id, cita_id)
+def confirmar_asistencia(
+    db: Session, paciente_id: uuid.UUID | None, cita_id: uuid.UUID, *, actor: Actor
+) -> Cita:
+    """HU-29 / HU-23 (el paciente) y HU-38 (el personal, p. ej. tras una llamada)."""
+    cita = _con_lock(db, cita_id, paciente_id)
     if not esta_activa(cita):
         db.rollback()
         raise CitaNoModificableError(_por_que_no_se_puede(cita))
 
     # Confirmar dos veces no es un error: queda la primera fecha.
     if cita.asistencia_confirmada_en is None:
+        antes = texto_estado(cita)
         cita.asistencia_confirmada_en = _ahora_utc()
+        auditoria_service.registrar(
+            db, actor, "confirmar_asistencia", "Confirmó la asistencia a la cita",
+            cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+        )
     db.commit()
     db.refresh(cita)
     return cita
@@ -303,20 +345,28 @@ def confirmar_asistencia_por_enlace(db: Session, token: str) -> tuple[Cita, bool
         db.rollback()
         raise CitaNoModificableError(_por_que_no_se_puede(cita))
 
+    antes = texto_estado(cita)
     cita.asistencia_confirmada_en = _ahora_utc()
+    auditoria_service.registrar(
+        db, Actor.de_paciente(cita.paciente, via="enlace del recordatorio"),
+        "confirmar_asistencia", "Confirmó la asistencia a la cita",
+        cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+    )
     db.commit()
     db.refresh(cita)
     return cita, False
 
 
-def registrar_llegada(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID) -> Cita:
+def registrar_llegada(
+    db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID, *, actor: Actor
+) -> Cita:
     """
     HU-24: el paciente se presenta a su cita (check-in).
     Criterio 1: la cita debe estar vigente. Criterio 3: solo dentro de la
     ventana de la fecha y hora de la cita. Criterio 4: queda registrada.
     Registrar la llegada también cuenta como asistencia confirmada.
     """
-    cita = _del_paciente_con_lock(db, paciente_id, cita_id)
+    cita = _con_lock(db, cita_id, paciente_id)
     if cita.estado != EstadoCita.CONFIRMADA:
         db.rollback()
         raise CitaNoModificableError(_por_que_no_se_puede(cita))
@@ -340,10 +390,15 @@ def registrar_llegada(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID) -
             "Si está en la sede, acérquese a recepción."
         )
 
+    antes = texto_estado(cita)
     ahora_utc = _ahora_utc()
     cita.llegada_registrada_en = ahora_utc
     if cita.asistencia_confirmada_en is None:
         cita.asistencia_confirmada_en = ahora_utc
+    auditoria_service.registrar(
+        db, actor, "registrar_llegada", "Registró su llegada a la sede",
+        cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+    )
     db.commit()
     db.refresh(cita)
     return cita
@@ -353,11 +408,11 @@ def cerrar_citas_pasadas(db: Session) -> tuple[int, int]:
     """
     HU-25: registra el resultado de las citas que ya ocurrieron.
 
-    SUPUESTO (mientras no exista el módulo del personal, HU-43): la cita
-    se cierra CIERRE_MINUTOS_DESPUES tras su inicio, como "atendida" si
-    el paciente registró su llegada, o "no asistió" si no. Criterio 3
-    ("la atención debe quedar registrada") y criterio 4 ("el estado de
-    la cita debe actualizarse después de la consulta").
+    La cita se cierra CIERRE_MINUTOS_DESPUES tras su inicio, como
+    "atendida" si el paciente registró su llegada, o "no asistió" si no.
+    Criterio 3 ("la atención debe quedar registrada") y criterio 4 ("el
+    estado de la cita debe actualizarse después de la consulta"). El
+    personal puede corregir el resultado con registrar_resultado.
 
     Devuelve (atendidas, no_asistio).
     """
@@ -366,6 +421,7 @@ def cerrar_citas_pasadas(db: Session) -> tuple[int, int]:
     for cita in cita_repository.por_cerrar(db, hasta_fecha=limite.date()):
         if inicio_de(cita) > limite:
             continue
+        antes = texto_estado(cita)
         cita.cerrada_en = _ahora_utc()
         if cita.llegada_registrada_en is not None:
             cita.estado = EstadoCita.ATENDIDA
@@ -373,19 +429,67 @@ def cerrar_citas_pasadas(db: Session) -> tuple[int, int]:
         else:
             cita.estado = EstadoCita.NO_ASISTIO
             inasistencias += 1
+        auditoria_service.registrar(
+            db, SISTEMA, "cerrar_cita", "Cerró la cita después de la hora de atención",
+            cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+        )
     db.commit()
     return atendidas, inasistencias
 
 
-def cancelar_cita(
-    db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID, motivo: str | None
+def registrar_resultado(
+    db: Session, cita_id: uuid.UUID, resultado: EstadoCita, *, actor: Actor
 ) -> Cita:
-    """HU-21: registrar la cita como cancelada y liberar el cupo."""
-    cita = _del_paciente_con_lock(db, paciente_id, cita_id)
+    """
+    El personal registra o corrige si el paciente fue atendido (HU-25,
+    HU-43): por ejemplo, un paciente que llegó sin registrar su llegada
+    en la aplicación y el cierre automático lo marcó "no asistió".
+    """
+    if resultado not in (EstadoCita.ATENDIDA, EstadoCita.NO_ASISTIO):
+        raise ResultadoNoRegistrableError("El resultado debe ser 'atendida' o 'no asistió'.")
+
+    cita = _con_lock(db, cita_id, None)
+    if not puede_registrar_resultado(cita):
+        db.rollback()
+        motivo = (
+            "La cita todavía no empieza."
+            if cita.estado == EstadoCita.CONFIRMADA
+            else _por_que_no_se_puede(cita)
+        )
+        raise ResultadoNoRegistrableError(motivo)
+    if cita.estado == resultado:
+        db.rollback()
+        return cita
+
+    antes = texto_estado(cita)
+    cita.estado = resultado
+    cita.cerrada_en = _ahora_utc()
+    auditoria_service.registrar(
+        db, actor, "registrar_resultado",
+        "Registró que el paciente fue atendido" if resultado == EstadoCita.ATENDIDA
+        else "Registró que el paciente no asistió",
+        cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+    )
+    db.commit()
+    db.refresh(cita)
+    return cita
+
+
+def cancelar_cita(
+    db: Session,
+    paciente_id: uuid.UUID | None,
+    cita_id: uuid.UUID,
+    motivo: str | None,
+    *,
+    actor: Actor,
+) -> Cita:
+    """HU-21 (el paciente) y HU-40 (el personal): registrar la cita como cancelada y liberar el cupo."""
+    cita = _con_lock(db, cita_id, paciente_id)
     if not esta_activa(cita):
         db.rollback()
         raise CitaNoModificableError(_por_que_no_se_puede(cita))
 
+    antes = texto_estado(cita)
     franja = disponibilidad_repository.obtener_con_lock(db, cita.disponibilidad_id)
     cita.estado = EstadoCita.CANCELADA
     cita.cancelada_en = _ahora_utc()
@@ -393,6 +497,10 @@ def cancelar_cita(
     # "...y liberar el cupo": la franja vuelve a estar disponible para
     # cualquier otro paciente.
     franja.estado = EstadoDisponibilidad.DISPONIBLE
+    auditoria_service.registrar(
+        db, actor, "cancelar", "Canceló la cita y liberó el cupo",
+        cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita), detalle=motivo or None,
+    )
     db.commit()
     db.refresh(cita)
 
@@ -407,19 +515,22 @@ def cancelar_cita(
 
 def reprogramar_cita(
     db: Session,
-    paciente_id: uuid.UUID,
+    paciente_id: uuid.UUID | None,
     cita_id: uuid.UUID,
     nueva_disponibilidad_id: uuid.UUID,
+    *,
+    actor: Actor,
 ) -> Cita:
     """
-    HU-20: mover la cita a otro horario de la misma especialidad.
+    HU-20 (el paciente) y HU-39 (el personal): mover la cita a otro
+    horario de la misma especialidad.
 
     Se reserva primero el horario nuevo y se libera el anterior en la
     MISMA transacción: si algo falla, el paciente conserva su cita
     original; nunca queda sin ninguna de las dos. Devuelve la cita
     nueva (el comprobante se genera aparte, igual que en HU-16/HU-17).
     """
-    cita = _del_paciente_con_lock(db, paciente_id, cita_id)
+    cita = _con_lock(db, cita_id, paciente_id)
     if not esta_activa(cita):
         db.rollback()
         raise CitaNoModificableError(_por_que_no_se_puede(cita))
@@ -442,16 +553,18 @@ def reprogramar_cita(
         db.rollback()
         raise ReprogramacionInvalidaError(
             f"El nuevo horario debe ser de {especialidad_actual.nombre}, "
-            "la misma especialidad de su cita."
+            "la misma especialidad de la cita."
         )
 
+    antes = texto_estado(cita)
     anterior = disponibilidad_repository.obtener_con_lock(db, cita.disponibilidad_id)
     ahora = _ahora_utc()
 
-    # 1) Reservar el horario nuevo con una cita nueva enlazada a la original.
+    # 1) Reservar el horario nuevo con una cita nueva enlazada a la original
+    #    (del mismo paciente, aunque la reprograme el personal).
     nueva.estado = EstadoDisponibilidad.RESERVADO
     cita_nueva = Cita(
-        paciente_id=paciente_id,
+        paciente_id=cita.paciente_id,
         disponibilidad_id=nueva.id,
         canal_recordatorio=cita.canal_recordatorio,
         estado=EstadoCita.CONFIRMADA,
@@ -466,6 +579,17 @@ def reprogramar_cita(
     anterior.estado = EstadoDisponibilidad.DISPONIBLE
 
     try:
+        db.flush()
+        cuando = f"{fecha_legible(nueva.fecha)} a las {hora_legible(nueva.hora)}"
+        auditoria_service.registrar(
+            db, actor, "reprogramar", f"Reprogramó la cita para el {cuando}",
+            cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+        )
+        auditoria_service.registrar(
+            db, actor, "agendar", "Agendó la cita nueva al reprogramar",
+            cita=cita_nueva, estado_nuevo=texto_estado(cita_nueva),
+            detalle=f"Reemplaza la cita {cita.numero_comprobante}",
+        )
         db.commit()
     except IntegrityError:
         db.rollback()

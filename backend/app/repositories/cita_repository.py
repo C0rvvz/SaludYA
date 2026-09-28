@@ -3,11 +3,13 @@
 import uuid
 from datetime import date
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, contains_eager, joinedload
 
 from app.models.cita import Cita, EstadoCita
 from app.models.disponibilidad import Disponibilidad
 from app.models.especialista import Especialista
+from app.models.paciente import Paciente
 
 
 def crear_cita(db: Session, cita: Cita) -> Cita:
@@ -57,6 +59,68 @@ def listar_por_paciente(db: Session, paciente_id: uuid.UUID) -> list[Cita]:
             contains_eager(Cita.disponibilidad).joinedload(Disponibilidad.sede),
         )
         .filter(Cita.paciente_id == paciente_id)
+        .order_by(Disponibilidad.fecha, Disponibilidad.hora)
+        .all()
+    )
+
+
+def _escapar_like(texto: str) -> str:
+    return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def listar_para_personal(
+    db: Session,
+    desde: date | None = None,
+    hasta: date | None = None,
+    especialidad_id: uuid.UUID | None = None,
+    texto: str | None = None,
+    limite: int = 500,
+) -> list[Cita]:
+    """
+    HU-34: citas de todos los pacientes para el personal, ordenadas por
+    fecha y hora. `texto` busca por nombre del paciente, número de
+    documento o número de comprobante.
+    """
+    query = (
+        db.query(Cita)
+        .join(Cita.disponibilidad)
+        .join(Disponibilidad.especialista)
+        .join(Cita.paciente)
+        .options(
+            contains_eager(Cita.disponibilidad)
+            .contains_eager(Disponibilidad.especialista)
+            .joinedload(Especialista.especialidad),
+            contains_eager(Cita.disponibilidad).joinedload(Disponibilidad.sede),
+            contains_eager(Cita.paciente),
+        )
+    )
+    if desde is not None:
+        query = query.filter(Disponibilidad.fecha >= desde)
+    if hasta is not None:
+        query = query.filter(Disponibilidad.fecha <= hasta)
+    if especialidad_id is not None:
+        query = query.filter(Especialista.especialidad_id == especialidad_id)
+    if texto and texto.strip():
+        patron = _escapar_like(texto.strip())
+        query = query.filter(
+            or_(
+                Paciente.nombre.ilike(f"%{patron}%", escape="\\"),
+                Paciente.numero_documento.ilike(f"{patron}%", escape="\\"),
+                Cita.numero_comprobante.ilike(f"%{patron}%", escape="\\"),
+            )
+        )
+    return query.order_by(Disponibilidad.fecha, Disponibilidad.hora).limit(limite).all()
+
+
+def listar_por_pacientes(db: Session, paciente_ids: set[uuid.UUID]) -> list[Cita]:
+    """Todas las citas de varios pacientes (historial para estimar el riesgo, HU-34/HU-35)."""
+    if not paciente_ids:
+        return []
+    return (
+        db.query(Cita)
+        .join(Cita.disponibilidad)
+        .options(contains_eager(Cita.disponibilidad))
+        .filter(Cita.paciente_id.in_(paciente_ids))
         .order_by(Disponibilidad.fecha, Disponibilidad.hora)
         .all()
     )

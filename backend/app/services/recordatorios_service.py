@@ -25,12 +25,21 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.integrations.notificaciones import enviar_por_canal
-from app.models.cita import Cita
+from app.models.cita import CanalContacto, Cita
 from app.repositories import cita_repository
-from app.services import citas_service
+from app.services import auditoria_service, citas_service
+from app.services.auditoria_service import SISTEMA, Actor
+from app.services.exceptions import CitaNoModificableError, EnvioFallidoError
 from app.utils.tiempo import ahora_colombia, fecha_legible, hora_legible
 
 logger = logging.getLogger("saludya.recordatorios")
+
+NOMBRE_CANAL = {
+    CanalContacto.WHATSAPP: "WhatsApp",
+    CanalContacto.SMS: "mensaje de texto",
+    CanalContacto.CORREO: "correo electrónico",
+    CanalContacto.LLAMADA: "llamada",
+}
 
 
 def enlace_confirmacion(cita: Cita) -> str:
@@ -62,9 +71,7 @@ def enviar_recordatorios_pendientes(db: Session) -> int:
         if not ahora < inicio <= limite:
             continue
 
-        cita.recordatorio_intentos += 1
-        if enviar_por_canal(cita.paciente, cita.canal_recordatorio, mensaje_recordatorio(cita)):
-            cita.recordatorio_enviado_en = datetime.now(timezone.utc)
+        if _enviar(db, cita, SISTEMA, "Envió el recordatorio automático"):
             enviados += 1
         else:
             logger.warning(
@@ -76,3 +83,43 @@ def enviar_recordatorios_pendientes(db: Session) -> int:
 
     db.commit()
     return enviados
+
+
+def _enviar(db: Session, cita: Cita, actor: Actor, descripcion: str) -> bool:
+    """Envía el recordatorio por el canal de la cita y deja el resultado en la auditoría."""
+    cita.recordatorio_intentos += 1
+    canal = NOMBRE_CANAL[cita.canal_recordatorio]
+    enviado = enviar_por_canal(cita.paciente, cita.canal_recordatorio, mensaje_recordatorio(cita))
+    if enviado:
+        cita.recordatorio_enviado_en = datetime.now(timezone.utc)
+    auditoria_service.registrar(
+        db,
+        actor,
+        "recordatorio" if enviado else "recordatorio_fallido",
+        f"{descripcion} por {canal}" if enviado else f"No se pudo enviar el recordatorio por {canal}",
+        cita=cita,
+    )
+    return enviado
+
+
+def enviar_recordatorio_manual(db: Session, cita_id, actor: Actor) -> Cita:
+    """
+    HU-36: el personal envía el recordatorio de una cita cuando lo
+    necesita (criterio 3: por el canal del paciente; criterio 4: queda
+    registrado). Solo para citas que todavía van a ocurrir.
+    """
+    cita = cita_repository.obtener_con_lock(db, cita_id)
+    if cita is None or not citas_service.esta_activa(cita):
+        db.rollback()
+        raise CitaNoModificableError(
+            "Solo se pueden enviar recordatorios de citas que todavía no ocurren."
+        )
+    enviado = _enviar(db, cita, actor, "Envió un recordatorio manual")
+    db.commit()
+    if not enviado:
+        raise EnvioFallidoError(
+            f"No se pudo enviar el recordatorio por {NOMBRE_CANAL[cita.canal_recordatorio]}. "
+            "Intente de nuevo o contacte al paciente por otro medio."
+        )
+    db.refresh(cita)
+    return cita

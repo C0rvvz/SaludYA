@@ -145,6 +145,9 @@ export default function HomePage() {
 
       <footer className="site-footer">
         <span>SaludYA: proyecto universitario. Datos e instituciones ficticios con fines académicos.</span>
+        <Link to="/admin/ingresar" className="link-inline">
+          Acceso para personal de la EPS o IPS
+        </Link>
         <span>© 2026 SaludYA</span>
       </footer>
     </div>

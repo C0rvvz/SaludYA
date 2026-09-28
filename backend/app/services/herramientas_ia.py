@@ -45,6 +45,7 @@ from app.repositories import (
     sede_repository,
 )
 from app.services import citas_service, comprobante_service, ia
+from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
     CitaNoModificableError,
@@ -99,6 +100,11 @@ class EstadoConversacion:
 
 class _ErrorParaElModelo(Exception):
     """Algo que el modelo debe corregir o preguntarle al paciente."""
+
+
+def _actor(paciente: Paciente) -> Actor:
+    # En la auditoría queda que la acción la pidió el paciente por el chat.
+    return Actor.de_paciente(paciente, via="asistente")
 
 
 def _error(mensaje: str) -> dict:
@@ -391,7 +397,8 @@ def _crear_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, arg
     # confirmar_cita bloquea la fila y verifica que el horario siga libre.
     try:
         cita = citas_service.confirmar_cita(
-            db, paciente.id, datos.disponibilidad_id, datos.canal_recordatorio
+            db, paciente.id, datos.disponibilidad_id, datos.canal_recordatorio,
+            actor=_actor(paciente),
         )
     except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError):
         # Libera el bloqueo de fila: la sesión sigue en uso durante el
@@ -420,7 +427,7 @@ def _confirmar_asistencia(
     datos = _validar(_NumeroArgs, args, "confirmar_asistencia")
     cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
     try:
-        citas_service.confirmar_asistencia(db, paciente.id, cita.id)
+        citas_service.confirmar_asistencia(db, paciente.id, cita.id, actor=_actor(paciente))
     except CitaNoModificableError as e:
         raise _ErrorParaElModelo(str(e))
 
@@ -435,7 +442,7 @@ def _registrar_llegada(
     datos = _validar(_NumeroArgs, args, "registrar_llegada")
     cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
     try:
-        citas_service.registrar_llegada(db, paciente.id, cita.id)
+        citas_service.registrar_llegada(db, paciente.id, cita.id, actor=_actor(paciente))
     except (CitaNoModificableError, FueraDeHorarioDeLlegadaError) as e:
         raise _ErrorParaElModelo(str(e))
 
@@ -479,7 +486,9 @@ def _cancelar_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, 
         return pendiente
 
     try:
-        cancelada = citas_service.cancelar_cita(db, paciente.id, cita.id, datos.motivo)
+        cancelada = citas_service.cancelar_cita(
+            db, paciente.id, cita.id, datos.motivo, actor=_actor(paciente)
+        )
     except (CitaNoEncontradaError, CitaNoModificableError) as e:
         raise _ErrorParaElModelo(str(e))
 
@@ -531,7 +540,7 @@ def _reprogramar_cita(
 
     try:
         nueva = citas_service.reprogramar_cita(
-            db, paciente.id, cita.id, datos.nueva_disponibilidad_id
+            db, paciente.id, cita.id, datos.nueva_disponibilidad_id, actor=_actor(paciente)
         )
     except (
         CitaNoEncontradaError,

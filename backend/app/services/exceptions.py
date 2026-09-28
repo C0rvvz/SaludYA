@@ -80,6 +80,27 @@ class FueraDeHorarioDeLlegadaError(Exception):
     """Se intentó registrar la llegada fuera de la ventana de la cita (HU-24)."""
 
 
+class ResultadoNoRegistrableError(Exception):
+    """No se puede registrar si el paciente fue atendido: la cita todavía no
+    empieza, o fue cancelada / reprogramada."""
+
+
+class EnvioFallidoError(Exception):
+    """El mensaje al paciente no se pudo enviar por su canal."""
+
+
+class CredencialesInvalidasError(Exception):
+    """Correo o contraseña del personal incorrectos (sin decir cuál de los dos)."""
+
+
+class CuentaBloqueadaError(Exception):
+    """Demasiados intentos fallidos de inicio de sesión del personal."""
+
+
+class PersonalInvalidoError(Exception):
+    """Datos no válidos al crear o modificar una cuenta del personal."""
+
+
 class AsistenteNoDisponibleError(Exception):
     """El asistente con IA no puede responder: falta la API key, el
     proveedor no respondió a tiempo o devolvió un error."""

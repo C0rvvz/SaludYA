@@ -20,16 +20,22 @@ function extraerMensaje(payload) {
   return "Ocurrió un error inesperado.";
 }
 
+// Sesiones separadas: la del paciente y la del personal (apartado de
+// administración) nunca se mezclan; el backend rechaza el token del otro lado.
+export const TOKEN_PACIENTE = "saludya_token";
+export const TOKEN_PERSONAL = "saludya_personal_token";
+
 /**
  * Llama al backend. `auth: true` agrega el header Authorization con
- * el token guardado (lo necesitan todos los endpoints protegidos a
+ * el token del paciente (lo necesitan todos los endpoints protegidos a
  * partir de la Parte 6 del backend: /auth/paciente/me, /citas, etc.).
+ * `auth: "personal"` usa el token del personal (/admin/...).
  */
 export async function apiFetch(path, { method = "GET", body, auth = false } = {}) {
   const headers = { "Content-Type": "application/json" };
 
   if (auth) {
-    const token = localStorage.getItem("saludya_token");
+    const token = localStorage.getItem(auth === "personal" ? TOKEN_PERSONAL : TOKEN_PACIENTE);
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 

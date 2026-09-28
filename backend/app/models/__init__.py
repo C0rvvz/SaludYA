@@ -14,6 +14,9 @@ from app.models.sede import Sede
 from app.models.especialista import Especialista, especialista_sedes, especialista_modalidades
 from app.models.disponibilidad import Disponibilidad
 from app.models.cita import Cita
+from app.models.personal import Personal
+from app.models.auditoria import RegistroAuditoria
+from app.models.observacion import Observacion
 
 __all__ = [
     "Eps",
@@ -26,4 +29,7 @@ __all__ = [
     "especialista_modalidades",
     "Disponibilidad",
     "Cita",
+    "Personal",
+    "RegistroAuditoria",
+    "Observacion",
 ]

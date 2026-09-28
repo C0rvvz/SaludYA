@@ -46,6 +46,7 @@ from app.schemas.cita import (
     ReprogramarCitaRequest,
 )
 from app.services import citas_service, comprobante_service
+from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
     CitaNoModificableError,
@@ -128,7 +129,8 @@ def confirmar_cita(
 ):
     try:
         cita = citas_service.confirmar_cita(
-            db, paciente.id, datos.disponibilidad_id, datos.canal_recordatorio
+            db, paciente.id, datos.disponibilidad_id, datos.canal_recordatorio,
+            actor=Actor.de_paciente(paciente),
         )
     except DisponibilidadNoEncontradaError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -200,7 +202,9 @@ def confirmar_asistencia(
     db: Session = Depends(get_db),
 ):
     try:
-        cita = citas_service.confirmar_asistencia(db, paciente.id, cita_id)
+        cita = citas_service.confirmar_asistencia(
+            db, paciente.id, cita_id, actor=Actor.de_paciente(paciente)
+        )
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
     return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
@@ -214,7 +218,9 @@ def cancelar_cita(
     db: Session = Depends(get_db),
 ):
     try:
-        cita = citas_service.cancelar_cita(db, paciente.id, cita_id, datos.motivo)
+        cita = citas_service.cancelar_cita(
+            db, paciente.id, cita_id, datos.motivo, actor=Actor.de_paciente(paciente)
+        )
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
     return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
@@ -229,7 +235,9 @@ def reprogramar_cita(
 ):
     """Devuelve la cita NUEVA; la original queda en estado "reprogramada"."""
     try:
-        nueva = citas_service.reprogramar_cita(db, paciente.id, cita_id, datos.disponibilidad_id)
+        nueva = citas_service.reprogramar_cita(
+            db, paciente.id, cita_id, datos.disponibilidad_id, actor=Actor.de_paciente(paciente)
+        )
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
 
@@ -247,7 +255,9 @@ def registrar_llegada(
 ):
     """HU-24: el paciente se presenta a su cita (check-in)."""
     try:
-        cita = citas_service.registrar_llegada(db, paciente.id, cita_id)
+        cita = citas_service.registrar_llegada(
+            db, paciente.id, cita_id, actor=Actor.de_paciente(paciente)
+        )
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
     return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
