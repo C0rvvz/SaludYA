@@ -17,6 +17,7 @@ import AdminAuditoriaPage from "./pages/admin/AdminAuditoriaPage";
 import AdminUsuariosPage from "./pages/admin/AdminUsuariosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminReportesPage from "./pages/admin/AdminReportesPage";
+import AdminRecordatoriosPage from "./pages/admin/AdminRecordatoriosPage";
 
 export default function App() {
   return (
@@ -70,6 +71,14 @@ export default function App() {
                 element={
                   <RutaPersonal permiso="ver_reportes">
                     <AdminReportesPage />
+                  </RutaPersonal>
+                }
+              />
+              <Route
+                path="recordatorios"
+                element={
+                  <RutaPersonal permiso="gestionar_citas">
+                    <AdminRecordatoriosPage />
                   </RutaPersonal>
                 }
               />

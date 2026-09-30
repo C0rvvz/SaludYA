@@ -15,6 +15,7 @@ const ACCIONES = {
   registrar_llegada: "Registrar llegada",
   recordatorio: "Recordatorio",
   recordatorio_fallido: "Recordatorio fallido",
+  programar_recordatorio: "Programar recordatorio",
   contacto: "Llamada",
   observacion: "Observación",
   cancelar: "Cancelar",

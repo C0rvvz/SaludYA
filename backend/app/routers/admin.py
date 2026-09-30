@@ -27,6 +27,12 @@ Auditoría
 
 Dashboard y Reportes
   GET   /admin/reportes?periodo=mes       HU-44, HU-48 a HU-52, HU-68 a HU-70, HU-72 a HU-75
+
+Centro de recordatorios
+  GET   /admin/recordatorios              HU-62, HU-63, HU-67 (pacientes y sus envíos)
+  GET   /admin/recordatorios/plantillas   HU-66
+  GET   /admin/recordatorios/programados  HU-64, HU-65
+  POST  /admin/recordatorios/programados  HU-64, HU-65
 """
 
 import uuid
@@ -67,9 +73,16 @@ from app.schemas.admin import (
     RiesgoOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
+from app.schemas.recordatorios import (
+    PacienteRecordatoriosOut,
+    PlantillaOut,
+    ProgramarRecordatorioRequest,
+    RecordatorioProgramadoOut,
+)
 from app.schemas.reportes import ReporteOut
 from app.services import (
     admin_citas_service,
+    centro_recordatorios_service,
     citas_service,
     comprobante_service,
     personal_service,
@@ -87,6 +100,7 @@ from app.services.exceptions import (
     EnvioFallidoError,
     HorarioYaNoDisponibleError,
     PersonalInvalidoError,
+    ProgramacionInvalidaError,
     ReprogramacionInvalidaError,
     ResultadoNoRegistrableError,
 )
@@ -101,6 +115,7 @@ _CODIGOS = {
     ResultadoNoRegistrableError: status.HTTP_409_CONFLICT,
     ReprogramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
     PersonalInvalidoError: status.HTTP_400_BAD_REQUEST,
+    ProgramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
     EnvioFallidoError: status.HTTP_502_BAD_GATEWAY,
 }
 _ERRORES = tuple(_CODIGOS)
@@ -480,3 +495,73 @@ def reportes(
 ):
     """Dashboard (HU-44, HU-48 a HU-52) y Reportes (HU-68 a HU-70, HU-72 a HU-75) del periodo."""
     return reportes_service.reporte(db, periodo)
+
+
+# --- Centro de recordatorios (HU-62 a HU-67) ---
+
+
+def _programado_out(r) -> RecordatorioProgramadoOut:
+    return RecordatorioProgramadoOut(
+        id=r.id,
+        paciente_id=r.paciente_id,
+        paciente_nombre=r.paciente.nombre,
+        canal=r.canal,
+        plantilla=r.plantilla,
+        texto=r.texto,
+        programado_para=r.programado_para,
+        estado=r.estado,
+        enviado_en=r.enviado_en,
+        programado_por=r.personal.nombre,
+    )
+
+
+@router.get("/recordatorios", response_model=list[PacienteRecordatoriosOut])
+def centro_recordatorios(
+    _: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """HU-63 / HU-67: pacientes con su canal preferido, último envío y estado (HU-62 filtra en pantalla)."""
+    return centro_recordatorios_service.pacientes_con_recordatorios(db)
+
+
+@router.get("/recordatorios/plantillas", response_model=list[PlantillaOut])
+def plantillas_recordatorio(
+    paciente_id: uuid.UUID,
+    cita_id: uuid.UUID | None = None,
+    _: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """HU-66: las plantillas con el texto listo para ese paciente y esa cita."""
+    try:
+        return centro_recordatorios_service.plantillas(db, paciente_id, cita_id)
+    except _ERRORES as e:
+        raise _http(e)
+
+
+@router.get("/recordatorios/programados", response_model=list[RecordatorioProgramadoOut])
+def recordatorios_programados(
+    _: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    return [_programado_out(r) for r in centro_recordatorios_service.listar_programados(db)]
+
+
+@router.post(
+    "/recordatorios/programados",
+    response_model=RecordatorioProgramadoOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def programar_recordatorio(
+    datos: ProgramarRecordatorioRequest,
+    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """HU-64 (mensaje escrito) y HU-65 (llamada: canal "llamada")."""
+    try:
+        programado = centro_recordatorios_service.programar(
+            db, personal, datos.paciente_id, datos.cita_id, datos.canal,
+            datos.plantilla, datos.texto, datos.programado_para,
+        )
+    except _ERRORES as e:
+        raise _http(e)
+    return _programado_out(programado)

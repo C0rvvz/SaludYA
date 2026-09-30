@@ -109,3 +109,7 @@ class AsistenteNoDisponibleError(Exception):
 class ConversacionOcupadaError(Exception):
     """Llegó un mensaje nuevo mientras el asistente todavía respondía el
     anterior del mismo paciente (p. ej., doble clic o dos pestañas)."""
+
+
+class ProgramacionInvalidaError(Exception):
+    """Datos no válidos al programar un recordatorio (HU-64 / HU-65)."""

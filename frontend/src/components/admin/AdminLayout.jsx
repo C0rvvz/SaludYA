@@ -7,12 +7,13 @@ const SECCIONES = [
   { to: "/admin/dashboard", texto: "Dashboard", permiso: "ver_reportes" },
   { to: "/admin/reportes", texto: "Reportes", permiso: "ver_reportes" },
   { to: "/admin/citas", texto: "Gestión de citas", permiso: "ver_citas" },
+  { to: "/admin/recordatorios", texto: "Centro de recordatorios", permiso: "gestionar_citas" },
   { to: "/admin/auditoria", texto: "Auditoría", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", permiso: "gestionar_usuarios" },
 ];
 
 // Del prototipo, todavía sin construir (ver el plan de fases).
-const PROXIMAMENTE = ["Centro de recordatorios", "Lista de espera"];
+const PROXIMAMENTE = ["Lista de espera"];
 
 /** Estructura del apartado de administración: menú lateral y contenido. */
 export default function AdminLayout() {

@@ -3,6 +3,7 @@ Tareas de fondo que corren dentro de la API (ver main.py):
 
 - HU-22: enviar los recordatorios de las próximas citas.
 - HU-25: cerrar las citas que ya ocurrieron (atendida / no asistió).
+- HU-64 / HU-65: enviar los recordatorios programados que llegaron a su hora.
 - Generar otra tanda de franjas de disponibilidad cuando se acaban las
   futuras (ver disponibilidad_service.py).
 
@@ -15,7 +16,12 @@ import logging
 
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.services import citas_service, disponibilidad_service, recordatorios_service
+from app.services import (
+    centro_recordatorios_service,
+    citas_service,
+    disponibilidad_service,
+    recordatorios_service,
+)
 
 logger = logging.getLogger("saludya.tareas")
 
@@ -26,6 +32,16 @@ def _recordatorios() -> None:
         enviados = recordatorios_service.enviar_recordatorios_pendientes(db)
         if enviados:
             logger.info("Recordatorios enviados: %s", enviados)
+    finally:
+        db.close()
+
+
+def _programados() -> None:
+    db = SessionLocal()
+    try:
+        enviados = centro_recordatorios_service.enviar_programados_vencidos(db)
+        if enviados:
+            logger.info("Recordatorios programados enviados: %s", enviados)
     finally:
         db.close()
 
@@ -55,7 +71,7 @@ def _reposicion_de_disponibilidad() -> None:
 
 async def ejecutar_periodicamente() -> None:
     while True:
-        for tarea in (_recordatorios, _cierre_de_citas, _reposicion_de_disponibilidad):
+        for tarea in (_recordatorios, _programados, _cierre_de_citas, _reposicion_de_disponibilidad):
             try:
                 await asyncio.to_thread(tarea)
             except Exception:

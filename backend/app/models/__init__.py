@@ -17,6 +17,7 @@ from app.models.cita import Cita
 from app.models.personal import Personal
 from app.models.auditoria import RegistroAuditoria
 from app.models.observacion import Observacion
+from app.models.recordatorio_programado import RecordatorioProgramado
 
 __all__ = [
     "Eps",
@@ -32,4 +33,5 @@ __all__ = [
     "Personal",
     "RegistroAuditoria",
     "Observacion",
+    "RecordatorioProgramado",
 ]

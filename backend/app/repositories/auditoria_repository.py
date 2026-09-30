@@ -23,3 +23,15 @@ def listar(
     if acciones:
         query = query.filter(RegistroAuditoria.accion.in_(acciones))
     return query.order_by(RegistroAuditoria.fecha.desc()).limit(limite).all()
+
+
+def ultimos_por_paciente(db: Session, acciones: list[str]) -> dict[uuid.UUID, RegistroAuditoria]:
+    """El registro más reciente de esas acciones por cada paciente (DISTINCT ON de PostgreSQL)."""
+    filas = (
+        db.query(RegistroAuditoria)
+        .filter(RegistroAuditoria.accion.in_(acciones), RegistroAuditoria.paciente_id.isnot(None))
+        .order_by(RegistroAuditoria.paciente_id, RegistroAuditoria.fecha.desc())
+        .distinct(RegistroAuditoria.paciente_id)
+        .all()
+    )
+    return {r.paciente_id: r for r in filas}

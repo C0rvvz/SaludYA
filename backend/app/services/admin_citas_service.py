@@ -71,10 +71,14 @@ def registrar_contacto(
     """
     cita = obtener_cita(db, cita_id)
     auditoria_service.registrar(
-        db, actor, "contacto", f"Llamó al paciente: {RESULTADOS_CONTACTO[resultado]}",
-        cita=cita, detalle=nota or None,
+        db, actor, "contacto", descripcion_contacto(resultado), cita=cita, detalle=nota or None,
     )
     db.commit()
+
+
+def descripcion_contacto(resultado: str) -> str:
+    """Texto de la llamada en la auditoría; el Centro de recordatorios lo usa para saber si contestó."""
+    return f"Llamó al paciente: {RESULTADOS_CONTACTO[resultado]}"
 
 
 def agregar_observacion(

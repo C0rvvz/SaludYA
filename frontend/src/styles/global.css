@@ -1993,3 +1993,25 @@ select:focus-visible {
   margin-bottom: var(--space-2);
   font-size: var(--text-sm);
 }
+
+/* Centro de recordatorios (HU-62 a HU-67) */
+.formulario-admin {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.formulario-admin .field {
+  margin-bottom: 0;
+}
+
+.admin-titulo--seccion {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-md);
+}
+
+.celda-texto {
+  max-width: 320px;
+  font-size: var(--text-xs);
+  color: var(--color-ink-soft);
+}

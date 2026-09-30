@@ -23,3 +23,7 @@ def crear_paciente(db: Session, paciente: Paciente) -> Paciente:
     db.commit()
     db.refresh(paciente)
     return paciente
+
+
+def listar(db: Session) -> list[Paciente]:
+    return db.query(Paciente).order_by(Paciente.nombre).all()

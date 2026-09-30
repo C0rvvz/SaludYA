@@ -89,3 +89,22 @@ export function listarAuditoria(filtros = {}) {
 export function obtenerReporte(periodo) {
   return conPersonal(`/admin/reportes?periodo=${periodo}`);
 }
+
+// --- Centro de recordatorios (HU-62 a HU-67) ---
+export function listarRecordatorios() {
+  return conPersonal("/admin/recordatorios");
+}
+
+export function obtenerPlantillas(pacienteId, citaId) {
+  const params = new URLSearchParams({ paciente_id: pacienteId });
+  if (citaId) params.set("cita_id", citaId);
+  return conPersonal(`/admin/recordatorios/plantillas?${params}`);
+}
+
+export function listarProgramados() {
+  return conPersonal("/admin/recordatorios/programados");
+}
+
+export function programarRecordatorio(datos) {
+  return conPersonal("/admin/recordatorios/programados", { method: "POST", body: datos });
+}
