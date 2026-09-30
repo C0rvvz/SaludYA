@@ -1,5 +1,6 @@
 """
-Lista de espera del paciente — HU-19, HU-31 y HU-32.
+Lista de espera — HU-19, HU-31 y HU-32 (paciente) y HU-45, HU-53 a HU-61
+(personal: al final del módulo).
 
 - unirse(): el paciente pide una cita de una especialidad, con sus
   preferencias de jornada, sedes y modalidad, y el canal para avisarle.
@@ -25,7 +26,7 @@ lo rechaza).
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -40,13 +41,24 @@ from app.models.lista_espera import (
     EstadoSolicitud,
     Jornada,
     OfertaEspera,
+    PrioridadMedica,
     SolicitudEspera,
 )
 from app.models.paciente import Paciente
-from app.repositories import especialidad_repository, lista_espera_repository as repo, sede_repository
+from app.models.personal import Personal
+from app.repositories import (
+    disponibilidad_repository,
+    especialidad_repository,
+    lista_espera_repository as repo,
+    sede_repository,
+)
 from app.services import auditoria_service, citas_service, comprobante_service
 from app.services.auditoria_service import SISTEMA, Actor
-from app.services.exceptions import ListaEsperaInvalidaError
+from app.services.exceptions import (
+    DisponibilidadNoEncontradaError,
+    HorarioYaNoDisponibleError,
+    ListaEsperaInvalidaError,
+)
 from app.utils.tiempo import ZONA_COLOMBIA, ahora_colombia, fecha_legible, hora_legible
 
 logger = logging.getLogger("saludya.lista_espera")
@@ -181,29 +193,46 @@ def _oferta_vigente(db: Session, solicitud: SolicitudEspera) -> OfertaEspera:
     return oferta
 
 
-def aceptar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
-    """HU-32, criterio 2: la cita queda registrada (con su comprobante, como al agendar)."""
-    solicitud = _solicitud_del_paciente(db, paciente, solicitud_id)
-    oferta = _oferta_vigente(db, solicitud)
+def _asignar(db: Session, solicitud: SolicitudEspera, disponibilidad_id: uuid.UUID, actor: Actor) -> SolicitudEspera:
+    """
+    Registra la cita de la solicitud en ese horario, con su comprobante,
+    como al agendar (HU-32 criterio 2 / HU-59). Si tenía ofrecido otro
+    horario, ese se libera y pasa al siguiente de la lista.
+    """
     ahora = datetime.now(timezone.utc)
-    if oferta.expira_en <= ahora:
-        db.rollback()
-        raise ListaEsperaInvalidaError("El plazo para aceptar este cupo ya venció. Conserva su lugar en la lista.")
-
-    oferta.estado = EstadoOferta.ACEPTADA
-    oferta.respondida_en = ahora
+    oferta = repo.oferta_pendiente_con_lock(db, solicitud.id)
+    liberada = False
+    if oferta is not None and oferta.disponibilidad_id == disponibilidad_id:
+        oferta.estado = EstadoOferta.ACEPTADA
+        oferta.respondida_en = ahora
+        # confirmar_cita exige el horario libre y lo vuelve a reservar, ya con la cita.
+        oferta.disponibilidad.estado = EstadoDisponibilidad.DISPONIBLE
+    elif oferta is not None:
+        _liberar(oferta, EstadoOferta.RECHAZADA, ahora)
+        liberada = True
     solicitud.estado = EstadoSolicitud.ASIGNADA
     solicitud.cerrada_en = ahora
-    # confirmar_cita exige el horario libre y lo vuelve a reservar, ya con la cita.
-    oferta.disponibilidad.estado = EstadoDisponibilidad.DISPONIBLE
-    cita = citas_service.confirmar_cita(
-        db, paciente.id, oferta.disponibilidad_id, solicitud.canal,
-        actor=Actor.de_paciente(paciente, via="lista de espera"),
-    )
+    try:
+        cita = citas_service.confirmar_cita(db, solicitud.paciente_id, disponibilidad_id, solicitud.canal, actor=actor)
+    except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError):
+        db.rollback()
+        raise
     solicitud.cita_id = cita.id
     comprobante_service.generar_comprobante(db, cita)  # guarda también solicitud.cita_id
+    if liberada:
+        asignar_cupos(db)
     db.refresh(solicitud)
     return solicitud
+
+
+def aceptar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
+    """HU-32, criterio 2: la cita queda registrada."""
+    solicitud = _solicitud_del_paciente(db, paciente, solicitud_id)
+    oferta = _oferta_vigente(db, solicitud)
+    if oferta.expira_en <= datetime.now(timezone.utc):
+        db.rollback()
+        raise ListaEsperaInvalidaError("El plazo para aceptar este cupo ya venció. Conserva su lugar en la lista.")
+    return _asignar(db, solicitud, oferta.disponibilidad_id, Actor.de_paciente(paciente, via="lista de espera"))
 
 
 def rechazar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
@@ -220,8 +249,9 @@ def rechazar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solici
     return solicitud
 
 
-def salir(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
-    solicitud = _solicitud_del_paciente(db, paciente, solicitud_id)
+def _sacar_de_la_lista(
+    db: Session, solicitud: SolicitudEspera, actor: Actor, descripcion: str, detalle: str | None = None
+) -> SolicitudEspera:
     if solicitud.estado not in repo.ACTIVAS:
         db.rollback()
         raise ListaEsperaInvalidaError("Esta solicitud ya no está en la lista de espera.")
@@ -232,8 +262,7 @@ def salir(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solicitud
     solicitud.estado = EstadoSolicitud.CANCELADA
     solicitud.cerrada_en = ahora
     auditoria_service.registrar(
-        db, Actor.de_paciente(paciente), "salir_lista_espera",
-        f"Salió de la lista de espera de {solicitud.especialidad.nombre}", paciente_id=paciente.id,
+        db, actor, "salir_lista_espera", descripcion, paciente_id=solicitud.paciente_id, detalle=detalle
     )
     db.commit()
     if oferta is not None:
@@ -242,8 +271,15 @@ def salir(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solicitud
     return solicitud
 
 
+def salir(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
+    solicitud = _solicitud_del_paciente(db, paciente, solicitud_id)
+    return _sacar_de_la_lista(
+        db, solicitud, Actor.de_paciente(paciente), f"Salió de la lista de espera de {solicitud.especialidad.nombre}"
+    )
+
+
 def solicitud_out(db: Session, solicitud: SolicitudEspera, fila: list[uuid.UUID] | None = None) -> dict:
-    """Datos para el paciente, con su posición (HU-19) y el cupo ofrecido (HU-31)."""
+    """Datos de la solicitud, con su posición (HU-19) y el cupo ofrecido (HU-31)."""
     if fila is None:
         fila = repo.ids_en_orden(db, solicitud.especialidad_id)
     oferta = solicitud.oferta_vigente
@@ -275,6 +311,7 @@ def solicitud_out(db: Session, solicitud: SolicitudEspera, fila: list[uuid.UUID]
             "sede": cita.disponibilidad.sede.nombre,
             "fecha": cita.disponibilidad.fecha,
             "hora": cita.disponibilidad.hora,
+            "estado": citas_service.texto_estado(cita),
         } if cita else None,
     }
 
@@ -288,3 +325,130 @@ def mis_solicitudes(db: Session, paciente: Paciente) -> list[dict]:
             filas[solicitud.especialidad_id] = repo.ids_en_orden(db, solicitud.especialidad_id)
         salida.append(solicitud_out(db, solicitud, filas[solicitud.especialidad_id]))
     return salida
+
+
+# --- Personal: Fase D (HU-45, HU-53 a HU-61) ---
+
+NOMBRE_PRIORIDAD = {
+    PrioridadMedica.NORMAL: "Normal",
+    PrioridadMedica.ALTA: "Alta",
+    PrioridadMedica.URGENTE: "Urgente",
+}
+
+
+def para_personal(db: Session, dia: date) -> dict:
+    """
+    HU-45 / HU-53 / HU-61: las solicitudes que estuvieron en la lista ese
+    día (HU-45 criterio 3), en el orden de la lista, con el tiempo de
+    espera (HU-54: hasta hoy si sigue pendiente, o hasta que se cerró).
+    """
+    inicio = datetime.combine(dia, time.min, tzinfo=ZONA_COLOMBIA)
+    filas: dict[uuid.UUID, list[uuid.UUID]] = {}
+    salida = []
+    for s in repo.para_personal(db, inicio, inicio + timedelta(days=1)):
+        if s.especialidad_id not in filas:
+            filas[s.especialidad_id] = repo.ids_en_orden(db, s.especialidad_id)
+        salida.append(solicitud_admin_out(db, s, filas[s.especialidad_id]))
+    return {"dia": dia, "esperando_ahora": repo.cuenta_activas(db), "solicitudes": salida}
+
+
+def solicitud_admin_out(db: Session, s: SolicitudEspera, fila: list[uuid.UUID] | None = None) -> dict:
+    return {
+        **solicitud_out(db, s, fila),
+        "especialidad_id": s.especialidad_id,
+        "paciente_id": s.paciente_id,
+        "paciente_nombre": s.paciente.nombre,
+        "numero_documento": s.paciente.numero_documento,
+        "telefono_whatsapp": s.paciente.telefono_whatsapp,
+        "prioridad": s.prioridad,
+        "cerrada_en": s.cerrada_en,
+        "minutos_espera": int(((s.cerrada_en or datetime.now(timezone.utc)) - s.creado_en).total_seconds() // 60),
+    }
+
+
+def _solicitud_con_lock(db: Session, solicitud_id: uuid.UUID) -> SolicitudEspera:
+    solicitud = repo.obtener_con_lock(db, solicitud_id)
+    if solicitud is None:
+        raise ListaEsperaInvalidaError("No existe esa solicitud de lista de espera.")
+    return solicitud
+
+
+def horarios_para(db: Session, solicitud_id: uuid.UUID) -> list[dict]:
+    """HU-55 criterio 1 / HU-59: el cupo ya ofrecido (si lo hay) y los horarios libres que se ajustan a la solicitud."""
+    solicitud = repo.obtener(db, solicitud_id)
+    if solicitud is None:
+        raise ListaEsperaInvalidaError("No existe esa solicitud de lista de espera.")
+    if solicitud.estado not in repo.ACTIVAS:
+        return []
+    oferta = solicitud.oferta_vigente
+    franjas = ([oferta.disponibilidad] if oferta else []) + repo.franjas_compatibles(db, solicitud, ahora_colombia())
+    return [
+        {
+            "id": f.id,
+            "fecha": f.fecha,
+            "hora": f.hora,
+            "especialista": f.especialista.nombre,
+            "sede": f.sede.nombre,
+            "modalidad": f.modalidad,
+            "ofrecido": oferta is not None and f.id == oferta.disponibilidad_id,
+        }
+        for f in franjas
+    ]
+
+
+def confirmar_por_personal(
+    db: Session, personal: Personal, solicitud_id: uuid.UUID, disponibilidad_id: uuid.UUID
+) -> SolicitudEspera:
+    """HU-59: el personal le confirma al paciente una cita en ese horario (p. ej. tras llamarlo)."""
+    solicitud = _solicitud_con_lock(db, solicitud_id)
+    if solicitud.estado not in repo.ACTIVAS:
+        db.rollback()
+        raise ListaEsperaInvalidaError("Esta solicitud ya no está en la lista de espera.")
+    franja = disponibilidad_repository.obtener_por_id(db, disponibilidad_id)
+    if franja is None or franja.especialista.especialidad_id != solicitud.especialidad_id:
+        db.rollback()
+        raise ListaEsperaInvalidaError(f"Ese horario no es de {solicitud.especialidad.nombre}.")
+    return _asignar(db, solicitud, disponibilidad_id, Actor.de_personal(personal))
+
+
+def cancelar_por_personal(
+    db: Session, personal: Personal, solicitud_id: uuid.UUID, motivo: str | None
+) -> SolicitudEspera:
+    """
+    HU-60: si el paciente sigue esperando, sale de la lista; si ya se le
+    asignó la cita, se cancela esa cita (y su horario se ofrece a la lista).
+    """
+    solicitud = _solicitud_con_lock(db, solicitud_id)
+    actor = Actor.de_personal(personal)
+    if solicitud.estado in repo.ACTIVAS:
+        return _sacar_de_la_lista(
+            db, solicitud, actor, f"Sacó al paciente de la lista de espera de {solicitud.especialidad.nombre}",
+            detalle=motivo,
+        )
+    if solicitud.estado == EstadoSolicitud.ASIGNADA and solicitud.cita and citas_service.esta_activa(solicitud.cita):
+        citas_service.cancelar_cita(db, None, solicitud.cita_id, motivo, actor=actor)
+        db.refresh(solicitud)
+        return solicitud
+    db.rollback()
+    raise ListaEsperaInvalidaError("No hay nada que cancelar: la solicitud ya se cerró y su cita ya no está vigente.")
+
+
+def cambiar_prioridad(
+    db: Session, personal: Personal, solicitud_id: uuid.UUID, prioridad: PrioridadMedica
+) -> SolicitudEspera:
+    """HU-56: la prioridad médica la define el personal; cambia la posición en la lista."""
+    solicitud = _solicitud_con_lock(db, solicitud_id)
+    if solicitud.estado not in repo.ACTIVAS:
+        db.rollback()
+        raise ListaEsperaInvalidaError("Solo se puede cambiar la prioridad de quien sigue en la lista.")
+    if solicitud.prioridad != prioridad:
+        antes = NOMBRE_PRIORIDAD[solicitud.prioridad]
+        solicitud.prioridad = prioridad
+        auditoria_service.registrar(
+            db, Actor.de_personal(personal), "prioridad_lista_espera",
+            f"Cambió la prioridad médica en la lista de espera de {solicitud.especialidad.nombre}",
+            paciente_id=solicitud.paciente_id, estado_anterior=antes, estado_nuevo=NOMBRE_PRIORIDAD[prioridad],
+        )
+    db.commit()
+    db.refresh(solicitud)
+    return solicitud

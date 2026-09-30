@@ -1,10 +1,10 @@
-"""Acceso a datos de la lista de espera — HU-19, HU-31, HU-32."""
+"""Acceso a datos de la lista de espera — HU-19, HU-31, HU-32 (paciente) y HU-45, HU-53 a HU-61 (personal)."""
 
 import uuid
 from datetime import datetime, time
 
 from sqlalchemy import and_, case, exists, or_
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.models.especialista import Especialista
@@ -27,6 +27,10 @@ _ORDEN_PRIORIDAD = case(
 ORDEN = (_ORDEN_PRIORIDAD, SolicitudEspera.creado_en)
 
 MEDIODIA = time(12, 0)  # HU-55: "mañana" es antes del mediodía
+
+
+def obtener(db: Session, solicitud_id: uuid.UUID) -> SolicitudEspera | None:
+    return db.get(SolicitudEspera, solicitud_id)
 
 
 def obtener_con_lock(db: Session, solicitud_id: uuid.UUID) -> SolicitudEspera | None:
@@ -78,16 +82,12 @@ def en_espera_para_ofrecer(db: Session) -> list[SolicitudEspera]:
     )
 
 
-def primera_franja_compatible(db: Session, solicitud: SolicitudEspera, desde: datetime) -> Disponibilidad | None:
+def _compatibles(db: Session, solicitud: SolicitudEspera, desde: datetime):
     """
-    HU-31, criterio 2: el primer horario libre que coincide con la
-    solicitud (especialidad, sedes, jornada y modalidad), que empieza
-    después de `desde` (hora de Colombia) y que no se le haya ofrecido antes.
+    HU-31 criterio 2 / HU-55 criterio 1: horarios libres que coinciden con
+    la solicitud (especialidad, sedes, jornada y modalidad) y que empiezan
+    después de `desde` (hora de Colombia), del más próximo al más lejano.
     """
-    ya_ofrecida = exists().where(
-        OfertaEspera.solicitud_id == solicitud.id,
-        OfertaEspera.disponibilidad_id == Disponibilidad.id,
-    )
     query = (
         db.query(Disponibilidad)
         .join(Disponibilidad.especialista)
@@ -99,7 +99,6 @@ def primera_franja_compatible(db: Session, solicitud: SolicitudEspera, desde: da
                 Disponibilidad.fecha > desde.date(),
                 and_(Disponibilidad.fecha == desde.date(), Disponibilidad.hora > desde.time()),
             ),
-            ~ya_ofrecida,
         )
     )
     if solicitud.modalidad is not None:
@@ -108,11 +107,50 @@ def primera_franja_compatible(db: Session, solicitud: SolicitudEspera, desde: da
         query = query.filter(Disponibilidad.hora < MEDIODIA)
     elif solicitud.jornada == Jornada.TARDE:
         query = query.filter(Disponibilidad.hora >= MEDIODIA)
+    return query.order_by(Disponibilidad.fecha, Disponibilidad.hora)
+
+
+def primera_franja_compatible(db: Session, solicitud: SolicitudEspera, desde: datetime) -> Disponibilidad | None:
+    """La primera compatible que no se le haya ofrecido antes (bloqueada para ofrecerla)."""
+    ya_ofrecida = exists().where(
+        OfertaEspera.solicitud_id == solicitud.id,
+        OfertaEspera.disponibilidad_id == Disponibilidad.id,
+    )
     return (
-        query.order_by(Disponibilidad.fecha, Disponibilidad.hora)
+        _compatibles(db, solicitud, desde)
+        .filter(~ya_ofrecida)
         .with_for_update(of=Disponibilidad, skip_locked=True)
         .first()
     )
+
+
+def franjas_compatibles(db: Session, solicitud: SolicitudEspera, desde: datetime, limite: int = 30) -> list[Disponibilidad]:
+    """HU-59: opciones para que el personal confirme la cita (incluye las que el paciente ya rechazó)."""
+    return _compatibles(db, solicitud, desde).limit(limite).all()
+
+
+def para_personal(db: Session, desde: datetime, hasta: datetime) -> list[SolicitudEspera]:
+    """HU-45 / HU-53: las que estuvieron en la lista en ese rango (creadas antes del fin y no cerradas antes del inicio)."""
+    return (
+        db.query(SolicitudEspera)
+        .options(
+            joinedload(SolicitudEspera.paciente),
+            joinedload(SolicitudEspera.especialidad),
+            selectinload(SolicitudEspera.sedes),
+            selectinload(SolicitudEspera.ofertas).joinedload(OfertaEspera.disponibilidad),
+        )
+        .filter(
+            SolicitudEspera.creado_en < hasta,
+            or_(SolicitudEspera.cerrada_en.is_(None), SolicitudEspera.cerrada_en >= desde),
+        )
+        .order_by(*ORDEN)
+        .all()
+    )
+
+
+def cuenta_activas(db: Session) -> int:
+    """HU-52: pacientes que esperan cupo en este momento."""
+    return db.query(SolicitudEspera).filter(SolicitudEspera.estado.in_(ACTIVAS)).count()
 
 
 def ofertas_vencidas(db: Session, ahora: datetime) -> list[OfertaEspera]:

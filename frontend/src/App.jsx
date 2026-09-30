@@ -19,6 +19,7 @@ import AdminUsuariosPage from "./pages/admin/AdminUsuariosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminReportesPage from "./pages/admin/AdminReportesPage";
 import AdminRecordatoriosPage from "./pages/admin/AdminRecordatoriosPage";
+import AdminListaEsperaPage from "./pages/admin/AdminListaEsperaPage";
 
 export default function App() {
   return (
@@ -88,6 +89,14 @@ export default function App() {
                 element={
                   <RutaPersonal permiso="gestionar_citas">
                     <AdminRecordatoriosPage />
+                  </RutaPersonal>
+                }
+              />
+              <Route
+                path="lista-espera"
+                element={
+                  <RutaPersonal permiso="ver_citas">
+                    <AdminListaEsperaPage />
                   </RutaPersonal>
                 }
               />

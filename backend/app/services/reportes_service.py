@@ -34,7 +34,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.cita import CanalContacto, Cita, EstadoCita
-from app.repositories import cita_repository, especialidad_repository
+from app.repositories import cita_repository, especialidad_repository, lista_espera_repository
 from app.utils.tiempo import MESES, ZONA_COLOMBIA, hoy_en_colombia
 
 # HU-68, criterio 2
@@ -214,6 +214,7 @@ def reporte(db: Session, periodo: str) -> dict:
             "horarios_reasignados": sum(1 for t in cupos_hoy if t is not None),
         },
         "citas": len(citas),
+        "en_lista_espera": lista_espera_repository.cuenta_activas(db),  # HU-52: ahora mismo
         "confirmadas": confirmadas,
         "sin_confirmar": len(vigentes) - confirmadas,
         "porcentaje_confirmadas": _porcentaje(confirmadas, len(vigentes)),

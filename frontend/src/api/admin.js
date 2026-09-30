@@ -120,3 +120,30 @@ export function cancelarRecordatorio(id) {
 export function reintentarRecordatorio(id) {
   return conPersonal(`/admin/recordatorios/programados/${id}/reintentar`, { method: "POST" });
 }
+
+// --- Lista de espera (Fase D: HU-45, HU-53 a HU-61) ---
+export function listarListaEsperaAdmin(dia) {
+  return conPersonal(`/admin/lista-espera${dia ? `?dia=${dia}` : ""}`);
+}
+
+export function horariosListaEspera(solicitudId) {
+  return conPersonal(`/admin/lista-espera/${solicitudId}/horarios`);
+}
+
+export function cambiarPrioridadListaEspera(solicitudId, prioridad) {
+  return conPersonal(`/admin/lista-espera/${solicitudId}/prioridad`, { method: "PATCH", body: { prioridad } });
+}
+
+export function confirmarDesdeListaEspera(solicitudId, disponibilidadId) {
+  return conPersonal(`/admin/lista-espera/${solicitudId}/confirmar`, {
+    method: "POST",
+    body: { disponibilidad_id: disponibilidadId },
+  });
+}
+
+export function cancelarDesdeListaEspera(solicitudId, motivo) {
+  return conPersonal(`/admin/lista-espera/${solicitudId}/cancelar`, {
+    method: "POST",
+    body: { motivo: motivo || null },
+  });
+}

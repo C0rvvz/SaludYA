@@ -1593,20 +1593,10 @@ select:focus-visible {
   font-weight: 700;
 }
 
-.admin-nav,
-.admin-sidebar__proximamente {
+.admin-nav {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-
-.admin-sidebar__proximamente > span:first-child {
-  margin-top: var(--space-2);
-  padding: 0 0.85rem;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 .admin-nav__enlace {
@@ -1618,7 +1608,7 @@ select:focus-visible {
   text-decoration: none;
 }
 
-.admin-nav__enlace:hover:not(.is-deshabilitado) {
+.admin-nav__enlace:hover {
   background: rgba(255, 255, 255, 0.1);
   color: white;
 }
@@ -1626,11 +1616,6 @@ select:focus-visible {
 .admin-nav__enlace.is-active {
   background: rgba(255, 255, 255, 0.16);
   color: white;
-}
-
-.admin-nav__enlace.is-deshabilitado {
-  color: rgba(255, 255, 255, 0.4);
-  cursor: default;
 }
 
 .admin-sidebar__salir {
@@ -2058,4 +2043,9 @@ select:focus-visible {
 
 .lista-espera .card > .btn {
   justify-self: start;
+}
+
+/* Lista de espera del personal (Fase D) */
+.lista-espera-admin__cifras {
+  margin-bottom: var(--space-3);
 }

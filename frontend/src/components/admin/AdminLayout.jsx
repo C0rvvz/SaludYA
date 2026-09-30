@@ -8,12 +8,10 @@ const SECCIONES = [
   { to: "/admin/reportes", texto: "Reportes", permiso: "ver_reportes" },
   { to: "/admin/citas", texto: "Gestión de citas", permiso: "ver_citas" },
   { to: "/admin/recordatorios", texto: "Centro de recordatorios", permiso: "gestionar_citas" },
+  { to: "/admin/lista-espera", texto: "Lista de espera", permiso: "ver_citas" },
   { to: "/admin/auditoria", texto: "Auditoría", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", permiso: "gestionar_usuarios" },
 ];
-
-// Del prototipo, todavía sin construir (ver el plan de fases).
-const PROXIMAMENTE = ["Lista de espera"];
 
 /** Estructura del apartado de administración: menú lateral y contenido. */
 export default function AdminLayout() {
@@ -45,15 +43,6 @@ export default function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-
-        <div className="admin-sidebar__proximamente">
-          <span>Próximamente</span>
-          {PROXIMAMENTE.map((texto) => (
-            <span key={texto} className="admin-nav__enlace is-deshabilitado" aria-disabled="true">
-              {texto}
-            </span>
-          ))}
-        </div>
 
         <button type="button" className="admin-sidebar__salir" onClick={salir}>
           Cerrar sesión

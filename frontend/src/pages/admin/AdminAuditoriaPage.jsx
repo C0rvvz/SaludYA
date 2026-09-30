@@ -20,6 +20,7 @@ const ACCIONES = {
   rechazar_cupo: "Rechazar cupo (lista de espera)",
   vencer_cupo: "Cupo vencido (lista de espera)",
   salir_lista_espera: "Salir de la lista de espera",
+  prioridad_lista_espera: "Prioridad (lista de espera)",
   programar_recordatorio: "Programar recordatorio",
   editar_recordatorio: "Editar recordatorio",
   cancelar_recordatorio: "Cancelar recordatorio",

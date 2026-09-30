@@ -20,6 +20,7 @@ class Permiso(str, enum.Enum):
     OBSERVACIONES = "observaciones"  # HU-41
     VER_AUDITORIA = "ver_auditoria"  # HU-80 a HU-85
     VER_REPORTES = "ver_reportes"  # HU-44, HU-48 a HU-52, HU-68 a HU-75 (Dashboard y Reportes)
+    ASIGNAR_PRIORIDAD = "asignar_prioridad"  # HU-56: prioridad médica en la lista de espera
     GESTIONAR_USUARIOS = "gestionar_usuarios"
 
 
@@ -32,7 +33,13 @@ PERMISOS_POR_ROL: dict[RolPersonal, frozenset[Permiso]] = {
         {Permiso.VER_CITAS, Permiso.GESTIONAR_CITAS, Permiso.OBSERVACIONES}
     ),
     RolPersonal.COORDINADOR_MEDICO: frozenset(
-        {Permiso.VER_CITAS, Permiso.REGISTRAR_ATENCION, Permiso.OBSERVACIONES, Permiso.VER_REPORTES}
+        {
+            Permiso.VER_CITAS,
+            Permiso.REGISTRAR_ATENCION,
+            Permiso.OBSERVACIONES,
+            Permiso.VER_REPORTES,
+            Permiso.ASIGNAR_PRIORIDAD,
+        }
     ),
 }
 

@@ -36,6 +36,13 @@ Centro de recordatorios
   PUT   /admin/recordatorios/programados/{id}             editar
   POST  /admin/recordatorios/programados/{id}/cancelar
   POST  /admin/recordatorios/programados/{id}/reintentar  (si falló)
+
+Lista de espera (Fase D)
+  GET   /admin/lista-espera?dia=AAAA-MM-DD   HU-45, HU-53 a HU-58, HU-61
+  GET   /admin/lista-espera/{id}/horarios    HU-55 (horarios que se ajustan)
+  PATCH /admin/lista-espera/{id}/prioridad   HU-56
+  POST  /admin/lista-espera/{id}/confirmar   HU-59
+  POST  /admin/lista-espera/{id}/cancelar    HU-60
 """
 
 import uuid
@@ -76,6 +83,14 @@ from app.schemas.admin import (
     RiesgoOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
+from app.schemas.lista_espera import (
+    CancelarDesdeListaRequest,
+    ConfirmarDesdeListaRequest,
+    HorarioCompatibleOut,
+    ListaEsperaAdminOut,
+    PrioridadRequest,
+    SolicitudEsperaAdminOut,
+)
 from app.schemas.recordatorios import (
     EditarRecordatorioRequest,
     PacienteRecordatoriosOut,
@@ -87,6 +102,7 @@ from app.schemas.reportes import ReporteOut
 from app.services import (
     admin_citas_service,
     centro_recordatorios_service,
+    lista_espera_service,
     citas_service,
     comprobante_service,
     personal_service,
@@ -95,6 +111,7 @@ from app.services import (
     riesgo_service,
 )
 from app.services.auditoria_service import Actor
+from app.utils.tiempo import hoy_en_colombia
 from app.services.exceptions import (
     CitaNoEncontradaError,
     CitaNoModificableError,
@@ -103,6 +120,7 @@ from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     EnvioFallidoError,
     HorarioYaNoDisponibleError,
+    ListaEsperaInvalidaError,
     PersonalInvalidoError,
     ProgramacionInvalidaError,
     ReprogramacionInvalidaError,
@@ -120,6 +138,7 @@ _CODIGOS = {
     ReprogramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
     PersonalInvalidoError: status.HTTP_400_BAD_REQUEST,
     ProgramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
+    ListaEsperaInvalidaError: status.HTTP_400_BAD_REQUEST,
     EnvioFallidoError: status.HTTP_502_BAD_GATEWAY,
 }
 _ERRORES = tuple(_CODIGOS)
@@ -614,3 +633,74 @@ def reintentar_recordatorio(
         return _programado_out(centro_recordatorios_service.reintentar(db, personal, programado_id))
     except _ERRORES as e:
         raise _http(e)
+
+
+# --- Lista de espera (Fase D: HU-45, HU-53 a HU-61) ---
+
+
+@router.get("/lista-espera", response_model=ListaEsperaAdminOut)
+def lista_espera(
+    dia: date | None = Query(default=None, description="HU-45: día consultado (por defecto, hoy)"),
+    _: Personal = Depends(requiere(Permiso.VER_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """Solicitudes que estuvieron en la lista ese día, en el orden de la lista."""
+    return lista_espera_service.para_personal(db, dia or hoy_en_colombia())
+
+
+@router.get("/lista-espera/{solicitud_id}/horarios", response_model=list[HorarioCompatibleOut])
+def horarios_lista_espera(
+    solicitud_id: uuid.UUID,
+    _: Personal = Depends(requiere(Permiso.VER_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """HU-55: el cupo ya ofrecido y los horarios libres que se ajustan a sus preferencias."""
+    try:
+        return lista_espera_service.horarios_para(db, solicitud_id)
+    except _ERRORES as e:
+        raise _http(e)
+
+
+@router.patch("/lista-espera/{solicitud_id}/prioridad", response_model=SolicitudEsperaAdminOut)
+def prioridad_lista_espera(
+    solicitud_id: uuid.UUID,
+    datos: PrioridadRequest,
+    personal: Personal = Depends(requiere(Permiso.ASIGNAR_PRIORIDAD)),
+    db: Session = Depends(get_db),
+):
+    """HU-56: cambia la prioridad médica (y con ella la posición en la lista)."""
+    try:
+        solicitud = lista_espera_service.cambiar_prioridad(db, personal, solicitud_id, datos.prioridad)
+    except _ERRORES as e:
+        raise _http(e)
+    return lista_espera_service.solicitud_admin_out(db, solicitud)
+
+
+@router.post("/lista-espera/{solicitud_id}/confirmar", response_model=SolicitudEsperaAdminOut)
+def confirmar_desde_lista_espera(
+    solicitud_id: uuid.UUID,
+    datos: ConfirmarDesdeListaRequest,
+    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """HU-59: le confirma al paciente la cita en el horario elegido."""
+    try:
+        solicitud = lista_espera_service.confirmar_por_personal(db, personal, solicitud_id, datos.disponibilidad_id)
+    except _ERRORES as e:
+        raise _http(e)
+    return lista_espera_service.solicitud_admin_out(db, solicitud)
+
+
+@router.post("/lista-espera/{solicitud_id}/cancelar", response_model=SolicitudEsperaAdminOut)
+def cancelar_desde_lista_espera(
+    solicitud_id: uuid.UUID,
+    datos: CancelarDesdeListaRequest,
+    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """HU-60: saca al paciente de la lista o, si ya tenía la cita asignada, la cancela."""
+    try:
+        solicitud = lista_espera_service.cancelar_por_personal(db, personal, solicitud_id, datos.motivo)
+    except _ERRORES as e:
+        raise _http(e)
+    return lista_espera_service.solicitud_admin_out(db, solicitud)

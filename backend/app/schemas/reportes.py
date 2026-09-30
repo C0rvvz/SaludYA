@@ -61,6 +61,7 @@ class ReporteOut(BaseModel):
     hasta: date
     hoy: HoyOut
     citas: int
+    en_lista_espera: int
     confirmadas: int
     sin_confirmar: int
     porcentaje_confirmadas: float | None

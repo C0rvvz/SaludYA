@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
               <div className="cifras">
-                <Cifra valor="—" nombre="Lista de espera" detalle="Disponible cuando exista la lista de espera" />
+                <Cifra valor={r.en_lista_espera} nombre="Lista de espera" detalle="Pacientes esperando cupo ahora" />
                 <Cifra valor="—" nombre="Solicitudes y revisiones" detalle="Disponible cuando existan las solicitudes" />
               </div>
             </section>

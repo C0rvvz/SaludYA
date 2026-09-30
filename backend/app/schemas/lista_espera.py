@@ -1,4 +1,4 @@
-"""Esquemas de la lista de espera del paciente (ver services/lista_espera_service.py)."""
+"""Esquemas de la lista de espera, del paciente y del personal (ver services/lista_espera_service.py)."""
 
 import uuid
 from datetime import date, datetime, time
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.models.cita import CanalContacto
 from app.models.especialista import Modalidad
-from app.models.lista_espera import EstadoSolicitud, Jornada
+from app.models.lista_espera import EstadoSolicitud, Jornada, PrioridadMedica
 
 
 class UnirseListaEsperaRequest(BaseModel):
@@ -36,6 +36,7 @@ class CitaAsignadaOut(BaseModel):
     sede: str
     fecha: date
     hora: time
+    estado: str  # HU-58: estado actual de la cita asignada
 
 
 class SolicitudEsperaOut(BaseModel):
@@ -51,3 +52,47 @@ class SolicitudEsperaOut(BaseModel):
     total_en_lista: int
     oferta: OfertaOut | None
     cita: CitaAsignadaOut | None
+
+
+# --- Personal: Fase D (HU-45, HU-53 a HU-61) ---
+
+
+class SolicitudEsperaAdminOut(SolicitudEsperaOut):
+    especialidad_id: uuid.UUID
+    paciente_id: uuid.UUID
+    paciente_nombre: str  # HU-54
+    numero_documento: str
+    telefono_whatsapp: str
+    prioridad: PrioridadMedica  # HU-56
+    cerrada_en: datetime | None
+    minutos_espera: int  # HU-54: tiempo de espera
+
+
+class ListaEsperaAdminOut(BaseModel):
+    dia: date  # HU-45, criterio 3
+    esperando_ahora: int
+    solicitudes: list[SolicitudEsperaAdminOut]
+
+
+class HorarioCompatibleOut(BaseModel):
+    """HU-55 criterio 1: un horario que se ajusta a las preferencias del paciente."""
+
+    id: uuid.UUID
+    fecha: date
+    hora: time
+    especialista: str
+    sede: str
+    modalidad: Modalidad
+    ofrecido: bool  # el que ya se le reservó por la lista
+
+
+class PrioridadRequest(BaseModel):
+    prioridad: PrioridadMedica
+
+
+class ConfirmarDesdeListaRequest(BaseModel):
+    disponibilidad_id: uuid.UUID
+
+
+class CancelarDesdeListaRequest(BaseModel):
+    motivo: str | None = Field(default=None, max_length=300)

@@ -140,3 +140,7 @@ def insertar_franjas(db: Session, filas: list[dict]) -> int:
     )
     db.commit()
     return resultado.rowcount
+
+
+def obtener_por_id(db: Session, disponibilidad_id: uuid.UUID) -> Disponibilidad | None:
+    return db.get(Disponibilidad, disponibilidad_id)
