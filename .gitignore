@@ -16,3 +16,6 @@ venv/
 # Editor
 .vscode/
 .idea/
+
+# Configuración local de Claude (servidor de vista previa)
+.claude/
