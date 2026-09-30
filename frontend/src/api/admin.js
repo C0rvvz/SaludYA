@@ -147,3 +147,27 @@ export function cancelarDesdeListaEspera(solicitudId, motivo) {
     body: { motivo: motivo || null },
   });
 }
+
+// --- Solicitudes de cita (cartas de petición) y revisión clínica (HU-76 a HU-79) ---
+export function listarSolicitudesAdmin() {
+  return conPersonal("/admin/solicitudes");
+}
+
+export function obtenerRevisionClinica(solicitudId) {
+  return conPersonal(`/admin/solicitudes/${solicitudId}`);
+}
+
+export function aprobarSolicitud(solicitudId, datos) {
+  return conPersonal(`/admin/solicitudes/${solicitudId}/aprobar`, { method: "POST", body: datos });
+}
+
+export function enviarSolicitudEps(solicitudId, respuesta) {
+  return conPersonal(`/admin/solicitudes/${solicitudId}/enviar-eps`, {
+    method: "POST",
+    body: { respuesta: respuesta || null },
+  });
+}
+
+export function negarSolicitud(solicitudId, respuesta) {
+  return conPersonal(`/admin/solicitudes/${solicitudId}/negar`, { method: "POST", body: { respuesta } });
+}

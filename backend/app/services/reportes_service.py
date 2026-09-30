@@ -1,7 +1,8 @@
 """
 Dashboard y Reportes del personal.
 
-- Dashboard: HU-44 (citas del día), HU-48 (confirmaciones), HU-49
+- Dashboard: HU-44 (citas del día), HU-46 (inasistencia estimada del día
+  y solicitudes), HU-47 (revisiones), HU-48 (confirmaciones), HU-49
   (canales), HU-50 (inasistencias por especialidad), HU-51
   (inasistencias por paciente) y HU-52 (resumen general).
 - Reportes: HU-68 (periodo), HU-69 (indicadores), HU-70 (tiempo en
@@ -35,6 +36,7 @@ from sqlalchemy.orm import Session
 
 from app.models.cita import CanalContacto, Cita, EstadoCita
 from app.repositories import cita_repository, especialidad_repository, lista_espera_repository
+from app.services import admin_citas_service, citas_service, riesgo_service, solicitudes_service
 from app.utils.tiempo import MESES, ZONA_COLOMBIA, hoy_en_colombia
 
 # HU-68, criterio 2
@@ -146,6 +148,14 @@ def reporte(db: Session, periodo: str) -> dict:
     vigentes_hoy = [c for c in de_hoy if c.estado in VIGENTES]
     cupos_hoy = [t for c, t in cupos if c.disponibilidad.fecha == hoy]
     confirmadas_hoy = sum(1 for c in vigentes_hoy if c.asistencia_confirmada_en)
+    # HU-46: promedio del riesgo estimado (riesgo_service) de las citas de hoy que todavía no ocurren.
+    por_ocurrir = [c for c in vigentes_hoy if citas_service.estado_visible(c) in citas_service.ESTADOS_ACTIVOS]
+    historiales = admin_citas_service.historial_por_paciente(db, por_ocurrir)
+    riesgos = [
+        r.porcentaje
+        for c in por_ocurrir
+        if (r := riesgo_service.estimar(c, [o for o in historiales[c.paciente_id] if o.id != c.id]))
+    ]
 
     # --- HU-49 / HU-75: los 4 canales, del más usado al menos usado ---
     uso_canal = Counter(c.canal_recordatorio for c in citas)
@@ -212,6 +222,7 @@ def reporte(db: Session, periodo: str) -> dict:
             "canceladas": sum(1 for c in de_hoy if c.estado == EstadoCita.CANCELADA),
             "horarios_liberados": len(cupos_hoy),
             "horarios_reasignados": sum(1 for t in cupos_hoy if t is not None),
+            "inasistencia_estimada": round(sum(riesgos) / len(riesgos)) if riesgos else None,
         },
         "citas": len(citas),
         "en_lista_espera": lista_espera_repository.cuenta_activas(db),  # HU-52: ahora mismo
@@ -234,4 +245,5 @@ def reporte(db: Session, periodo: str) -> dict:
         "inasistencia_por_paciente": inasistencia_paciente,
         "tendencia": tendencia,
         "tendencia_direccion": direccion_de_la_tendencia([t["porcentaje"] for t in tendencia]),
+        "solicitudes": solicitudes_service.indicadores(db, desde, hasta),  # HU-46, HU-47
     }

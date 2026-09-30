@@ -9,6 +9,7 @@ const SECCIONES = [
   { to: "/admin/citas", texto: "Gestión de citas", permiso: "ver_citas" },
   { to: "/admin/recordatorios", texto: "Centro de recordatorios", permiso: "gestionar_citas" },
   { to: "/admin/lista-espera", texto: "Lista de espera", permiso: "ver_citas" },
+  { to: "/admin/solicitudes", texto: "Solicitudes", permiso: "ver_citas" },
   { to: "/admin/auditoria", texto: "Auditoría", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", permiso: "gestionar_usuarios" },
 ];

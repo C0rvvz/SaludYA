@@ -21,6 +21,7 @@ class Permiso(str, enum.Enum):
     VER_AUDITORIA = "ver_auditoria"  # HU-80 a HU-85
     VER_REPORTES = "ver_reportes"  # HU-44, HU-48 a HU-52, HU-68 a HU-75 (Dashboard y Reportes)
     ASIGNAR_PRIORIDAD = "asignar_prioridad"  # HU-56: prioridad médica en la lista de espera
+    REVISAR_SOLICITUDES = "revisar_solicitudes"  # HU-79: decidir en la revisión clínica
     GESTIONAR_USUARIOS = "gestionar_usuarios"
 
 
@@ -39,6 +40,7 @@ PERMISOS_POR_ROL: dict[RolPersonal, frozenset[Permiso]] = {
             Permiso.OBSERVACIONES,
             Permiso.VER_REPORTES,
             Permiso.ASIGNAR_PRIORIDAD,
+            Permiso.REVISAR_SOLICITUDES,
         }
     ),
 }

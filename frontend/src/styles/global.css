@@ -2049,3 +2049,12 @@ select:focus-visible {
 .lista-espera-admin__cifras {
   margin-bottom: var(--space-3);
 }
+
+/* Revisión clínica (HU-78, HU-79) */
+.revision__motivo {
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-line-soft);
+  white-space: pre-line;
+}

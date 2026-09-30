@@ -11,6 +11,7 @@ import PanelPage from "./pages/PanelPage";
 import MisCitasPage from "./pages/MisCitasPage";
 import ConfirmarAsistenciaPage from "./pages/ConfirmarAsistenciaPage";
 import ListaEsperaPage from "./pages/ListaEsperaPage";
+import SolicitudesPage from "./pages/SolicitudesPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminCitasPage from "./pages/admin/AdminCitasPage";
 import AdminCitaDetallePage from "./pages/admin/AdminCitaDetallePage";
@@ -20,6 +21,8 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminReportesPage from "./pages/admin/AdminReportesPage";
 import AdminRecordatoriosPage from "./pages/admin/AdminRecordatoriosPage";
 import AdminListaEsperaPage from "./pages/admin/AdminListaEsperaPage";
+import AdminSolicitudesPage from "./pages/admin/AdminSolicitudesPage";
+import AdminRevisionPage from "./pages/admin/AdminRevisionPage";
 
 export default function App() {
   return (
@@ -45,6 +48,14 @@ export default function App() {
               element={
                 <RutaProtegida>
                   <ListaEsperaPage />
+                </RutaProtegida>
+              }
+            />
+            <Route
+              path="/solicitudes"
+              element={
+                <RutaProtegida>
+                  <SolicitudesPage />
                 </RutaProtegida>
               }
             />
@@ -100,6 +111,8 @@ export default function App() {
                   </RutaPersonal>
                 }
               />
+              <Route path="solicitudes" element={<AdminSolicitudesPage />} />
+              <Route path="solicitudes/:id" element={<AdminRevisionPage />} />
               <Route path="citas" element={<AdminCitasPage />} />
               <Route path="citas/:id" element={<AdminCitaDetallePage />} />
               <Route

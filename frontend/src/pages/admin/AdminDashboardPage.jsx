@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { Barras, Cifra, ConPeriodo } from "../../components/admin/Reportes";
 import { CANALES } from "../../utils/citas";
-import { formatearFechaLarga, formatearPorcentaje } from "../../utils/formato";
+import { formatearDuracion, formatearFechaLarga, formatearPorcentaje } from "../../utils/formato";
 
 /**
- * Dashboard — HU-52 (resumen general), HU-44 (citas del día), HU-48
- * (confirmaciones), HU-49 (canales), HU-50 (inasistencias por
- * especialidad) y HU-51 (inasistencias por paciente). El periodo se
- * elige con HU-68; la sección "Hoy" es siempre del día.
+ * Dashboard — HU-52 (resumen general), HU-44 (citas del día), HU-46
+ * (inasistencia estimada del día e indicadores de solicitudes), HU-47
+ * (revisiones), HU-48 (confirmaciones), HU-49 (canales), HU-50
+ * (inasistencias por especialidad) y HU-51 (inasistencias por paciente).
+ * El periodo se elige con HU-68; la sección "Hoy" es siempre del día.
  */
 export default function AdminDashboardPage() {
   return (
@@ -36,6 +37,11 @@ export default function AdminDashboardPage() {
                   nombre="Horarios reasignados"
                   detalle="Liberados que volvió a tomar otro paciente"
                 />
+                <Cifra
+                  valor={formatearPorcentaje(r.hoy.inasistencia_estimada)}
+                  nombre="Inasistencia estimada"
+                  detalle="Promedio del riesgo de las citas que faltan hoy"
+                />
               </div>
             </section>
 
@@ -57,7 +63,28 @@ export default function AdminDashboardPage() {
               </div>
               <div className="cifras">
                 <Cifra valor={r.en_lista_espera} nombre="Lista de espera" detalle="Pacientes esperando cupo ahora" />
-                <Cifra valor="—" nombre="Solicitudes y revisiones" detalle="Disponible cuando existan las solicitudes" />
+              </div>
+            </section>
+
+            <section className="card">
+              <h2 className="admin-card__titulo">Solicitudes y revisiones de {r.periodo_texto.toLowerCase()}</h2>
+              <div className="cifras">
+                <Cifra
+                  valor={r.solicitudes.recibidas}
+                  nombre="Solicitudes recibidas"
+                  detalle={`${r.solicitudes.formales} formales · ${r.solicitudes.derechos_peticion} derechos de petición`}
+                />
+                <Cifra valor={r.solicitudes.pendientes_revision} nombre="Pendientes de revisión" />
+                <Cifra valor={r.solicitudes.prioritarias_aprobadas} nombre="Revisiones prioritarias aprobadas" />
+                <Cifra valor={r.solicitudes.pendientes_eps} nombre="Pendientes de respuesta de la EPS" />
+              </div>
+              <div className="cifras">
+                <Cifra
+                  valor={formatearDuracion(r.solicitudes.minutos_promedio_revision)}
+                  nombre="Tiempo promedio de revisión"
+                  detalle="Desde que se radica hasta la primera decisión"
+                />
+                <Cifra valor={r.solicitudes.citas_asignadas} nombre="Citas asignadas después de una revisión" />
               </div>
             </section>
 

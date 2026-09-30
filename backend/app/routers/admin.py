@@ -43,6 +43,13 @@ Lista de espera (Fase D)
   PATCH /admin/lista-espera/{id}/prioridad   HU-56
   POST  /admin/lista-espera/{id}/confirmar   HU-59
   POST  /admin/lista-espera/{id}/cancelar    HU-60
+
+Solicitudes de cita (cartas de petición) y revisión clínica
+  GET   /admin/solicitudes                  HU-76, HU-77
+  GET   /admin/solicitudes/{id}             HU-78, HU-79 (contexto para la revisión clínica)
+  POST  /admin/solicitudes/{id}/aprobar     con la cita asignada
+  POST  /admin/solicitudes/{id}/enviar-eps
+  POST  /admin/solicitudes/{id}/negar
 """
 
 import uuid
@@ -60,8 +67,15 @@ from app.core.security import TIPO_PERSONAL, crear_access_token
 from app.models.auditoria import RegistroAuditoria
 from app.models.cita import Cita, EstadoCita
 from app.models.observacion import Observacion
+from app.models.paciente import Paciente
 from app.models.personal import Personal
-from app.repositories import auditoria_repository, cita_repository, personal_repository
+from app.repositories import (
+    auditoria_repository,
+    cita_repository,
+    lista_espera_repository,
+    personal_repository,
+    solicitud_cita_repository,
+)
 from app.schemas.admin import (
     AccionesCitaOut,
     ActualizarPersonalRequest,
@@ -91,6 +105,13 @@ from app.schemas.lista_espera import (
     PrioridadRequest,
     SolicitudEsperaAdminOut,
 )
+from app.schemas.solicitudes import (
+    AprobarSolicitudRequest,
+    EnviarEpsRequest,
+    NegarSolicitudRequest,
+    RevisionClinicaOut,
+    SolicitudCitaAdminOut,
+)
 from app.schemas.recordatorios import (
     EditarRecordatorioRequest,
     PacienteRecordatoriosOut,
@@ -109,6 +130,7 @@ from app.services import (
     recordatorios_service,
     reportes_service,
     riesgo_service,
+    solicitudes_service,
 )
 from app.services.auditoria_service import Actor
 from app.utils.tiempo import hoy_en_colombia
@@ -125,6 +147,7 @@ from app.services.exceptions import (
     ProgramacionInvalidaError,
     ReprogramacionInvalidaError,
     ResultadoNoRegistrableError,
+    SolicitudInvalidaError,
 )
 
 router = APIRouter(prefix="/admin", tags=["Administración"])
@@ -139,6 +162,7 @@ _CODIGOS = {
     PersonalInvalidoError: status.HTTP_400_BAD_REQUEST,
     ProgramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
     ListaEsperaInvalidaError: status.HTTP_400_BAD_REQUEST,
+    SolicitudInvalidaError: status.HTTP_400_BAD_REQUEST,
     EnvioFallidoError: status.HTTP_502_BAD_GATEWAY,
 }
 _ERRORES = tuple(_CODIGOS)
@@ -229,6 +253,43 @@ def _observacion_out(o: Observacion) -> ObservacionOut:
     )
 
 
+def _paciente_detalle(p: Paciente) -> PacienteDetalleOut:
+    return PacienteDetalleOut(
+        id=p.id,
+        nombre=p.nombre,
+        tipo_documento=p.tipo_documento.value,
+        numero_documento=p.numero_documento,
+        telefono_whatsapp=p.telefono_whatsapp,
+        correo=p.correo,
+        eps=p.eps.nombre if p.eps else None,
+        estado_afiliacion=p.estado_afiliacion.value,
+    )
+
+
+def _historial_out(c: Cita) -> CitaHistorialOut:
+    return CitaHistorialOut(
+        id=c.id,
+        numero_comprobante=c.numero_comprobante,
+        especialidad=c.disponibilidad.especialista.especialidad.nombre,
+        fecha=c.disponibilidad.fecha,
+        hora=c.disponibilidad.hora,
+        estado_visible=citas_service.estado_visible(c),
+        estado_texto=citas_service.texto_estado(c),
+    )
+
+
+def _resumen_asistencia(historial: list[Cita]) -> ResumenAsistenciaOut:
+    def contar(estado: EstadoCita) -> int:
+        return sum(1 for c in historial if c.estado == estado)
+
+    return ResumenAsistenciaOut(
+        atendidas=contar(EstadoCita.ATENDIDA),
+        no_asistio=contar(EstadoCita.NO_ASISTIO),
+        canceladas=contar(EstadoCita.CANCELADA),
+        reprogramadas=contar(EstadoCita.REPROGRAMADA),
+    )
+
+
 def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDetalleOut:
     cita = admin_citas_service.obtener_cita(db, cita_id)
     historial = admin_citas_service.historial_por_paciente(db, [cita])[cita.paciente_id]
@@ -237,37 +298,13 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
 
     anteriores = [c for c in reversed(historial) if c.id != cita.id]
 
-    def contar(estado: EstadoCita) -> int:
-        return sum(1 for c in historial if c.estado == estado)
-
     return CitaAdminDetalleOut(
         **_campos_cita(cita, personal, historial),
-        paciente=PacienteDetalleOut(
-            **_paciente_resumen(cita).model_dump(),
-            correo=paciente.correo,
-            eps=paciente.eps.nombre if paciente.eps else None,
-            estado_afiliacion=paciente.estado_afiliacion.value,
-        ),
+        paciente=_paciente_detalle(paciente),
         motivo_cancelacion=cita.motivo_cancelacion,
         historial_estado=citas_service.historial_de_estado(cita),
-        historial_asistencia=[
-            CitaHistorialOut(
-                id=c.id,
-                numero_comprobante=c.numero_comprobante,
-                especialidad=c.disponibilidad.especialista.especialidad.nombre,
-                fecha=c.disponibilidad.fecha,
-                hora=c.disponibilidad.hora,
-                estado_visible=citas_service.estado_visible(c),
-                estado_texto=citas_service.texto_estado(c),
-            )
-            for c in anteriores
-        ],
-        resumen_asistencia=ResumenAsistenciaOut(
-            atendidas=contar(EstadoCita.ATENDIDA),
-            no_asistio=contar(EstadoCita.NO_ASISTIO),
-            canceladas=contar(EstadoCita.CANCELADA),
-            reprogramadas=contar(EstadoCita.REPROGRAMADA),
-        ),
+        historial_asistencia=[_historial_out(c) for c in anteriores],
+        resumen_asistencia=_resumen_asistencia(historial),
         recordatorios=[r for r in auditoria if r.accion in ("recordatorio", "recordatorio_fallido")],
         contactos=[r for r in auditoria if r.accion == "contacto"],
         observaciones=[
@@ -704,3 +741,86 @@ def cancelar_desde_lista_espera(
     except _ERRORES as e:
         raise _http(e)
     return lista_espera_service.solicitud_admin_out(db, solicitud)
+
+
+# --- Solicitudes de cita (cartas de petición) y revisión clínica (HU-76 a HU-79) ---
+
+
+def _revision(db: Session, solicitud_id: uuid.UUID) -> RevisionClinicaOut:
+    """HU-78 / HU-79: la solicitud y el contexto de su paciente (historial, observaciones, lista de espera)."""
+    solicitud = solicitud_cita_repository.obtener(db, solicitud_id)
+    if solicitud is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No existe esa solicitud.")
+    paciente = solicitud.paciente
+    historial = cita_repository.listar_por_paciente(db, paciente.id)
+    return RevisionClinicaOut(
+        solicitud=solicitudes_service.solicitud_out(solicitud),
+        paciente=_paciente_detalle(paciente),
+        historial=[_historial_out(c) for c in reversed(historial)],
+        resumen_asistencia=_resumen_asistencia(historial),
+        observaciones=[_observacion_out(o) for o in admin_citas_service.observaciones_del_paciente(db, paciente.id)],
+        en_lista_espera=[
+            s.especialidad.nombre
+            for s in lista_espera_repository.del_paciente(db, paciente.id)
+            if s.estado in lista_espera_repository.ACTIVAS
+        ],
+    )
+
+
+@router.get("/solicitudes", response_model=list[SolicitudCitaAdminOut])
+def solicitudes(_: Personal = Depends(requiere(Permiso.VER_CITAS)), db: Session = Depends(get_db)):
+    """HU-76 / HU-77: las pendientes primero."""
+    return [solicitudes_service.solicitud_out(s) for s in solicitud_cita_repository.listar(db)]
+
+
+@router.get("/solicitudes/{solicitud_id}", response_model=RevisionClinicaOut)
+def revision_clinica(
+    solicitud_id: uuid.UUID,
+    _: Personal = Depends(requiere(Permiso.VER_CITAS)),
+    db: Session = Depends(get_db),
+):
+    return _revision(db, solicitud_id)
+
+
+@router.post("/solicitudes/{solicitud_id}/aprobar", response_model=RevisionClinicaOut)
+def aprobar_solicitud(
+    solicitud_id: uuid.UUID,
+    datos: AprobarSolicitudRequest,
+    personal: Personal = Depends(requiere(Permiso.REVISAR_SOLICITUDES)),
+    db: Session = Depends(get_db),
+):
+    try:
+        solicitudes_service.aprobar(
+            db, personal, solicitud_id, datos.disponibilidad_id, datos.prioritaria, datos.respuesta or None
+        )
+    except _ERRORES as e:
+        raise _http(e)
+    return _revision(db, solicitud_id)
+
+
+@router.post("/solicitudes/{solicitud_id}/enviar-eps", response_model=RevisionClinicaOut)
+def enviar_solicitud_a_eps(
+    solicitud_id: uuid.UUID,
+    datos: EnviarEpsRequest,
+    personal: Personal = Depends(requiere(Permiso.REVISAR_SOLICITUDES)),
+    db: Session = Depends(get_db),
+):
+    try:
+        solicitudes_service.enviar_a_eps(db, personal, solicitud_id, datos.respuesta or None)
+    except _ERRORES as e:
+        raise _http(e)
+    return _revision(db, solicitud_id)
+
+
+@router.post("/solicitudes/{solicitud_id}/negar", response_model=RevisionClinicaOut)
+def negar_solicitud(
+    solicitud_id: uuid.UUID,
+    datos: NegarSolicitudRequest,
+    personal: Personal = Depends(requiere(Permiso.REVISAR_SOLICITUDES)),
+    db: Session = Depends(get_db),
+):
+    try:
+        solicitudes_service.negar(db, personal, solicitud_id, datos.respuesta)
+    except _ERRORES as e:
+        raise _http(e)
+    return _revision(db, solicitud_id)

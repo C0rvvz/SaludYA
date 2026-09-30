@@ -19,6 +19,7 @@ from app.models.auditoria import RegistroAuditoria
 from app.models.observacion import Observacion
 from app.models.recordatorio_programado import RecordatorioProgramado
 from app.models.lista_espera import OfertaEspera, SolicitudEspera, solicitud_espera_sedes
+from app.models.solicitud_cita import SolicitudCita
 
 __all__ = [
     "Eps",
@@ -38,4 +39,5 @@ __all__ = [
     "SolicitudEspera",
     "OfertaEspera",
     "solicitud_espera_sedes",
+    "SolicitudCita",
 ]

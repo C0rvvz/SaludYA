@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
 
-/** Encabezado de las páginas del paciente autenticado ("Agendar cita", "Lista de espera" y "Mis citas"). */
+/** Encabezado de las páginas del paciente autenticado ("Agendar cita", "Lista de espera", "Solicitudes" y "Mis citas"). */
 export default function EncabezadoPaciente() {
   const { paciente, cerrarSesion } = useAuth();
   const claseEnlace = ({ isActive }) => `nav-paciente__enlace ${isActive ? "is-active" : ""}`;
@@ -16,6 +16,9 @@ export default function EncabezadoPaciente() {
         </NavLink>
         <NavLink to="/lista-espera" className={claseEnlace}>
           Lista de espera
+        </NavLink>
+        <NavLink to="/solicitudes" className={claseEnlace}>
+          Solicitudes
         </NavLink>
         <NavLink to="/mis-citas" className={claseEnlace}>
           Mis citas

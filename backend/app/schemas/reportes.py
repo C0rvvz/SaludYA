@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.solicitudes import IndicadoresSolicitudesOut
+
 
 class HoyOut(BaseModel):
     """HU-44: citas y horarios del día."""
@@ -17,6 +19,7 @@ class HoyOut(BaseModel):
     canceladas: int
     horarios_liberados: int
     horarios_reasignados: int
+    inasistencia_estimada: int | None  # HU-46: %, promedio del riesgo de las citas que faltan hoy
 
 
 class UsoCanalOut(BaseModel):
@@ -79,3 +82,4 @@ class ReporteOut(BaseModel):
     inasistencia_por_paciente: list[InasistenciaPacienteOut]
     tendencia: list[TramoTendenciaOut]
     tendencia_direccion: Literal["aumenta", "disminuye", "se_mantiene"] | None
+    solicitudes: IndicadoresSolicitudesOut

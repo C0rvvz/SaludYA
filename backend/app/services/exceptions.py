@@ -117,3 +117,7 @@ class ProgramacionInvalidaError(Exception):
 
 class ListaEsperaInvalidaError(Exception):
     """Solicitud u oferta de la lista de espera que no se puede crear o responder."""
+
+
+class SolicitudInvalidaError(Exception):
+    """Solicitud de cita (carta de petición) que no se puede radicar o decidir."""
