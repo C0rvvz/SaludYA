@@ -108,3 +108,15 @@ export function listarProgramados() {
 export function programarRecordatorio(datos) {
   return conPersonal("/admin/recordatorios/programados", { method: "POST", body: datos });
 }
+
+export function editarRecordatorio(id, datos) {
+  return conPersonal(`/admin/recordatorios/programados/${id}`, { method: "PUT", body: datos });
+}
+
+export function cancelarRecordatorio(id) {
+  return conPersonal(`/admin/recordatorios/programados/${id}/cancelar`, { method: "POST" });
+}
+
+export function reintentarRecordatorio(id) {
+  return conPersonal(`/admin/recordatorios/programados/${id}/reintentar`, { method: "POST" });
+}

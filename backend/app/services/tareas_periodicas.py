@@ -4,6 +4,8 @@ Tareas de fondo que corren dentro de la API (ver main.py):
 - HU-22: enviar los recordatorios de las próximas citas.
 - HU-25: cerrar las citas que ya ocurrieron (atendida / no asistió).
 - HU-64 / HU-65: enviar los recordatorios programados que llegaron a su hora.
+- HU-31: vencer los cupos ofrecidos sin respuesta y ofrecer cupos a la
+  lista de espera.
 - Generar otra tanda de franjas de disponibilidad cuando se acaban las
   futuras (ver disponibilidad_service.py).
 
@@ -20,6 +22,7 @@ from app.services import (
     centro_recordatorios_service,
     citas_service,
     disponibilidad_service,
+    lista_espera_service,
     recordatorios_service,
 )
 
@@ -69,9 +72,26 @@ def _reposicion_de_disponibilidad() -> None:
         db.close()
 
 
+def _lista_espera() -> None:
+    db = SessionLocal()
+    try:
+        vencidas = lista_espera_service.vencer_ofertas(db)
+        ofrecidos = lista_espera_service.asignar_cupos(db)
+        if vencidas or ofrecidos:
+            logger.info("Lista de espera: %s cupos vencidos, %s ofrecidos", vencidas, ofrecidos)
+    finally:
+        db.close()
+
+
 async def ejecutar_periodicamente() -> None:
     while True:
-        for tarea in (_recordatorios, _programados, _cierre_de_citas, _reposicion_de_disponibilidad):
+        for tarea in (
+            _recordatorios,
+            _programados,
+            _cierre_de_citas,
+            _reposicion_de_disponibilidad,
+            _lista_espera,  # después de reponer: los horarios nuevos también se ofrecen
+        ):
             try:
                 await asyncio.to_thread(tarea)
             except Exception:

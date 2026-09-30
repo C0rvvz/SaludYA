@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     # Enlace que va en el recordatorio para confirmar la asistencia (HU-23).
     frontend_url: str = "http://localhost:5173"
 
+    # --- Lista de espera (HU-31, HU-32) ---
+    # SUPUESTO: ninguna fuente define el plazo; el cupo liberado se le
+    # reserva al paciente 2 horas para aceptarlo antes de pasar al siguiente.
+    lista_espera_plazo_minutos: int = 120
+
     # --- El día de la consulta (HU-24, HU-25) ---
     # SUPUESTO: ninguna fuente define estas ventanas. Registrar la
     # llegada se habilita 2 h antes de la cita y hasta 30 min después;

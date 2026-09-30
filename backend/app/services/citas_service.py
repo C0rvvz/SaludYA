@@ -35,6 +35,7 @@ Toda acción recibe `actor` y queda en la auditoría (HU-80 a HU-85), en
 la misma transacción que la acción.
 """
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -64,6 +65,8 @@ from app.services.exceptions import (
     ResultadoNoRegistrableError,
 )
 from app.utils.tiempo import ZONA_COLOMBIA, ahora_colombia, fecha_legible, hora_legible
+
+logger = logging.getLogger("saludya.citas")
 
 # HU-18, criterio 4: el estado debe mostrarse de manera clara.
 ESTADOS_VISIBLES = {
@@ -510,7 +513,20 @@ def cancelar_cita(
         f"SaludYA: su cita {cita.numero_comprobante} del "
         f"{fecha_legible(franja.fecha)} a las {hora_legible(franja.hora)} fue cancelada.",
     )
+    _ofrecer_a_la_lista_de_espera(db)
     return cita
+
+
+def _ofrecer_a_la_lista_de_espera(db: Session) -> None:
+    """HU-31, criterio 1: el cupo que se acaba de liberar se ofrece de inmediato a la lista de espera."""
+    from app.services import lista_espera_service  # import local: ese módulo usa este
+
+    try:
+        lista_espera_service.asignar_cupos(db)
+    except Exception:
+        # La cancelación o reprogramación ya quedó guardada; la tarea de fondo lo vuelve a intentar.
+        db.rollback()
+        logger.exception("No se pudo ofrecer el cupo liberado a la lista de espera.")
 
 
 def reprogramar_cita(
@@ -596,4 +612,5 @@ def reprogramar_cita(
         raise HorarioYaNoDisponibleError("Ese horario ya no está disponible. Por favor elige otro.")
 
     db.refresh(cita_nueva)
+    _ofrecer_a_la_lista_de_espera(db)
     return cita_nueva

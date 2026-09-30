@@ -6,8 +6,9 @@ Centro de recordatorios — HU-62 a HU-67.
   quedan los recordatorios automáticos (HU-22) y manuales (HU-36), las
   llamadas (HU-37) y los programados de aquí.
 - HU-62: el filtro por canal lo aplica la pantalla sobre esta lista.
-- HU-64 / HU-65: programar un mensaje escrito o una llamada; la tarea de
-  fondo lo envía a su hora (enviar_programados_vencidos).
+- HU-64 / HU-65: programar un mensaje escrito o una llamada (y editarlo,
+  cancelarlo o reintentarlo si falló); la tarea de fondo lo envía a su
+  hora, con reintentos automáticos (enviar_programados_vencidos).
 - HU-66: plantillas Recordatorio estándar, Confirmación urgente y Cupo
   liberado, rellenadas con los datos de la cita.
 
@@ -165,6 +166,27 @@ def pacientes_con_recordatorios(db: Session) -> list[dict]:
     return filas
 
 
+def _validar(
+    db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID | None, programado_para: datetime
+) -> tuple[datetime, Cita | None]:
+    if programado_para.tzinfo is None:  # la pantalla envía la hora de Colombia sin zona
+        programado_para = programado_para.replace(tzinfo=ZONA_COLOMBIA)
+    if programado_para <= datetime.now(timezone.utc):
+        raise ProgramacionInvalidaError("La fecha y hora del envío deben ser futuras.")
+    cita = None
+    if cita_id is not None:
+        cita = _cita_del_paciente(db, paciente_id, cita_id)
+        if not citas_service.esta_activa(cita):
+            raise ProgramacionInvalidaError("Esa cita ya no está vigente.")
+        if programado_para >= _inicio(cita):
+            raise ProgramacionInvalidaError("El recordatorio debe programarse antes de la cita.")
+    return programado_para, cita
+
+
+def _que(canal: CanalContacto) -> str:
+    return "una llamada" if canal == CanalContacto.LLAMADA else f"un mensaje por {NOMBRE_CANAL[canal]}"
+
+
 def programar(
     db: Session,
     personal: Personal,
@@ -176,19 +198,9 @@ def programar(
     programado_para: datetime,
 ) -> RecordatorioProgramado:
     """HU-64 (mensaje escrito) y HU-65 (llamada, canal "llamada"). Criterio: queda registrado."""
-    if programado_para.tzinfo is None:  # la pantalla envía la hora de Colombia sin zona
-        programado_para = programado_para.replace(tzinfo=ZONA_COLOMBIA)
     if paciente_repository.obtener_por_id(db, paciente_id) is None:
         raise ProgramacionInvalidaError("No existe ese paciente.")
-    if programado_para <= datetime.now(timezone.utc):
-        raise ProgramacionInvalidaError("La fecha y hora del envío deben ser futuras.")
-    cita = None
-    if cita_id is not None:
-        cita = _cita_del_paciente(db, paciente_id, cita_id)
-        if not citas_service.esta_activa(cita):
-            raise ProgramacionInvalidaError("Esa cita ya no está vigente.")
-        if programado_para >= _inicio(cita):
-            raise ProgramacionInvalidaError("El recordatorio debe programarse antes de la cita.")
+    programado_para, cita = _validar(db, paciente_id, cita_id, programado_para)
 
     programado = RecordatorioProgramado(
         paciente_id=paciente_id,
@@ -200,10 +212,9 @@ def programar(
         programado_para=programado_para,
     )
     db.add(programado)
-    que = "una llamada" if canal == CanalContacto.LLAMADA else f"un mensaje por {NOMBRE_CANAL[canal]}"
     auditoria_service.registrar(
         db, Actor.de_personal(personal), "programar_recordatorio",
-        f"Programó {que} para el {_cuando(programado_para)}",
+        f"Programó {_que(canal)} para el {_cuando(programado_para)}",
         cita=cita, paciente_id=paciente_id, detalle=texto,
     )
     db.commit()
@@ -211,28 +222,118 @@ def programar(
     return programado
 
 
+def _con_lock(db: Session, programado_id: uuid.UUID, estados: set, accion: str) -> RecordatorioProgramado:
+    programado = recordatorio_programado_repository.obtener_con_lock(db, programado_id)
+    if programado is None:
+        raise ProgramacionInvalidaError("No existe ese recordatorio programado.")
+    if programado.estado not in estados:
+        db.rollback()
+        raise ProgramacionInvalidaError(
+            f"No se puede {accion}: el recordatorio ya está {programado.estado.value}."
+        )
+    return programado
+
+
+# Mientras no haya salido se puede editar o cancelar; uno fallido, también.
+EDITABLES = {EstadoProgramacion.PENDIENTE, EstadoProgramacion.FALLIDO}
+
+
+def editar(
+    db: Session,
+    personal: Personal,
+    programado_id: uuid.UUID,
+    cita_id: uuid.UUID | None,
+    canal: CanalContacto,
+    plantilla: str | None,
+    texto: str,
+    programado_para: datetime,
+) -> RecordatorioProgramado:
+    """Cambia un recordatorio que no ha salido (o que falló); vuelve a quedar pendiente."""
+    programado = _con_lock(db, programado_id, EDITABLES, "editar")
+    try:
+        programado_para, cita = _validar(db, programado.paciente_id, cita_id, programado_para)
+    except ProgramacionInvalidaError:
+        db.rollback()
+        raise
+    programado.cita_id = cita_id
+    programado.canal = canal
+    programado.plantilla = plantilla
+    programado.texto = texto
+    programado.programado_para = programado_para
+    programado.estado = EstadoProgramacion.PENDIENTE
+    programado.intentos = 0
+    auditoria_service.registrar(
+        db, Actor.de_personal(personal), "editar_recordatorio",
+        f"Editó el recordatorio programado: {_que(canal)} para el {_cuando(programado_para)}",
+        cita=cita, paciente_id=programado.paciente_id, detalle=texto,
+    )
+    db.commit()
+    db.refresh(programado)
+    return programado
+
+
+def cancelar(db: Session, personal: Personal, programado_id: uuid.UUID) -> RecordatorioProgramado:
+    programado = _con_lock(db, programado_id, EDITABLES, "cancelar")
+    programado.estado = EstadoProgramacion.CANCELADO
+    auditoria_service.registrar(
+        db, Actor.de_personal(personal), "cancelar_recordatorio",
+        f"Canceló {_que(programado.canal)} programado para el {_cuando(programado.programado_para)}",
+        cita=programado.cita, paciente_id=programado.paciente_id,
+    )
+    db.commit()
+    db.refresh(programado)
+    return programado
+
+
+def reintentar(db: Session, personal: Personal, programado_id: uuid.UUID) -> RecordatorioProgramado:
+    """
+    Envía ya un recordatorio que agotó sus reintentos. Si vuelve a fallar
+    queda pendiente y la tarea de fondo lo reintenta sola.
+    """
+    programado = _con_lock(db, programado_id, {EstadoProgramacion.FALLIDO}, "reintentar")
+    programado.intentos = 0
+    _enviar(db, programado, Actor.de_personal(personal), datetime.now(timezone.utc))
+    db.commit()
+    db.refresh(programado)
+    return programado
+
+
+def _enviar(db: Session, programado: RecordatorioProgramado, actor: Actor, ahora: datetime) -> bool:
+    """Un intento de envío. Si falla, queda pendiente hasta agotar RECORDATORIO_MAX_INTENTOS."""
+    salio = enviar_por_canal(programado.paciente, programado.canal, programado.texto)
+    programado.intentos += 1
+    if salio:
+        programado.estado = EstadoProgramacion.ENVIADO
+        programado.enviado_en = ahora
+    elif programado.intentos >= settings.recordatorio_max_intentos:
+        programado.estado = EstadoProgramacion.FALLIDO
+    else:
+        programado.estado = EstadoProgramacion.PENDIENTE
+    que = (
+        "la llamada programada (mensaje de voz)"
+        if programado.canal == CanalContacto.LLAMADA
+        else f"el mensaje programado por {NOMBRE_CANAL[programado.canal]}"
+    )
+    auditoria_service.registrar(
+        db, actor, "recordatorio" if salio else "recordatorio_fallido",
+        f"Envió {que}" if salio else (
+            f"No se pudo enviar {que} (intento {programado.intentos} de {settings.recordatorio_max_intentos})"
+        ),
+        cita=programado.cita, paciente_id=programado.paciente_id,
+        detalle=f"Programado por {programado.personal.nombre}",
+    )
+    return salio
+
+
 def listar_programados(db: Session) -> list[RecordatorioProgramado]:
     return recordatorio_programado_repository.listar(db)
 
 
 def enviar_programados_vencidos(db: Session) -> int:
-    """Tarea de fondo: envía los programados que ya llegaron a su hora. Devuelve cuántos salieron."""
+    """Tarea de fondo: envía (o reintenta) los programados que ya llegaron a su hora. Devuelve cuántos salieron."""
     ahora = datetime.now(timezone.utc)
-    enviados = 0
-    for r in recordatorio_programado_repository.pendientes(db, hasta=ahora):
-        salio = enviar_por_canal(r.paciente, r.canal, r.texto)
-        r.estado = EstadoProgramacion.ENVIADO if salio else EstadoProgramacion.FALLIDO
-        r.enviado_en = ahora if salio else None
-        que = (
-            "la llamada programada (mensaje de voz)"
-            if r.canal == CanalContacto.LLAMADA
-            else f"el mensaje programado por {NOMBRE_CANAL[r.canal]}"
-        )
-        auditoria_service.registrar(
-            db, SISTEMA, "recordatorio" if salio else "recordatorio_fallido",
-            f"Envió {que}" if salio else f"No se pudo enviar {que}",
-            cita=r.cita, paciente_id=r.paciente_id, detalle=f"Programado por {r.personal.nombre}",
-        )
-        enviados += salio
+    enviados = sum(
+        _enviar(db, r, SISTEMA, ahora) for r in recordatorio_programado_repository.pendientes(db, hasta=ahora)
+    )
     db.commit()
     return enviados

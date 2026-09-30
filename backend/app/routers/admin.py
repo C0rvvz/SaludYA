@@ -33,6 +33,9 @@ Centro de recordatorios
   GET   /admin/recordatorios/plantillas   HU-66
   GET   /admin/recordatorios/programados  HU-64, HU-65
   POST  /admin/recordatorios/programados  HU-64, HU-65
+  PUT   /admin/recordatorios/programados/{id}             editar
+  POST  /admin/recordatorios/programados/{id}/cancelar
+  POST  /admin/recordatorios/programados/{id}/reintentar  (si falló)
 """
 
 import uuid
@@ -74,6 +77,7 @@ from app.schemas.admin import (
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
 from app.schemas.recordatorios import (
+    EditarRecordatorioRequest,
     PacienteRecordatoriosOut,
     PlantillaOut,
     ProgramarRecordatorioRequest,
@@ -505,11 +509,13 @@ def _programado_out(r) -> RecordatorioProgramadoOut:
         id=r.id,
         paciente_id=r.paciente_id,
         paciente_nombre=r.paciente.nombre,
+        cita_id=r.cita_id,
         canal=r.canal,
         plantilla=r.plantilla,
         texto=r.texto,
         programado_para=r.programado_para,
         estado=r.estado,
+        intentos=r.intentos,
         enviado_en=r.enviado_en,
         programado_por=r.personal.nombre,
     )
@@ -565,3 +571,46 @@ def programar_recordatorio(
     except _ERRORES as e:
         raise _http(e)
     return _programado_out(programado)
+
+
+@router.put("/recordatorios/programados/{programado_id}", response_model=RecordatorioProgramadoOut)
+def editar_recordatorio(
+    programado_id: uuid.UUID,
+    datos: EditarRecordatorioRequest,
+    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """Cambiar un recordatorio que todavía no sale (o que falló); vuelve a quedar pendiente."""
+    try:
+        programado = centro_recordatorios_service.editar(
+            db, personal, programado_id, datos.cita_id, datos.canal,
+            datos.plantilla, datos.texto, datos.programado_para,
+        )
+    except _ERRORES as e:
+        raise _http(e)
+    return _programado_out(programado)
+
+
+@router.post("/recordatorios/programados/{programado_id}/cancelar", response_model=RecordatorioProgramadoOut)
+def cancelar_recordatorio(
+    programado_id: uuid.UUID,
+    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        return _programado_out(centro_recordatorios_service.cancelar(db, personal, programado_id))
+    except _ERRORES as e:
+        raise _http(e)
+
+
+@router.post("/recordatorios/programados/{programado_id}/reintentar", response_model=RecordatorioProgramadoOut)
+def reintentar_recordatorio(
+    programado_id: uuid.UUID,
+    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    db: Session = Depends(get_db),
+):
+    """Envía ya uno que falló; si vuelve a fallar, queda pendiente y se reintenta solo."""
+    try:
+        return _programado_out(centro_recordatorios_service.reintentar(db, personal, programado_id))
+    except _ERRORES as e:
+        raise _http(e)

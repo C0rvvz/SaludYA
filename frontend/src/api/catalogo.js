@@ -21,3 +21,8 @@ export function buscarDisponibilidad(filtros = {}) {
   const query = params.toString();
   return apiFetch(`/disponibilidad/buscar${query ? `?${query}` : ""}`);
 }
+
+// Especialistas de una especialidad, con las sedes donde atienden.
+export function listarEspecialistas(especialidadId) {
+  return apiFetch(`/especialistas?especialidad_id=${especialidadId}`);
+}

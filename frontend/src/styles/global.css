@@ -2015,3 +2015,47 @@ select:focus-visible {
   font-size: var(--text-xs);
   color: var(--color-ink-soft);
 }
+
+/* Lista de espera del paciente (HU-19, HU-31, HU-32) */
+.lista-espera .card {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.lista-espera__posicion {
+  font-size: var(--text-md);
+}
+
+.lista-espera__posicion strong {
+  font-size: var(--text-lg);
+  color: var(--color-primary);
+}
+
+.lista-espera__oferta {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 2px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-success-soft);
+}
+
+.lista-espera__oferta-titulo {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.lista-espera__pregunta {
+  margin-top: var(--space-1);
+  font-weight: 700;
+}
+
+.lista-espera__acciones {
+  margin-bottom: var(--space-3);
+}
+
+.lista-espera .card > .btn {
+  justify-self: start;
+}

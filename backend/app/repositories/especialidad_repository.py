@@ -7,3 +7,7 @@ from app.models.especialidad import Especialidad
 
 def listar_especialidades(db: Session) -> list[Especialidad]:
     return db.query(Especialidad).order_by(Especialidad.nombre).all()
+
+
+def obtener_por_id(db: Session, especialidad_id) -> Especialidad | None:
+    return db.get(Especialidad, especialidad_id)

@@ -316,6 +316,16 @@ export default function PanelPage() {
               </div>
             )}
 
+            {yaConsulto && !buscando && (
+              <p className="field__hint">
+                ¿No encuentra un horario que le sirva?{" "}
+                <Link to={`/lista-espera${filtros.especialidad_id ? `?especialidad=${filtros.especialidad_id}` : ""}`}>
+                  Únase a la lista de espera
+                </Link>{" "}
+                y le avisamos cuando se libere un cupo.
+              </p>
+            )}
+
             <div className="specialist-grid">
               {grupos.map((grupo) => {
                 const proxima = grupo.franjas[0];

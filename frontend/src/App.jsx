@@ -10,6 +10,7 @@ import RegistroPage from "./pages/RegistroPage";
 import PanelPage from "./pages/PanelPage";
 import MisCitasPage from "./pages/MisCitasPage";
 import ConfirmarAsistenciaPage from "./pages/ConfirmarAsistenciaPage";
+import ListaEsperaPage from "./pages/ListaEsperaPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminCitasPage from "./pages/admin/AdminCitasPage";
 import AdminCitaDetallePage from "./pages/admin/AdminCitaDetallePage";
@@ -35,6 +36,14 @@ export default function App() {
               element={
                 <RutaProtegida>
                   <PanelPage />
+                </RutaProtegida>
+              }
+            />
+            <Route
+              path="/lista-espera"
+              element={
+                <RutaProtegida>
+                  <ListaEsperaPage />
                 </RutaProtegida>
               }
             />

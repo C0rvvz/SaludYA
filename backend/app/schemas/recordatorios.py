@@ -41,10 +41,9 @@ class PlantillaOut(BaseModel):
     texto: str | None  # None: la plantilla necesita que se elija una cita
 
 
-class ProgramarRecordatorioRequest(BaseModel):
+class EditarRecordatorioRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    paciente_id: uuid.UUID
     cita_id: uuid.UUID | None = None
     canal: CanalContacto  # "llamada" = HU-65
     plantilla: ClavePlantilla | None = None
@@ -52,14 +51,20 @@ class ProgramarRecordatorioRequest(BaseModel):
     programado_para: datetime  # sin zona = hora de Colombia
 
 
+class ProgramarRecordatorioRequest(EditarRecordatorioRequest):
+    paciente_id: uuid.UUID
+
+
 class RecordatorioProgramadoOut(BaseModel):
     id: uuid.UUID
     paciente_id: uuid.UUID
     paciente_nombre: str
+    cita_id: uuid.UUID | None
     canal: CanalContacto
     plantilla: str | None
     texto: str
     programado_para: datetime
     estado: EstadoProgramacion
+    intentos: int
     enviado_en: datetime | None
     programado_por: str

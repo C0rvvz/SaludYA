@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  cancelarRecordatorio,
+  editarRecordatorio,
   listarProgramados,
   listarRecordatorios,
   obtenerPlantillas,
   programarRecordatorio,
+  reintentarRecordatorio,
 } from "../../api/admin";
 import { CANALES } from "../../utils/citas";
 import { formatearFecha, formatearFechaHora, formatearHora } from "../../utils/formato";
@@ -12,7 +15,8 @@ import { formatearFecha, formatearFechaHora, formatearHora } from "../../utils/f
  * Centro de recordatorios — HU-67: en un solo apartado, la lista de
  * pacientes con sus recordatorios (HU-63), el filtro por canal (HU-62)
  * y la programación de mensajes escritos (HU-64) y llamadas (HU-65) con
- * plantillas (HU-66).
+ * plantillas (HU-66). Los programados se pueden editar o cancelar
+ * mientras no salgan, y reintentar si fallaron.
  */
 
 // HU-63, criterio 4: solo lo que se sabe (leído y entregado requieren WhatsApp real).
@@ -26,15 +30,14 @@ const ESTADO_PROGRAMADO = {
   pendiente: ["Programado", "badge--warning"],
   enviado: ["Enviado", "badge--success"],
   fallido: ["Falló", "badge--error"],
+  cancelado: ["Cancelado", "badge--neutral"],
 };
 
 const CANALES_ESCRITOS = ["whatsapp", "sms", "correo"];
 
 // "AAAA-MM-DDTHH:mm" en hora local, para <input type="datetime-local">
-const ahoraLocal = () => {
-  const ahora = new Date();
-  return new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-};
+const aLocal = (fecha) =>
+  new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
 function Insignia({ estados, estado }) {
   if (!estado) return <span className="texto-suave">Sin envíos</span>;
@@ -42,16 +45,21 @@ function Insignia({ estados, estado }) {
   return <span className={`badge ${clase}`}>{texto}</span>;
 }
 
-/** HU-64 / HU-65 / HU-66: programar un mensaje escrito o una llamada para un paciente. */
-function PanelProgramar({ paciente, onListo, onCancelar }) {
-  const preferido = paciente.canal_preferido;
+/**
+ * HU-64 / HU-65 / HU-66: programar un mensaje escrito o una llamada para
+ * un paciente. Con `programado`, edita ese recordatorio.
+ */
+function PanelProgramar({ paciente, programado, onListo, onCancelar }) {
+  const preferido = programado?.canal ?? paciente.canal_preferido;
   const [tipo, setTipo] = useState(preferido === "llamada" ? "llamada" : "mensaje");
   const [canal, setCanal] = useState(CANALES_ESCRITOS.includes(preferido) ? preferido : "whatsapp");
-  const [citaId, setCitaId] = useState(paciente.citas_activas[0]?.id ?? "");
+  const [citaId, setCitaId] = useState(
+    programado ? (programado.cita_id ?? "") : (paciente.citas_activas[0]?.id ?? "")
+  );
   const [plantillas, setPlantillas] = useState([]);
-  const [plantilla, setPlantilla] = useState("");
-  const [texto, setTexto] = useState("");
-  const [cuando, setCuando] = useState("");
+  const [plantilla, setPlantilla] = useState(programado?.plantilla ?? "");
+  const [texto, setTexto] = useState(programado?.texto ?? "");
+  const [cuando, setCuando] = useState(programado ? aLocal(new Date(programado.programado_para)) : "");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
 
@@ -71,17 +79,20 @@ function PanelProgramar({ paciente, onListo, onCancelar }) {
     evento.preventDefault();
     setEnviando(true);
     setError("");
+    const datos = {
+      cita_id: citaId || null,
+      canal: tipo === "llamada" ? "llamada" : canal,
+      plantilla: plantilla || null,
+      texto,
+      programado_para: cuando,
+    };
     try {
-      await programarRecordatorio({
-        paciente_id: paciente.paciente_id,
-        cita_id: citaId || null,
-        canal: tipo === "llamada" ? "llamada" : canal,
-        plantilla: plantilla || null,
-        texto,
-        programado_para: cuando,
-      });
+      if (programado) await editarRecordatorio(programado.id, datos);
+      else await programarRecordatorio({ ...datos, paciente_id: paciente.paciente_id });
       const que = tipo === "llamada" ? "la llamada" : `el mensaje por ${CANALES[canal]}`;
-      onListo(`Se programó ${que} a ${paciente.nombre} para el ${formatearFechaHora(cuando)}.`);
+      onListo(
+        `Se ${programado ? "reprogramó" : "programó"} ${que} a ${paciente.nombre} para el ${formatearFechaHora(cuando)}.`
+      );
     } catch (err) {
       setError(err.message);
       setEnviando(false);
@@ -90,7 +101,9 @@ function PanelProgramar({ paciente, onListo, onCancelar }) {
 
   return (
     <form className="card formulario-admin" onSubmit={programar}>
-      <h2 className="admin-card__titulo">Programar recordatorio para {paciente.nombre}</h2>
+      <h2 className="admin-card__titulo">
+        {programado ? "Editar" : "Programar"} recordatorio para {paciente.nombre}
+      </h2>
       {error && <div className="alert alert--error">{error}</div>}
 
       <div className="filtros-admin">
@@ -149,7 +162,7 @@ function PanelProgramar({ paciente, onListo, onCancelar }) {
             id="cuando"
             type="datetime-local"
             required
-            min={ahoraLocal()}
+            min={aLocal(new Date())}
             value={cuando}
             onChange={(e) => setCuando(e.target.value)}
           />
@@ -177,7 +190,7 @@ function PanelProgramar({ paciente, onListo, onCancelar }) {
 
       <div className="acciones-admin">
         <button className="btn btn--primary" type="submit" disabled={enviando || !texto.trim() || !cuando}>
-          Programar
+          {programado ? "Guardar cambios" : "Programar"}
         </button>
         <button className="btn btn--outline" type="button" onClick={onCancelar}>
           Volver
@@ -194,7 +207,9 @@ export default function AdminRecordatoriosPage() {
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
   const [canal, setCanal] = useState("");
-  const [seleccionado, setSeleccionado] = useState(null);
+  const [seleccionado, setSeleccionado] = useState(null); // { paciente, programado? }
+  const [cancelando, setCancelando] = useState(null); // id del programado a confirmar
+  const [ocupado, setOcupado] = useState(false);
 
   const cargar = useCallback(
     () =>
@@ -216,10 +231,25 @@ export default function AdminRecordatoriosPage() {
   // HU-62: "Todos" no filtra; un canal muestra los pacientes asociados a él.
   const visibles = canal ? pacientes.filter((p) => p.canal_preferido === canal) : pacientes;
 
-  function abrir(paciente) {
+  function abrir(paciente, programado = null) {
     setAviso("");
-    setSeleccionado(paciente);
+    setSeleccionado({ paciente, programado });
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function accion(fn, mensaje) {
+    setOcupado(true);
+    setAviso("");
+    setError("");
+    try {
+      setAviso(mensaje(await fn()));
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOcupado(false);
+      setCancelando(null);
+    }
   }
 
   return (
@@ -235,8 +265,9 @@ export default function AdminRecordatoriosPage() {
 
       {seleccionado && (
         <PanelProgramar
-          key={seleccionado.paciente_id}
-          paciente={seleccionado}
+          key={`${seleccionado.paciente.paciente_id}-${seleccionado.programado?.id ?? "nuevo"}`}
+          paciente={seleccionado.paciente}
+          programado={seleccionado.programado}
           onCancelar={() => setSeleccionado(null)}
           onListo={(mensaje) => {
             setSeleccionado(null);
@@ -311,6 +342,7 @@ export default function AdminRecordatoriosPage() {
               <th>Mensaje</th>
               <th>Estado</th>
               <th>Programó</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -322,8 +354,65 @@ export default function AdminRecordatoriosPage() {
                 <td className="celda-texto">{r.texto}</td>
                 <td>
                   <Insignia estados={ESTADO_PROGRAMADO} estado={r.estado} />
+                  {r.estado === "pendiente" && r.intentos > 0 && (
+                    <span className="texto-suave">Reintentando ({r.intentos} fallidos)</span>
+                  )}
+                  {r.estado === "fallido" && <span className="texto-suave">{r.intentos} intentos</span>}
                 </td>
                 <td>{r.programado_por}</td>
+                <td>
+                  {cancelando === r.id ? (
+                    <div className="acciones-admin">
+                      <span>¿Cancelar este recordatorio?</span>
+                      <button
+                        className="btn btn--peligro btn--compacto"
+                        disabled={ocupado}
+                        onClick={() => accion(() => cancelarRecordatorio(r.id), () => "Se canceló el recordatorio.")}
+                      >
+                        Sí, cancelar
+                      </button>
+                      <button className="btn btn--outline btn--compacto" onClick={() => setCancelando(null)}>
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    ["pendiente", "fallido"].includes(r.estado) && (
+                      <div className="acciones-admin">
+                        {r.estado === "fallido" && (
+                          <button
+                            className="btn btn--primary btn--compacto"
+                            disabled={ocupado}
+                            onClick={() =>
+                              accion(
+                                () => reintentarRecordatorio(r.id),
+                                (x) =>
+                                  x.estado === "enviado"
+                                    ? "El recordatorio se envió."
+                                    : "No salió otra vez; se reintentará automáticamente en unos minutos."
+                              )
+                            }
+                          >
+                            Reintentar
+                          </button>
+                        )}
+                        <button
+                          className="btn btn--outline btn--compacto"
+                          disabled={ocupado}
+                          onClick={() => abrir(pacientes.find((p) => p.paciente_id === r.paciente_id), r)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="btn btn--peligro-outline btn--compacto"
+                          disabled={ocupado}
+                          onClick={() => setCancelando(r.id)}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    )
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

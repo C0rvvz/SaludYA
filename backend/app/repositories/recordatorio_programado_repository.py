@@ -1,5 +1,6 @@
 """Acceso a datos de los recordatorios programados — HU-64 y HU-65."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
@@ -26,3 +27,13 @@ def pendientes(db: Session, hasta: datetime | None = None) -> list[RecordatorioP
     if hasta is not None:
         query = query.filter(RecordatorioProgramado.programado_para <= hasta).with_for_update(skip_locked=True)
     return query.order_by(RecordatorioProgramado.programado_para).all()
+
+
+def obtener_con_lock(db: Session, programado_id: uuid.UUID) -> RecordatorioProgramado | None:
+    """SELECT ... FOR UPDATE: editar, cancelar o reintentar no se cruza con el envío de la tarea de fondo."""
+    return (
+        db.query(RecordatorioProgramado)
+        .filter(RecordatorioProgramado.id == programado_id)
+        .with_for_update()
+        .first()
+    )

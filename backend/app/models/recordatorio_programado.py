@@ -1,17 +1,18 @@
 """
 Recordatorio programado — HU-64 (mensaje escrito) y HU-65 (llamada).
 
-El personal lo deja listo para una fecha y hora; la tarea de fondo lo
-envía cuando llega el momento (ver centro_recordatorios_service). Es una
-llamada si el canal es "llamada" (se simula, como el resto de canales
-sin integración); si no, un mensaje escrito.
+El personal lo deja listo para una fecha y hora (y puede editarlo o
+cancelarlo mientras no salga); la tarea de fondo lo envía cuando llega
+el momento (ver centro_recordatorios_service). Es una llamada si el
+canal es "llamada" (se simula, como el resto de canales sin
+integración); si no, un mensaje escrito.
 """
 
 import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,7 +23,8 @@ from app.models.cita import CanalContacto
 class EstadoProgramacion(str, enum.Enum):
     PENDIENTE = "pendiente"
     ENVIADO = "enviado"
-    FALLIDO = "fallido"
+    FALLIDO = "fallido"  # agotó los reintentos automáticos
+    CANCELADO = "cancelado"
 
 
 class RecordatorioProgramado(Base):
@@ -57,6 +59,9 @@ class RecordatorioProgramado(Base):
         nullable=False,
         index=True,
     )
+    # Si el envío falla se reintenta en las siguientes pasadas, hasta
+    # RECORDATORIO_MAX_INTENTOS (igual que los recordatorios de HU-22).
+    intentos: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

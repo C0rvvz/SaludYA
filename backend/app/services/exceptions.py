@@ -113,3 +113,7 @@ class ConversacionOcupadaError(Exception):
 
 class ProgramacionInvalidaError(Exception):
     """Datos no válidos al programar un recordatorio (HU-64 / HU-65)."""
+
+
+class ListaEsperaInvalidaError(Exception):
+    """Solicitud u oferta de la lista de espera que no se puede crear o responder."""
