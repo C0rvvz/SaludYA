@@ -4,13 +4,14 @@ import Logo from "../Logo";
 
 // Solo aparecen las secciones que el rol puede usar.
 const SECCIONES = [
+  { to: "/admin/dashboard", texto: "Dashboard", permiso: "ver_reportes" },
   { to: "/admin/citas", texto: "Gestión de citas", permiso: "ver_citas" },
   { to: "/admin/auditoria", texto: "Auditoría", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", permiso: "gestionar_usuarios" },
 ];
 
 // Del prototipo, todavía sin construir (ver el plan de fases).
-const PROXIMAMENTE = ["Dashboard", "Reportes", "Centro de recordatorios", "Lista de espera"];
+const PROXIMAMENTE = ["Reportes", "Centro de recordatorios", "Lista de espera"];
 
 /** Estructura del apartado de administración: menú lateral y contenido. */
 export default function AdminLayout() {

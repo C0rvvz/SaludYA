@@ -64,3 +64,8 @@ export function capitalizar(texto) {
   if (!texto) return texto;
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
+
+// 66.7 -> "66,7 %"; sin datos -> "—"
+export function formatearPorcentaje(valor) {
+  return valor == null ? "—" : `${valor.toLocaleString("es-CO")} %`;
+}

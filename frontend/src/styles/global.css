@@ -1894,3 +1894,97 @@ select:focus-visible {
 .panel-admin--peligro {
   background: var(--color-error-soft);
 }
+/* Dashboard y reportes (HU-44, HU-48 a HU-52, HU-68 a HU-75) */
+.filtros-admin--periodo {
+  grid-template-columns: minmax(170px, 280px);
+}
+
+.reporte {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.reporte__columnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.reporte .admin-card__titulo {
+  margin-bottom: var(--space-2);
+}
+
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+
+.cifras + .cifras {
+  margin-top: var(--space-2);
+}
+
+.cifra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-line-soft);
+}
+
+.cifra__valor {
+  font-size: var(--text-lg);
+  line-height: 1.1;
+}
+
+.cifra__nombre {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.barras {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.barras li {
+  display: grid;
+  grid-template-columns: minmax(100px, 9rem) 1fr minmax(2.5rem, auto);
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.barras__pista {
+  height: 0.9rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-soft);
+  overflow: hidden;
+}
+
+.barras__relleno {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  opacity: 0.45;
+}
+
+.barras__valor {
+  font-weight: 700;
+  text-align: right;
+}
+
+.barras .is-mayor .barras__relleno {
+  opacity: 1;
+}
+
+.barras .is-mayor .barras__nombre {
+  font-weight: 700;
+}

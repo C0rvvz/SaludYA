@@ -84,3 +84,8 @@ export function listarAuditoria(filtros = {}) {
   const query = params.toString();
   return conPersonal(`/admin/auditoria${query ? `?${query}` : ""}`);
 }
+
+// --- Dashboard y Reportes (HU-44, HU-48 a HU-52, HU-68 a HU-75) ---
+export function obtenerReporte(periodo) {
+  return conPersonal(`/admin/reportes?periodo=${periodo}`);
+}

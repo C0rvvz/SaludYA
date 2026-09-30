@@ -15,6 +15,7 @@ import AdminCitasPage from "./pages/admin/AdminCitasPage";
 import AdminCitaDetallePage from "./pages/admin/AdminCitaDetallePage";
 import AdminAuditoriaPage from "./pages/admin/AdminAuditoriaPage";
 import AdminUsuariosPage from "./pages/admin/AdminUsuariosPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 
 export default function App() {
   return (
@@ -55,6 +56,14 @@ export default function App() {
               }
             >
               <Route index element={<Navigate to="citas" replace />} />
+              <Route
+                path="dashboard"
+                element={
+                  <RutaPersonal permiso="ver_reportes">
+                    <AdminDashboardPage />
+                  </RutaPersonal>
+                }
+              />
               <Route path="citas" element={<AdminCitasPage />} />
               <Route path="citas/:id" element={<AdminCitaDetallePage />} />
               <Route

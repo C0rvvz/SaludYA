@@ -24,10 +24,14 @@ Gestión de citas
 
 Auditoría
   GET   /admin/auditoria                  HU-80 a HU-85
+
+Dashboard y Reportes
+  GET   /admin/reportes?periodo=mes       HU-44, HU-48 a HU-52, HU-68 a HU-70, HU-72 a HU-75
 """
 
 import uuid
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -63,12 +67,14 @@ from app.schemas.admin import (
     RiesgoOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
+from app.schemas.reportes import ReporteOut
 from app.services import (
     admin_citas_service,
     citas_service,
     comprobante_service,
     personal_service,
     recordatorios_service,
+    reportes_service,
     riesgo_service,
 )
 from app.services.auditoria_service import Actor
@@ -461,3 +467,16 @@ def auditoria(
         db, cita_id=cita_id, paciente_id=paciente_id, acciones=[accion] if accion else None
     )
     return [_registro_out(r) for r in registros]
+
+
+# --- Dashboard y Reportes ---
+
+
+@router.get("/reportes", response_model=ReporteOut)
+def reportes(
+    periodo: Literal["mes", "trimestre", "anio"] = Query(default="mes", description="HU-68"),
+    _: Personal = Depends(requiere(Permiso.VER_REPORTES)),
+    db: Session = Depends(get_db),
+):
+    """Dashboard (HU-44, HU-48 a HU-52) y Reportes (HU-68 a HU-70, HU-72 a HU-75) del periodo."""
+    return reportes_service.reporte(db, periodo)

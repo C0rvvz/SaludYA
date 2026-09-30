@@ -74,7 +74,7 @@ def listar_para_personal(
     hasta: date | None = None,
     especialidad_id: uuid.UUID | None = None,
     texto: str | None = None,
-    limite: int = 500,
+    limite: int | None = 500,
 ) -> list[Cita]:
     """
     HU-34: citas de todos los pacientes para el personal, ordenadas por
