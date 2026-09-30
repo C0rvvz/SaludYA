@@ -1988,3 +1988,8 @@ select:focus-visible {
 .barras .is-mayor .barras__nombre {
   font-weight: 700;
 }
+
+.reporte__destacado {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
