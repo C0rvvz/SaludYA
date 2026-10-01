@@ -26,7 +26,7 @@ Auditoría
   GET   /admin/auditoria                  HU-80 a HU-85
 
 Dashboard y Reportes
-  GET   /admin/reportes?periodo=mes       HU-44, HU-48 a HU-52, HU-68 a HU-70, HU-72 a HU-75
+  GET   /admin/reportes?periodo=mes       HU-44, HU-48 a HU-52, HU-68 a HU-75
 
 Centro de recordatorios
   GET   /admin/recordatorios              HU-62, HU-63, HU-67 (pacientes y sus envíos)
@@ -553,7 +553,7 @@ def reportes(
     _: Personal = Depends(requiere(Permiso.VER_REPORTES)),
     db: Session = Depends(get_db),
 ):
-    """Dashboard (HU-44, HU-48 a HU-52) y Reportes (HU-68 a HU-70, HU-72 a HU-75) del periodo."""
+    """Dashboard (HU-44, HU-48 a HU-52) y Reportes (HU-68 a HU-75) del periodo."""
     return reportes_service.reporte(db, periodo)
 
 

@@ -1,5 +1,5 @@
 import { Barras, Cifra, ConPeriodo } from "../../components/admin/Reportes";
-import { CANALES } from "../../utils/citas";
+import { CALIFICACIONES, CANALES } from "../../utils/citas";
 import { formatearDuracion, formatearPorcentaje } from "../../utils/formato";
 
 const DIRECCION = {
@@ -27,9 +27,9 @@ function Destacado({ texto, primero, valor }) {
 
 /**
  * Reportes — HU-69 (indicadores), HU-70 (tiempo en ocupar un cupo
- * liberado), HU-72 (demanda por especialidad), HU-73 (inasistencia por
- * especialidad), HU-74 (tendencia) y HU-75 (canales), todos del periodo
- * elegido con HU-68.
+ * liberado), HU-71 (satisfacción), HU-72 (demanda por especialidad),
+ * HU-73 (inasistencia por especialidad), HU-74 (tendencia) y HU-75
+ * (canales), todos del periodo elegido con HU-68.
  */
 export default function AdminReportesPage() {
   return (
@@ -43,6 +43,7 @@ export default function AdminReportesPage() {
           const demanda = r.demanda[0];
           const inasistencia = r.inasistencia_por_especialidad[0];
           const canal = r.canales[0];
+          const s = r.satisfaccion;
           return (
             <div className="reporte">
               <section className="card">
@@ -80,6 +81,43 @@ export default function AdminReportesPage() {
                     }
                   />
                 </div>
+              </section>
+
+              {/* HU-71: satisfacción de los pacientes en el periodo */}
+              <section className="card">
+                <h2 className="admin-card__titulo">Satisfacción de los pacientes</h2>
+                {s.calificaciones ? (
+                  <>
+                    <div className="cifras">
+                      <Cifra
+                        valor={`${s.promedio.toLocaleString("es-CO")} de 5`}
+                        nombre="Calificación promedio"
+                        detalle={CALIFICACIONES[Math.round(s.promedio)]}
+                      />
+                      <Cifra
+                        valor={formatearPorcentaje(s.porcentaje_satisfechos)}
+                        nombre="Pacientes satisfechos"
+                        detalle="Calificaron su atención con 4 o 5"
+                      />
+                      <Cifra
+                        valor={`${s.calificaciones} de ${r.atendidas}`}
+                        nombre="Citas calificadas"
+                        detalle="De las citas atendidas en el periodo"
+                      />
+                    </div>
+                    <Barras
+                      datos={s.distribucion.map((d) => ({
+                        nombre: `${d.calificacion} ★ ${CALIFICACIONES[d.calificacion]}`,
+                        valor: d.cantidad,
+                      }))}
+                    />
+                  </>
+                ) : (
+                  <p className="reporte__destacado">
+                    Aún no hay calificaciones en este periodo. Los pacientes califican su atención desde
+                    "Mis citas" cuando la cita queda registrada como atendida.
+                  </p>
+                )}
               </section>
 
               <div className="reporte__columnas">

@@ -57,6 +57,20 @@ class TramoTendenciaOut(BaseModel):
     porcentaje: float | None
 
 
+class CantidadPorCalificacionOut(BaseModel):
+    calificacion: int  # 1 a 5
+    cantidad: int
+
+
+class SatisfaccionOut(BaseModel):
+    """HU-71: de las citas atendidas del periodo que el paciente calificó."""
+
+    calificaciones: int
+    promedio: float | None  # de 1 a 5
+    porcentaje_satisfechos: float | None  # calificaron con 4 o 5
+    distribucion: list[CantidadPorCalificacionOut]  # de 5 a 1
+
+
 class ReporteOut(BaseModel):
     periodo: Literal["mes", "trimestre", "anio"]
     periodo_texto: str
@@ -82,4 +96,5 @@ class ReporteOut(BaseModel):
     inasistencia_por_paciente: list[InasistenciaPacienteOut]
     tendencia: list[TramoTendenciaOut]
     tendencia_direccion: Literal["aumenta", "disminuye", "se_mantiene"] | None
+    satisfaccion: SatisfaccionOut
     solicitudes: IndicadoresSolicitudesOut

@@ -1,4 +1,4 @@
-"""Esquemas de entrada/salida de citas — HU-16, HU-17 y Bloque 5 (HU-18, HU-20, HU-21, HU-26, HU-27, HU-29)."""
+"""Esquemas de entrada/salida de citas — HU-16, HU-17, Bloque 5 (HU-18, HU-20, HU-21, HU-26, HU-27, HU-29) y HU-71."""
 
 import uuid
 from datetime import date, datetime, time
@@ -76,11 +76,15 @@ class MiCitaOut(BaseModel):
     cerrada_en: datetime | None
     reprogramada_desde: str | None  # número de comprobante de la cita original
     reprogramada_a: str | None  # número de comprobante de la cita nueva
+    # HU-71: calificación que el paciente dio a la atención (1 a 5).
+    calificacion: int | None
+    comentario_calificacion: str | None
     # Qué puede hacer el paciente con esta cita ahora (HU-27, criterio 4).
     puede_confirmar_asistencia: bool
     puede_cancelar: bool
     puede_reprogramar: bool
     puede_registrar_llegada: bool
+    puede_calificar: bool
     # HU-24: desde qué momento (hora de Colombia) se puede registrar la llegada.
     llegada_disponible_desde: datetime | None
     historial: list[EventoCitaOut]
@@ -115,6 +119,15 @@ class CancelarCitaRequest(BaseModel):
 
 class ReprogramarCitaRequest(BaseModel):
     disponibilidad_id: uuid.UUID
+
+
+class CalificarCitaRequest(BaseModel):
+    """HU-71: de 1 (muy mala) a 5 (excelente); el comentario es opcional."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    calificacion: int = Field(ge=1, le=5)
+    comentario: str | None = Field(default=None, max_length=500)
 
 
 class ComprobanteOut(BaseModel):

@@ -12,6 +12,7 @@ import { BloqueFecha, EstadoBadge } from "./ElementosCita";
  * confirmar asistencia), "Reprogramar" y "Cancelar" (criterios 2 y 3:
  * abren directamente ese paso) o, si ya pasó o se canceló, "Agendar de
  * nuevo" con la misma especialidad, sin empezar la búsqueda desde cero.
+ * Si fue atendida y aún no la califica, "Calificar atención" (HU-71).
  */
 export default function ItemCita({ cita: c, procesando, onAbrir, onAccionRapida }) {
   const especialidad = c.especialista.especialidad.nombre;
@@ -86,6 +87,16 @@ export default function ItemCita({ cita: c, procesando, onAbrir, onAccionRapida 
             aria-label={`Cancelar la cita de ${especialidad} del ${cuando}`}
           >
             Cancelar
+          </button>
+        )}
+        {c.puede_calificar && (
+          <button
+            type="button"
+            className="btn btn--primary btn--compacto"
+            onClick={() => onAbrir("ver")}
+            aria-label={`Calificar la atención de ${especialidad} del ${cuando}`}
+          >
+            Calificar atención
           </button>
         )}
         {ESTADOS_REAGENDABLES.includes(c.estado_visible) && (

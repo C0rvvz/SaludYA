@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  calificarCita,
   cancelarCita,
   confirmarAsistencia,
   obtenerMiCita,
   registrarLlegada,
   reprogramarCita,
 } from "../../api/citas";
-import { CANALES, horaDe } from "../../utils/citas";
+import { CALIFICACIONES, CANALES, estrellas, horaDe } from "../../utils/citas";
 import { capitalizar, formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
 import { EstadoBadge, Fila } from "./ElementosCita";
 import SelectorNuevoHorario from "./SelectorNuevoHorario";
@@ -61,6 +62,67 @@ function PanelCancelar({ cita, ocupado, onConfirmar, onVolver }) {
         </button>
         <button className="btn btn--outline" disabled={ocupado} onClick={onVolver}>
           No, volver
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- HU-71: calificar la atención de una cita atendida ---
+function PanelCalificar({ ocupado, onEnviar }) {
+  const [calificacion, setCalificacion] = useState(0);
+  const [resaltada, setResaltada] = useState(0);
+  const [comentario, setComentario] = useState("");
+  const visible = resaltada || calificacion;
+
+  return (
+    <div className="card panel-accion">
+      <h2>¿Cómo fue su atención?</h2>
+      <p>Su opinión nos ayuda a mejorar el servicio.</p>
+
+      <fieldset className="estrellas" onMouseLeave={() => setResaltada(0)}>
+        <legend className="field__hint">Califique de 1 a 5 estrellas</legend>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <span key={n}>
+            <input
+              type="radio"
+              id={`calificacion_${n}`}
+              name="calificacion"
+              value={n}
+              checked={calificacion === n}
+              onChange={() => setCalificacion(n)}
+            />
+            <label
+              htmlFor={`calificacion_${n}`}
+              className={n <= visible ? "is-activa" : undefined}
+              title={CALIFICACIONES[n]}
+              onMouseEnter={() => setResaltada(n)}
+            >
+              ★<span className="sr-only">{`${n} de 5: ${CALIFICACIONES[n]}`}</span>
+            </label>
+          </span>
+        ))}
+        {visible > 0 && <span className="estrellas__texto">{CALIFICACIONES[visible]}</span>}
+      </fieldset>
+
+      <div className="field">
+        <label htmlFor="comentario_calificacion">Comentario (opcional)</label>
+        <textarea
+          id="comentario_calificacion"
+          rows={3}
+          maxLength={500}
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+        />
+      </div>
+
+      <div className="acciones-cita">
+        <button
+          className="btn btn--primary"
+          disabled={ocupado || !calificacion}
+          onClick={() => onEnviar(calificacion, comentario.trim())}
+        >
+          {ocupado ? "Enviando..." : "Enviar calificación"}
         </button>
       </div>
     </div>
@@ -147,6 +209,14 @@ export default function DetalleCita({
     if (actualizada) setCita(actualizada);
   }
 
+  async function calificar(calificacion, comentario) {
+    const actualizada = await ejecutar(
+      () => calificarCita(citaId, calificacion, comentario),
+      "Gracias por calificar su atención."
+    );
+    if (actualizada) setCita(actualizada);
+  }
+
   async function reprogramar(franja) {
     const nueva = await ejecutar(() => reprogramarCita(citaId, franja.id));
     if (nueva) {
@@ -200,6 +270,17 @@ export default function DetalleCita({
             </Fila>
             {cita.motivo_cancelacion && (
               <Fila etiqueta="Motivo de cancelación">{cita.motivo_cancelacion}</Fila>
+            )}
+            {cita.calificacion && (
+              <Fila etiqueta="Su calificación">
+                <span className="estrellas-fijas" aria-hidden="true">
+                  {estrellas(cita.calificacion)}
+                </span>{" "}
+                {cita.calificacion} de 5 · {CALIFICACIONES[cita.calificacion]}
+              </Fila>
+            )}
+            {cita.comentario_calificacion && (
+              <Fila etiqueta="Su comentario">{cita.comentario_calificacion}</Fila>
             )}
             {cita.reprogramada_desde && (
               <Fila etiqueta="Viene de la cita">
@@ -262,6 +343,10 @@ export default function DetalleCita({
                 )}
               </div>
             )}
+
+          {modoVisible === "ver" && cita.puede_calificar && (
+            <PanelCalificar ocupado={ocupado} onEnviar={calificar} />
+          )}
 
           {modoVisible === "cancelar" && (
             <PanelCancelar cita={cita} ocupado={ocupado} onConfirmar={cancelar} onVolver={() => setModo("ver")} />

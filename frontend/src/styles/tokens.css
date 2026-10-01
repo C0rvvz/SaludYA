@@ -27,6 +27,8 @@
   --color-success-soft: #e1f3e8;
   --color-warning-soft: #fbe9d8;
   --color-warning-ink: #9a5a20;
+  --color-star: #e2a400;
+  --color-star-empty: #b8c3d3;
 
   /* --- Tipografía (una sola familia, como el prototipo) --- */
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

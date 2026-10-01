@@ -2058,3 +2058,62 @@ select:focus-visible {
   background: var(--color-line-soft);
   white-space: pre-line;
 }
+
+/* Calificar la atención (HU-71) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.estrellas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+.estrellas legend {
+  width: 100%;
+  margin-bottom: var(--space-1);
+  padding: 0;
+}
+
+.estrellas input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.estrellas label {
+  display: block;
+  padding: 0 0.1rem;
+  font-size: 2.25rem;
+  line-height: 1;
+  color: var(--color-star-empty);
+  cursor: pointer;
+  transition: color 0.1s;
+}
+
+.estrellas label.is-activa,
+.estrellas-fijas {
+  color: var(--color-star);
+}
+
+.estrellas input:focus-visible + label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.estrellas__texto {
+  margin-left: var(--space-2);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}

@@ -22,6 +22,10 @@ Bloque 6 — el día de la consulta:
 - HU-24: registrar_llegada (check-in dentro de la ventana de la cita).
 - HU-25: cerrar_citas_pasadas (atendida / no asistió).
 
+Después de la consulta:
+- HU-71: calificar_cita (el paciente califica la atención; con eso se
+  calcula la satisfacción en los reportes).
+
 Apartado de administración (HU-38 a HU-40, HU-43): el personal usa las
 mismas funciones con paciente_id=None (su permiso ya lo verificó el
 endpoint), y registrar_resultado corrige el cierre automático de HU-25.
@@ -146,6 +150,11 @@ def puede_registrar_resultado(cita: Cita) -> bool:
     )
 
 
+def puede_calificar(cita: Cita) -> bool:
+    """HU-71: solo una cita atendida, y una sola vez."""
+    return cita.estado == EstadoCita.ATENDIDA and cita.calificacion is None
+
+
 def estado_visible(cita: Cita) -> str:
     """Estado como lo entiende el paciente (clave de ESTADOS_VISIBLES)."""
     if cita.estado == EstadoCita.CANCELADA:
@@ -200,6 +209,8 @@ def historial_de_estado(cita: Cita) -> list[dict]:
         nueva = cita.reemplazada_por
         destino = f" a la cita {nueva.numero_comprobante}" if nueva is not None else ""
         eventos.append(("reprogramada", cita.reprogramada_en, f"Cita reprogramada{destino}"))
+    if cita.calificada_en:
+        eventos.append(("calificada", cita.calificada_en, f"Calificó la atención con {cita.calificacion} de 5"))
     eventos.sort(key=lambda e: e[1])
     return [{"tipo": t, "fecha": f, "descripcion": d} for t, f, d in eventos]
 
@@ -472,6 +483,37 @@ def registrar_resultado(
         "Registró que el paciente fue atendido" if resultado == EstadoCita.ATENDIDA
         else "Registró que el paciente no asistió",
         cita=cita, estado_anterior=antes, estado_nuevo=texto_estado(cita),
+    )
+    db.commit()
+    db.refresh(cita)
+    return cita
+
+
+def calificar_cita(
+    db: Session,
+    paciente_id: uuid.UUID,
+    cita_id: uuid.UUID,
+    calificacion: int,
+    comentario: str | None,
+    *,
+    actor: Actor,
+) -> Cita:
+    """HU-71: el paciente califica de 1 a 5 la atención de una cita atendida."""
+    cita = _con_lock(db, cita_id, paciente_id)
+    if not puede_calificar(cita):
+        db.rollback()
+        raise CitaNoModificableError(
+            "Ya calificó esta cita."
+            if cita.calificacion is not None
+            else "Solo se pueden calificar las citas en las que fue atendido."
+        )
+
+    cita.calificacion = calificacion
+    cita.comentario_calificacion = comentario or None
+    cita.calificada_en = _ahora_utc()
+    auditoria_service.registrar(
+        db, actor, "calificar", f"Calificó la atención con {calificacion} de 5",
+        cita=cita, detalle=comentario or None,
     )
     db.commit()
     db.refresh(cita)

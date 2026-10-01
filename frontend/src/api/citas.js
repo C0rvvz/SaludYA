@@ -60,3 +60,12 @@ export function reprogramarCita(citaId, disponibilidadId) {
     body: { disponibilidad_id: disponibilidadId },
   });
 }
+
+// HU-71: calificar la atención de una cita atendida (1 a 5, comentario opcional).
+export function calificarCita(citaId, calificacion, comentario) {
+  return apiFetch(`/citas/${citaId}/calificar`, {
+    method: "POST",
+    auth: true,
+    body: { calificacion, comentario: comentario || null },
+  });
+}

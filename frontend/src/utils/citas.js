@@ -30,3 +30,9 @@ export const ESTADOS_REAGENDABLES = ["atendida", "no_asistio", "cancelada", "fin
 
 // "8:00 a. m." a partir de la fecha y hora (de Colombia) que envía el backend.
 export const horaDe = (fechaHora) => formatearHora(fechaHora.split("T")[1]);
+
+// HU-71: qué significa cada calificación de la atención.
+export const CALIFICACIONES = { 1: "Muy mala", 2: "Mala", 3: "Regular", 4: "Buena", 5: "Excelente" };
+
+// 4 -> "★★★★☆"
+export const estrellas = (n) => "★".repeat(n) + "☆".repeat(5 - n);

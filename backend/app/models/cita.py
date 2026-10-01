@@ -15,7 +15,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Enum as SAEnum, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Enum as SAEnum, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,6 +53,7 @@ class Cita(Base):
             unique=True,
             postgresql_where=text("estado = 'confirmada'"),
         ),
+        CheckConstraint("calificacion BETWEEN 1 AND 5", name="ck_citas_calificacion"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -116,6 +117,11 @@ class Cita(Base):
     recordatorio_intentos: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
+
+    # --- HU-71: el paciente califica la atención de una cita atendida (1 a 5) ---
+    calificacion: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    comentario_calificacion: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    calificada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     paciente: Mapped["Paciente"] = relationship(back_populates="citas")
     disponibilidad: Mapped["Disponibilidad"] = relationship(back_populates="citas")

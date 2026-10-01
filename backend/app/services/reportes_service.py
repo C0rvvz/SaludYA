@@ -6,8 +6,9 @@ Dashboard y Reportes del personal.
   (canales), HU-50 (inasistencias por especialidad), HU-51
   (inasistencias por paciente) y HU-52 (resumen general).
 - Reportes: HU-68 (periodo), HU-69 (indicadores), HU-70 (tiempo en
-  ocupar un cupo liberado), HU-72 (demanda por especialidad), HU-73
-  (inasistencia por especialidad), HU-74 (tendencia) y HU-75 (canales).
+  ocupar un cupo liberado), HU-71 (satisfacción), HU-72 (demanda por
+  especialidad), HU-73 (inasistencia por especialidad), HU-74
+  (tendencia) y HU-75 (canales).
 
 Todo se calcula en cada consulta a partir de las citas, así que refleja
 al instante lo que confirman, cancelan o reprograman pacientes y
@@ -27,6 +28,9 @@ SUPUESTO: un cupo reasignado es un horario liberado por una cancelación
 o reprogramación que después tomó otra cita (HU-44, HU-69, HU-70).
 SUPUESTO: el canal utilizado es el que el paciente eligió al agendar
 (canal_recordatorio) (HU-49, HU-75).
+SUPUESTO: la satisfacción sale de la calificación de 1 a 5 que el
+paciente da a una cita atendida (HU-71); un paciente está satisfecho
+si calificó con 4 o 5.
 """
 
 from collections import Counter, defaultdict
@@ -128,6 +132,18 @@ def _inasistencia(citas: list[Cita]) -> dict:
         "atendidas": len(cerradas) - no_asistio,
         "no_asistio": no_asistio,
         "porcentaje": _porcentaje(no_asistio, len(cerradas)),
+    }
+
+
+def _satisfaccion(citas: list[Cita]) -> dict:
+    """HU-71: promedio, porcentaje de satisfechos y cuántas citas hubo de cada calificación."""
+    calificaciones = [c.calificacion for c in citas if c.calificacion is not None]
+    cuantas = Counter(calificaciones)
+    return {
+        "calificaciones": len(calificaciones),
+        "promedio": round(sum(calificaciones) / len(calificaciones), 1) if calificaciones else None,
+        "porcentaje_satisfechos": _porcentaje(sum(1 for n in calificaciones if n >= 4), len(calificaciones)),
+        "distribucion": [{"calificacion": n, "cantidad": cuantas[n]} for n in range(5, 0, -1)],
     }
 
 
@@ -245,5 +261,6 @@ def reporte(db: Session, periodo: str) -> dict:
         "inasistencia_por_paciente": inasistencia_paciente,
         "tendencia": tendencia,
         "tendencia_direccion": direccion_de_la_tendencia([t["porcentaje"] for t in tendencia]),
+        "satisfaccion": _satisfaccion(citas),
         "solicitudes": solicitudes_service.indicadores(db, desde, hasta),  # HU-46, HU-47
     }

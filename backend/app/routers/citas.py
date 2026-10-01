@@ -19,6 +19,9 @@ Bloque 6 — el día de la consulta:
 POST /citas/{id}/registrar-llegada      -> HU-24
 POST /citas/confirmar-asistencia/enlace -> HU-23 (desde el recordatorio)
 
+Después de la consulta:
+POST /citas/{id}/calificar              -> HU-71 (satisfacción del paciente)
+
 Todos exigen JWT y solo actúan sobre citas del paciente autenticado,
 salvo el enlace del recordatorio, que no pide sesión: su token firmado
 solo permite confirmar la asistencia a esa cita.
@@ -36,6 +39,7 @@ from app.models.cita import Cita
 from app.models.paciente import Paciente
 from app.repositories import cita_repository
 from app.schemas.cita import (
+    CalificarCitaRequest,
     CancelarCitaRequest,
     CitaOut,
     ComprobanteOut,
@@ -88,10 +92,13 @@ def _mi_cita_out(cita: Cita) -> MiCitaOut:
             cita.reprogramada_desde.numero_comprobante if cita.reprogramada_desde else None
         ),
         reprogramada_a=cita.reemplazada_por.numero_comprobante if cita.reemplazada_por else None,
+        calificacion=cita.calificacion,
+        comentario_calificacion=cita.comentario_calificacion,
         puede_confirmar_asistencia=activa and cita.asistencia_confirmada_en is None,
         puede_cancelar=activa,
         puede_reprogramar=activa,
         puede_registrar_llegada=citas_service.puede_registrar_llegada(cita),
+        puede_calificar=citas_service.puede_calificar(cita),
         llegada_disponible_desde=llegada_desde if activa else None,
         historial=citas_service.historial_de_estado(cita),
     )
@@ -257,6 +264,24 @@ def registrar_llegada(
     try:
         cita = citas_service.registrar_llegada(
             db, paciente.id, cita_id, actor=Actor.de_paciente(paciente)
+        )
+    except _ERRORES_DE_CITA as e:
+        raise _error_http(e)
+    return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
+
+
+@router.post("/citas/{cita_id}/calificar", response_model=MiCitaOut)
+def calificar_cita(
+    cita_id: uuid.UUID,
+    datos: CalificarCitaRequest,
+    paciente: Paciente = Depends(get_current_paciente),
+    db: Session = Depends(get_db),
+):
+    """HU-71: el paciente califica la atención de una cita atendida (una sola vez)."""
+    try:
+        cita = citas_service.calificar_cita(
+            db, paciente.id, cita_id, datos.calificacion, datos.comentario,
+            actor=Actor.de_paciente(paciente),
         )
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
