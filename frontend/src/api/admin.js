@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, conFiltros } from "./client";
 
 // Apartado de administración: todas usan la sesión del personal.
 const conPersonal = (path, opciones = {}) => apiFetch(path, { ...opciones, auth: "personal" });
@@ -26,12 +26,7 @@ export function actualizarUsuario(id, cambios) {
 
 // --- Gestión de citas (HU-34 a HU-43) ---
 export function listarCitasAdmin(filtros = {}) {
-  const params = new URLSearchParams();
-  Object.entries(filtros).forEach(([clave, valor]) => {
-    if (valor) params.set(clave, valor);
-  });
-  const query = params.toString();
-  return conPersonal(`/admin/citas${query ? `?${query}` : ""}`);
+  return conPersonal(conFiltros("/admin/citas", filtros));
 }
 
 export function obtenerCitaAdmin(id) {
@@ -77,12 +72,7 @@ export function agregarObservacionAdmin(pacienteId, texto, citaId) {
 
 // --- Auditoría (HU-80 a HU-85) ---
 export function listarAuditoria(filtros = {}) {
-  const params = new URLSearchParams();
-  Object.entries(filtros).forEach(([clave, valor]) => {
-    if (valor) params.set(clave, valor);
-  });
-  const query = params.toString();
-  return conPersonal(`/admin/auditoria${query ? `?${query}` : ""}`);
+  return conPersonal(conFiltros("/admin/auditoria", filtros));
 }
 
 // --- Dashboard y Reportes (HU-44, HU-48 a HU-52, HU-68 a HU-75) ---
@@ -123,7 +113,7 @@ export function reintentarRecordatorio(id) {
 
 // --- Lista de espera (Fase D: HU-45, HU-53 a HU-61) ---
 export function listarListaEsperaAdmin(dia) {
-  return conPersonal(`/admin/lista-espera${dia ? `?dia=${dia}` : ""}`);
+  return conPersonal(conFiltros("/admin/lista-espera", { dia }));
 }
 
 export function horariosListaEspera(solicitudId) {

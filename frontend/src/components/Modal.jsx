@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Modal genérico y reutilizable (overlay + tarjeta + botón de cierre).
@@ -6,23 +6,28 @@ import { useEffect } from "react";
  * .modal-overlay / .modal-card en styles/global.css).
  */
 export default function Modal({ titulo, onClose, children }) {
+  const overlayRef = useRef(null);
+
+  // Se cierra con Escape (teclado) o con un clic fuera de la tarjeta (ratón),
+  // además de los botones "×" y "Entendido".
   useEffect(() => {
     function manejarEscape(evento) {
       if (evento.key === "Escape") onClose();
     }
+    function manejarClicFuera(evento) {
+      if (evento.target === overlayRef.current) onClose();
+    }
     document.addEventListener("keydown", manejarEscape);
-    return () => document.removeEventListener("keydown", manejarEscape);
+    document.addEventListener("click", manejarClicFuera);
+    return () => {
+      document.removeEventListener("keydown", manejarEscape);
+      document.removeEventListener("click", manejarClicFuera);
+    };
   }, [onClose]);
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) onClose();
-      }}
-    >
-      <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-card__titulo">
+    <div className="modal-overlay" ref={overlayRef}>
+      <dialog open className="modal-card" aria-modal="true" aria-labelledby="modal-card__titulo">
         <div className="modal-card__header">
           <h2 id="modal-card__titulo">{titulo}</h2>
           <button
@@ -40,7 +45,7 @@ export default function Modal({ titulo, onClose, children }) {
             Entendido
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

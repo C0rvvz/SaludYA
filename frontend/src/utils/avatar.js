@@ -17,7 +17,7 @@ export function colorAvatar(texto) {
   if (!texto) return COLORES[0];
   let hash = 0;
   for (let i = 0; i < texto.length; i++) {
-    hash = texto.charCodeAt(i) + ((hash << 5) - hash);
+    hash = texto.codePointAt(i) + ((hash << 5) - hash);
   }
   return COLORES[Math.abs(hash) % COLORES.length];
 }

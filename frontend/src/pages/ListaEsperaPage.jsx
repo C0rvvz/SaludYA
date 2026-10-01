@@ -31,6 +31,7 @@ const MODALIDADES = [
 ];
 
 const TEXTO_JORNADA = Object.fromEntries(JORNADAS);
+const TEXTO_MODALIDAD = Object.fromEntries(MODALIDADES);
 
 function FormularioUnirse({ especialidadInicial, onListo, onVolver }) {
   const [especialidades, setEspecialidades] = useState([]);
@@ -209,7 +210,7 @@ function TarjetaSolicitud({ solicitud: s, ocupado, onAceptar, onRechazar, onSali
 
       <p className="texto-suave">
         {s.sedes.join(", ")} · {TEXTO_JORNADA[s.jornada]} ·{" "}
-        {s.modalidad ? (s.modalidad === "virtual" ? "Virtual" : "Presencial") : "Presencial o virtual"} · Le
+        {TEXTO_MODALIDAD[s.modalidad ?? ""]} · Le
         avisamos por {CANALES[s.canal]}
       </p>
 
@@ -265,8 +266,9 @@ export default function ListaEsperaPage() {
       setAviso(mensaje(await fn()));
       await cargar();
     } catch (err) {
-      setError(err.message);
+      // Primero se recarga (cargar() limpia el error) y después se muestra el error.
       await cargar();
+      setError(err.message);
     } finally {
       setOcupado(false);
     }

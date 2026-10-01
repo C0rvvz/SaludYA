@@ -14,7 +14,8 @@
 const PATRON_SOLO_DIGITOS = /^\d{6,15}$/;
 const PATRON_ALFANUMERICO = /^[A-Za-z0-9]{6,15}$/;
 const PATRON_CELULAR_CO = /^3\d{9}$/;
-const PATRON_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Dominio en partes separadas por puntos: sin solapamientos, se evalúa en tiempo lineal.
+const PATRON_CORREO = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 export function validarNumeroDocumento(valor, tipoDocumento) {
   const v = (valor ?? "").trim();

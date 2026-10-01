@@ -104,6 +104,14 @@ def _recortar(conv: _Conversacion) -> None:
     del conv.mensajes[:desde]
 
 
+# Algunos proveedores ignoran parallel_tool_calls=False: aquí se impone
+# una sola escritura por mensaje del paciente, para que un "sí" no
+# confirme dos cosas.
+_UNA_ACCION_POR_MENSAJE = {
+    "error": "Solo se puede hacer una acción por mensaje del paciente. Termina esta primero."
+}
+
+
 def _ciclo(db: Session, paciente: Paciente, conv: _Conversacion) -> str:
     sistema = {"role": "system", "content": ia.instrucciones_sistema(paciente.nombre)}
     escrituras = 0
@@ -117,21 +125,15 @@ def _ciclo(db: Session, paciente: Paciente, conv: _Conversacion) -> str:
 
         # La API exige una respuesta por cada tool_call, aunque sea un error.
         for llamada in mensaje.tool_calls:
-            nombre = llamada.function.name
-            if nombre in ia.TOOLS_ESCRITURA and escrituras >= 1:
-                # Algunos proveedores ignoran parallel_tool_calls=False:
-                # aquí se impone una sola escritura por mensaje del
-                # paciente, para que un "sí" no confirme dos cosas.
-                resultado = {
-                    "error": "Solo se puede hacer una acción por mensaje del paciente. "
-                    "Termina esta primero."
-                }
-            else:
-                if nombre in ia.TOOLS_ESCRITURA:
-                    escrituras += 1
-                resultado = herramientas_ia.ejecutar(
-                    db, paciente, conv.estado, nombre, llamada.function.arguments
+            es_escritura = llamada.function.name in ia.TOOLS_ESCRITURA
+            resultado = (
+                _UNA_ACCION_POR_MENSAJE
+                if es_escritura and escrituras >= 1
+                else herramientas_ia.ejecutar(
+                    db, paciente, conv.estado, llamada.function.name, llamada.function.arguments
                 )
+            )
+            escrituras += es_escritura
             conv.mensajes.append(
                 {
                     "role": "tool",

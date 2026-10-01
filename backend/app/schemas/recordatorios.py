@@ -45,7 +45,7 @@ class EditarRecordatorioRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     cita_id: uuid.UUID | None = None
-    canal: CanalContacto  # "llamada" = HU-65
+    canal: CanalContacto  # la llamada programada es la HU-65
     plantilla: ClavePlantilla | None = None
     texto: str = Field(min_length=1, max_length=1000)
     programado_para: datetime  # sin zona = hora de Colombia

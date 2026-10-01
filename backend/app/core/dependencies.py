@@ -39,22 +39,25 @@ def _no_autorizado(detalle: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detalle)
 
 
+TOKEN_INVALIDO = "Token inválido."
+
+
 def _leer_token(token: str, tipo_esperado: str) -> uuid.UUID:
     try:
         payload = decodificar_access_token(token)
     except jwt.ExpiredSignatureError:
         raise _no_autorizado("La sesión expiró. Inicia sesión de nuevo.")
     except jwt.InvalidTokenError:
-        raise _no_autorizado("Token inválido.")
+        raise _no_autorizado(TOKEN_INVALIDO)
 
     # Los tokens de paciente emitidos antes de existir el campo "tipo"
     # no lo traen: se asume "paciente".
     if payload.get("tipo", TIPO_PACIENTE) != tipo_esperado:
-        raise _no_autorizado("Token inválido.")
+        raise _no_autorizado(TOKEN_INVALIDO)
     try:
         return uuid.UUID(payload["sub"])
     except (KeyError, ValueError, TypeError):
-        raise _no_autorizado("Token inválido.")
+        raise _no_autorizado(TOKEN_INVALIDO)
 
 
 def get_current_paciente(

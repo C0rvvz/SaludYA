@@ -96,7 +96,8 @@ def test_pasaporte_admite_letras_y_queda_en_mayusculas():
 )
 def test_detecta_urgencias(mensaje, categoria):
     urgencia = urgencias.detectar(mensaje)
-    assert urgencia is not None and urgencia.categoria == categoria
+    assert urgencia is not None
+    assert urgencia.categoria == categoria
 
 
 def test_salud_mental_tiene_prioridad_y_su_propio_mensaje():

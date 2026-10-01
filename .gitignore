@@ -19,3 +19,9 @@ venv/
 
 # Configuración local de Claude (servidor de vista previa)
 .claude/
+
+# Cobertura de las pruebas y análisis de SonarQube (se generan con scripts/analisis-sonar.sh)
+backend/coverage.xml
+.coverage
+frontend/coverage/
+.scannerwork/

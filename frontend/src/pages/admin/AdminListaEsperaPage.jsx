@@ -42,9 +42,9 @@ const PRIORIDADES = [
 
 const JORNADA = { cualquiera: "Cualquier hora", manana: "Mañana", tarde: "Tarde" };
 
-const ACTIVAS = ["en_espera", "cupo_ofrecido"];
+const ACTIVAS = new Set(["en_espera", "cupo_ofrecido"]);
 // Estados de la cita asignada que todavía se pueden cancelar.
-const CITA_CANCELABLE = ["Pendiente de confirmar asistencia", "Asistencia confirmada"];
+const CITA_CANCELABLE = new Set(["Pendiente de confirmar asistencia", "Asistencia confirmada"]);
 
 const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
 
@@ -210,9 +210,9 @@ export default function AdminListaEsperaPage() {
   }
 
   const todas = datos?.solicitudes ?? [];
-  let visibles = soloEsperando ? todas.filter((s) => ACTIVAS.includes(s.estado)) : todas;
+  let visibles = soloEsperando ? todas.filter((s) => ACTIVAS.has(s.estado)) : todas;
   if (orden === "espera") visibles = [...visibles].sort((a, b) => b.minutos_espera - a.minutos_espera);
-  const mayorEspera = Math.max(0, ...todas.filter((s) => ACTIVAS.includes(s.estado)).map((s) => s.minutos_espera));
+  const mayorEspera = Math.max(0, ...todas.filter((s) => ACTIVAS.has(s.estado)).map((s) => s.minutos_espera));
 
   return (
     <>
@@ -303,7 +303,7 @@ export default function AdminListaEsperaPage() {
           </thead>
           <tbody>
             {visibles.map((s) => {
-              const activa = ACTIVAS.includes(s.estado);
+              const activa = ACTIVAS.has(s.estado);
               const prioridad = PRIORIDADES.find(([v]) => v === s.prioridad);
               return (
                 <tr key={s.id}>
@@ -359,7 +359,7 @@ export default function AdminListaEsperaPage() {
                             Confirmar
                           </button>
                         )}
-                        {(activa || CITA_CANCELABLE.includes(s.cita?.estado)) && (
+                        {(activa || CITA_CANCELABLE.has(s.cita?.estado)) && (
                           <button className="btn btn--peligro-outline btn--compacto" onClick={() => abrir("cancelar", s)}>
                             {activa ? "Sacar" : "Cancelar cita"}
                           </button>

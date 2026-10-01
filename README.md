@@ -108,10 +108,24 @@ El `--build` es necesario cuando hay migraciones o dependencias nuevas: la image
 
 ## Pruebas
 
-Las pruebas del backend corren dentro del contenedor, sobre una base de datos aparte (`<POSTGRES_DB>_test`) que se crea y se migra en cada ejecución. La base de desarrollo no se toca.
+**Backend** (`backend/tests`, pytest): corren dentro del contenedor, sobre una base de datos aparte (`<POSTGRES_DB>_test`) que se crea y se migra en cada ejecución. La base de desarrollo no se toca. Las llamadas a la IA y a WhatsApp se simulan.
 
 ```bash
 docker compose exec api pytest
+```
+
+Con el porcentaje de código cubierto por las pruebas:
+
+```bash
+docker compose exec api pytest --cov=app --cov-report=term-missing
+```
+
+**Frontend** (`frontend/tests`, Vitest + Testing Library): abren la aplicación completa en cada pantalla, con un backend simulado (`tests/backendFalso.jsx`).
+
+```bash
+cd frontend
+npm test
+npm run test:coverage
 ```
 
 Revisión del frontend:
@@ -121,6 +135,28 @@ cd frontend
 npm run lint
 npm run build
 ```
+
+## Calidad del código (SonarQube)
+
+SonarQube analiza el código del backend y del frontend (errores, vulnerabilidades, mantenibilidad, duplicación) junto con la cobertura de las pruebas. Corre en Docker, solo en este equipo.
+
+1. **Levantar SonarQube** (tarda un par de minutos en arrancar):
+
+   ```bash
+   docker compose --profile calidad up -d sonarqube
+   ```
+
+2. **Primera vez:** entre a http://localhost:9000 con usuario `admin` y contraseña `admin`. Le pedirá cambiar la contraseña. Después, en **Mi cuenta → Seguridad**, genere un token de tipo **Global Analysis Token**.
+
+3. **Analizar** (corre las pruebas del backend y del frontend con cobertura y envía todo a SonarQube). Desde la raíz del proyecto, en Git Bash:
+
+   ```bash
+   SONAR_TOKEN=<su token> scripts/analisis-sonar.sh
+   ```
+
+   Los resultados quedan en http://localhost:9000/dashboard?id=saludya.
+
+Para apagarlo: `docker compose --profile calidad stop sonarqube`. La configuración del análisis está en [sonar-project.properties](sonar-project.properties).
 
 ## Variables de entorno
 

@@ -15,7 +15,7 @@ import { ESTADOS_SOLICITUD, TIPOS_CITA, TIPOS_SOLICITUD } from "../../utils/soli
  * proceso: aprobar asignando la cita, enviar a la EPS o no aprobar.
  */
 
-const POR_DECIDIR = ["pendiente", "pendiente_eps"];
+const POR_DECIDIR = new Set(["pendiente", "pendiente_eps"]);
 
 /** Aprobar: horarios libres de la especialidad desde la fecha que pidió el paciente. */
 function PanelAprobar({ solicitud, ocupado, onAprobar, onVolver }) {
@@ -64,7 +64,7 @@ function PanelAprobar({ solicitud, ocupado, onAprobar, onVolver }) {
         </>
       )}
       <label className="channel-card">
-        <input type="checkbox" checked={prioritaria} onChange={(e) => setPrioritaria(e.target.checked)} />
+        <input type="checkbox" checked={prioritaria} onChange={(e) => setPrioritaria(e.target.checked)} />{" "}
         Revisión prioritaria
       </label>
       <div className="field">
@@ -155,7 +155,7 @@ export default function AdminRevisionPage() {
   const s = revision.solicitud;
   const p = revision.paciente;
   const [estado, clase] = ESTADOS_SOLICITUD[s.estado];
-  const puedeDecidir = tienePermiso("revisar_solicitudes") && POR_DECIDIR.includes(s.estado);
+  const puedeDecidir = tienePermiso("revisar_solicitudes") && POR_DECIDIR.has(s.estado);
 
   return (
     <>

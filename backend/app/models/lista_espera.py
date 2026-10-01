@@ -83,7 +83,7 @@ class SolicitudEspera(Base):
         UUID(as_uuid=True), ForeignKey("especialidades.id"), nullable=False, index=True
     )
     jornada: Mapped[Jornada] = mapped_column(_enum(Jornada, "jornada"), nullable=False)
-    modalidad: Mapped[Modalidad | None] = mapped_column(_enum(Modalidad, "modalidad"), nullable=True)  # None = cualquiera
+    modalidad: Mapped[Modalidad | None] = mapped_column(_enum(Modalidad, "modalidad"), nullable=True)  # sin valor: cualquier modalidad
     canal: Mapped[CanalContacto] = mapped_column(_enum(CanalContacto, "canal_contacto"), nullable=False)
     prioridad: Mapped[PrioridadMedica] = mapped_column(
         _enum(PrioridadMedica, "prioridad_medica"), default=PrioridadMedica.NORMAL, nullable=False

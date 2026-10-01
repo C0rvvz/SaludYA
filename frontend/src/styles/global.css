@@ -482,6 +482,7 @@ select:focus-visible {
 
 /* Modo demostración: código de verificación en pantalla (WhatsApp simulado) */
 .alert--demo {
+  display: block; /* es un <output>, que por defecto va en línea */
   background: var(--color-warning-soft);
   color: var(--color-warning-ink);
 }
@@ -560,13 +561,7 @@ select:focus-visible {
 }
 
 /* ============ Buscador de citas (Parte 12) ============ */
-.filters-card {
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  box-shadow: var(--shadow-soft);
-  margin-bottom: var(--space-4);
-}
+/* (.filters-card está en "Barra de filtros compacta") */
 
 .filters-grid {
   display: grid;
@@ -968,6 +963,13 @@ select:focus-visible {
 }
 
 .modal-card {
+  /* Es un <dialog>: sin los márgenes, bordes y posición que trae el navegador */
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  height: auto;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
@@ -1083,6 +1085,15 @@ select:focus-visible {
 }
 
 .chat-panel {
+  /* Es un <dialog>: sin los márgenes, bordes y tamaño que trae el navegador */
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -1152,7 +1163,7 @@ select:focus-visible {
   height: 42px;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: #3672b2; /* azul primario aclarado; contraste con el blanco de 5 a 1 */
   color: white;
   font-size: 1.7rem;
   line-height: 1;
@@ -1464,6 +1475,11 @@ select:focus-visible {
 
 /* HU-28: historial por mes, con filtros por resultado */
 .filtros-historial {
+  /* Es un <fieldset>: sin el borde ni el relleno que trae el navegador */
+  border: 0;
+  padding: 0;
+  min-width: 0;
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
@@ -1621,12 +1637,12 @@ select:focus-visible {
 }
 
 .admin-nav__enlace:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #26354d; /* navy con 10 % de blanco */
   color: white;
 }
 
 .admin-nav__enlace.is-active {
-  background: rgba(255, 255, 255, 0.16);
+  background: #354359; /* navy con 16 % de blanco */
   color: white;
 }
 

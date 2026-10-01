@@ -12,6 +12,7 @@ Es una recomendación de acompañamiento (llamar, recordar, confirmar):
 NUNCA debe usarse para negar o quitar una cita a un paciente.
 """
 
+from collections import Counter
 from dataclasses import dataclass, field
 
 from app.models.cita import Cita, EstadoCita
@@ -34,26 +35,13 @@ def _plural(n: int, singular: str, plural: str) -> str:
     return f"{n} {singular if n == 1 else plural}"
 
 
-def estimar(cita: Cita, otras_del_paciente: list[Cita]) -> EstimacionRiesgo | None:
-    """
-    `otras_del_paciente`: las demás citas del mismo paciente (sin incluir
-    `cita`). Devuelve None si la cita ya no va a ocurrir (no hay nada que
-    estimar).
-    """
-    if citas_service.estado_visible(cita) not in citas_service.ESTADOS_ACTIVOS:
-        return None
-    if cita.llegada_registrada_en is not None:
-        return EstimacionRiesgo(0, "bajo", ["Ya registró su llegada a la sede."])
-
-    puntos = _BASE
+def _por_historial(otras: list[Cita]) -> tuple[int, list[str]]:
+    """Puntos y factores por el comportamiento en citas anteriores."""
+    cuenta = Counter(c.estado for c in otras)
+    faltas, atendidas = cuenta[EstadoCita.NO_ASISTIO], cuenta[EstadoCita.ATENDIDA]
+    canceladas, reprogramadas = cuenta[EstadoCita.CANCELADA], cuenta[EstadoCita.REPROGRAMADA]
+    puntos = 0
     factores: list[str] = []
-
-    # --- Comportamiento en citas anteriores ---
-    faltas = sum(1 for c in otras_del_paciente if c.estado == EstadoCita.NO_ASISTIO)
-    atendidas = sum(1 for c in otras_del_paciente if c.estado == EstadoCita.ATENDIDA)
-    canceladas = sum(1 for c in otras_del_paciente if c.estado == EstadoCita.CANCELADA)
-    reprogramadas = sum(1 for c in otras_del_paciente if c.estado == EstadoCita.REPROGRAMADA)
-
     if faltas:
         puntos += min(40, 20 * faltas)
         factores.append(f"No asistió a {_plural(faltas, 'cita anterior', 'citas anteriores')}.")
@@ -68,21 +56,21 @@ def estimar(cita: Cita, otras_del_paciente: list[Cita]) -> EstimacionRiesgo | No
         factores.append(
             f"Asistió a {_plural(atendidas, 'cita anterior', 'citas anteriores')} (reduce el riesgo)."
         )
-    if not otras_del_paciente:
+    if not otras:
         factores.append("Es su primera cita: todavía no hay historial para comparar.")
+    return puntos, factores
 
-    # --- Esta cita ---
+
+def _por_esta_cita(cita: Cita) -> tuple[int, list[str]]:
+    """Puntos y factores de la cita misma: confirmación, anticipación y recordatorio."""
     inicio = citas_service.inicio_de(cita)
     horas_para_la_cita = (inicio - ahora_colombia()).total_seconds() / 3600
     if cita.asistencia_confirmada_en is not None:
-        puntos -= 15
-        factores.append("Confirmó su asistencia (reduce el riesgo).")
+        puntos, factores = -15, ["Confirmó su asistencia (reduce el riesgo)."]
     elif horas_para_la_cita < 48:
-        puntos += 15
-        factores.append("Aún no confirma su asistencia y la cita es en menos de 48 horas.")
+        puntos, factores = 15, ["Aún no confirma su asistencia y la cita es en menos de 48 horas."]
     else:
-        puntos += 5
-        factores.append("Aún no confirma su asistencia.")
+        puntos, factores = 5, ["Aún no confirma su asistencia."]
 
     agendada = cita.creado_en.astimezone(ZONA_COLOMBIA).date()
     anticipacion = (inicio.date() - agendada).days
@@ -93,7 +81,27 @@ def estimar(cita: Cita, otras_del_paciente: list[Cita]) -> EstimacionRiesgo | No
     if cita.recordatorio_intentos and cita.recordatorio_enviado_en is None:
         puntos += 5
         factores.append("No se ha podido enviar el recordatorio.")
+    return puntos, factores
 
-    porcentaje = max(1, min(95, puntos))
-    nivel = "bajo" if porcentaje < _UMBRAL_MEDIO else "medio" if porcentaje < _UMBRAL_ALTO else "alto"
-    return EstimacionRiesgo(porcentaje, nivel, factores)
+
+def _nivel(porcentaje: int) -> str:
+    if porcentaje < _UMBRAL_MEDIO:
+        return "bajo"
+    return "medio" if porcentaje < _UMBRAL_ALTO else "alto"
+
+
+def estimar(cita: Cita, otras_del_paciente: list[Cita]) -> EstimacionRiesgo | None:
+    """
+    `otras_del_paciente`: las demás citas del mismo paciente (sin incluir
+    `cita`). Devuelve None si la cita ya no va a ocurrir (no hay nada que
+    estimar).
+    """
+    if citas_service.estado_visible(cita) not in citas_service.ESTADOS_ACTIVOS:
+        return None
+    if cita.llegada_registrada_en is not None:
+        return EstimacionRiesgo(0, "bajo", ["Ya registró su llegada a la sede."])
+
+    puntos_historial, factores_historial = _por_historial(otras_del_paciente)
+    puntos_cita, factores_cita = _por_esta_cita(cita)
+    porcentaje = max(1, min(95, _BASE + puntos_historial + puntos_cita))
+    return EstimacionRiesgo(porcentaje, _nivel(porcentaje), factores_historial + factores_cita)

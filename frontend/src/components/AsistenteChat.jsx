@@ -31,7 +31,7 @@ const TARJETAS = {
 // puede tocar una opción en vez de escribirla.
 function sugerenciasPara(texto) {
   if (/¿\s*confirma/i.test(texto)) return ["Sí, confirmo", "No, quiero cambiar algo"];
-  return [...texto.matchAll(/^\s*(\d)[.)]\s+(.+)$/gm)]
+  return [...texto.matchAll(/^[ \t]*(\d)[.)][ \t]+(\S.*)$/gm)]
     .slice(0, 3)
     .map((m) => `${m[1]}. ${m[2].trim()}`);
 }
@@ -238,7 +238,7 @@ export default function AsistenteChat({ onCambioCitas }) {
   const primerNombre = paciente?.nombre?.split(" ")[0] ?? "";
 
   return (
-    <section className="chat-panel" role="dialog" aria-label="Asistente virtual de SaludYA">
+    <dialog open className="chat-panel" aria-label="Asistente virtual de SaludYA">
       <header className="chat-panel__header">
         <div>
           <h2>Asistente SaludYA</h2>
@@ -312,6 +312,6 @@ export default function AsistenteChat({ onCambioCitas }) {
           Enviar
         </button>
       </form>
-    </section>
+    </dialog>
   );
 }

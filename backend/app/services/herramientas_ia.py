@@ -29,7 +29,6 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
@@ -63,9 +62,6 @@ _MAX_HORARIOS = 8
 # solo gastarían tokens.
 _MAX_ALTERNATIVAS = 3
 _MAX_CITAS = 5
-
-T = TypeVar("T")
-M = TypeVar("M", bound=BaseModel)
 
 
 @dataclass
@@ -111,7 +107,7 @@ def _error(mensaje: str) -> dict:
     return {"error": mensaje}
 
 
-def _validar(modelo: type[M], args: dict, funcion: str) -> M:
+def _validar[M: BaseModel](modelo: type[M], args: dict, funcion: str) -> M:
     try:
         return modelo.model_validate(args)
     except ValidationError as e:
@@ -124,7 +120,7 @@ def _normalizar(texto: str) -> str:
     return " ".join(sin_tildes.lower().split())
 
 
-def _resolver(pedido: str, opciones: list[T], nombre_de: Callable[[T], str], que: str) -> T:
+def _resolver[T](pedido: str, opciones: list[T], nombre_de: Callable[[T], str], que: str) -> T:
     """
     Encuentra en el catálogo la opción que el modelo quiso decir.
     Primero coincidencia exacta; si no, una única coincidencia parcial

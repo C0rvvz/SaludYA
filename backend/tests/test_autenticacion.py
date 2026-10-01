@@ -117,3 +117,57 @@ def test_fuera_del_modo_demostracion_el_codigo_no_se_muestra(cliente, fabrica, m
     # El envío real no sale a internet: solo importa lo que responde la API.
     monkeypatch.setattr(otp_service, "enviar_mensaje_whatsapp", lambda telefono, mensaje: True)
     assert _pedir_codigo(cliente, fabrica.paciente()) is None
+
+
+# --- HU-03 / HU-04: errores del código de verificación ---
+
+def _validar(cliente, paciente, codigo):
+    return cliente.post(
+        "/auth/paciente/otp/validar", json={"numero_documento": paciente.numero_documento, "codigo": codigo}
+    )
+
+
+def test_codigo_vencido(cliente, fabrica, db):
+    from datetime import datetime, timedelta, timezone
+
+    paciente = fabrica.paciente()
+    cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
+    otp = db.query(CodigoOTP).filter_by(paciente_id=paciente.id).one()
+    otp.expira_en = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+
+    r = _validar(cliente, paciente, otp.codigo)
+    assert r.status_code == 400
+    assert "expiró" in r.json()["detail"]  # HU-02, criterio 2: código temporal
+    assert _validar(cliente, paciente, otp.codigo).status_code == 400  # ya no hay código pendiente
+
+
+def test_tres_intentos_fallidos_invalidan_el_codigo(cliente, fabrica, db):
+    paciente = fabrica.paciente()
+    assert _validar(cliente, paciente, "123456").status_code == 400  # todavía no pidió código
+    cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
+    codigo = _ultimo_codigo(db, paciente.numero_documento)
+    incorrecto = "000000" if codigo != "000000" else "111111"
+
+    assert _validar(cliente, paciente, incorrecto).status_code == 400
+    assert _validar(cliente, paciente, incorrecto).status_code == 400
+    assert _validar(cliente, paciente, incorrecto).status_code == 429
+    assert _validar(cliente, paciente, codigo).status_code == 400  # invalidado: hay que pedir otro
+
+
+def test_reenviar_genera_un_codigo_nuevo(cliente, fabrica, db, monkeypatch):
+    paciente = fabrica.paciente()
+    monkeypatch.setattr(settings, "otp_reenvio_segundos", 0)
+    cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
+    r = cliente.post("/auth/paciente/otp/reenviar", json={"numero_documento": paciente.numero_documento})
+    assert r.status_code == 201
+    assert r.json()["reenviado"] is True  # HU-04, criterio 4
+
+
+def test_documento_no_registrado_en_cada_paso(cliente, fabrica):
+    datos = {"numero_documento": "9999999998"}
+    assert cliente.post("/auth/paciente/otp/enviar", json=datos).status_code == 404
+    assert cliente.post("/auth/paciente/otp/reenviar", json=datos).status_code == 404
+    assert cliente.post("/auth/paciente/otp/validar", json=datos | {"codigo": "123456"}).status_code == 404
+    r = cliente.post("/pacientes/registro", json=_registro(fabrica, eps_id=str(fabrica.especialidad_id)))
+    assert r.status_code == 404  # EPS inexistente

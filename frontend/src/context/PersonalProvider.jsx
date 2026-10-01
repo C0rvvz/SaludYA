@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { obtenerPersonalActual } from "../api/admin";
 import { TOKEN_PERSONAL } from "../api/client";
 import { PersonalContext } from "./personal";
@@ -27,23 +27,27 @@ export default function PersonalProvider({ children }) {
     cargar();
   }, [cargar]);
 
-  function iniciarSesion(token, datosPersonal) {
+  const iniciarSesion = useCallback((token, datosPersonal) => {
     localStorage.setItem(TOKEN_PERSONAL, token);
     setPersonal(datosPersonal);
-  }
+  }, []);
 
-  function cerrarSesion() {
+  const cerrarSesion = useCallback(() => {
     localStorage.removeItem(TOKEN_PERSONAL);
     setPersonal(null);
-  }
+  }, []);
 
-  const value = {
-    personal,
-    cargando,
-    iniciarSesion,
-    cerrarSesion,
-    tienePermiso: (permiso) => Boolean(personal?.permisos.includes(permiso)),
-  };
+  // Mismo objeto mientras no cambie la sesión: evita volver a dibujar a todos los que la usan.
+  const value = useMemo(
+    () => ({
+      personal,
+      cargando,
+      iniciarSesion,
+      cerrarSesion,
+      tienePermiso: (permiso) => Boolean(personal?.permisos.includes(permiso)),
+    }),
+    [personal, cargando, iniciarSesion, cerrarSesion]
+  );
 
   return <PersonalContext.Provider value={value}>{children}</PersonalContext.Provider>;
 }

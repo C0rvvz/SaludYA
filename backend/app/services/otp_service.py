@@ -6,7 +6,7 @@ nuevo, que es exactamente lo que pide HU-04. La Parte 5 solo necesita
 decidir si expone un endpoint con otro nombre o reutiliza este mismo.
 """
 
-import random
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -26,7 +26,9 @@ from app.services.exceptions import (
 
 
 def _generar_codigo() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    # secrets (generador criptográfico), no random: el código da acceso a
+    # la cuenta y no debe poder predecirse a partir de códigos anteriores.
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:

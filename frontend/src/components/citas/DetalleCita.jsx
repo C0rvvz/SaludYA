@@ -367,7 +367,7 @@ export default function DetalleCita({
             <h2 style={{ fontSize: "var(--text-md)" }}>Estado de su cita</h2>
             <ol className="linea-tiempo">
               {cita.historial.map((evento, i) => (
-                <li key={i} className={i === cita.historial.length - 1 ? "is-actual" : ""}>
+                <li key={`${evento.tipo}-${evento.fecha}`} className={i === cita.historial.length - 1 ? "is-actual" : ""}>
                   <span className="linea-tiempo__fecha">{formatearFechaHora(evento.fecha)}</span>
                   <span>{evento.descripcion}</span>
                 </li>

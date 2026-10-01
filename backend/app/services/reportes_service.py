@@ -122,7 +122,9 @@ def direccion_de_la_tendencia(porcentajes: list[float | None]) -> str | None:
     if len(con_datos) < 2:
         return None
     antes, ahora = con_datos[-2], con_datos[-1]
-    return "aumenta" if ahora > antes else "disminuye" if ahora < antes else "se_mantiene"
+    if ahora == antes:
+        return "se_mantiene"
+    return "aumenta" if ahora > antes else "disminuye"
 
 
 def _inasistencia(citas: list[Cita]) -> dict:

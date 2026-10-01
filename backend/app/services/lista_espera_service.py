@@ -64,6 +64,9 @@ from app.utils.tiempo import ZONA_COLOMBIA, ahora_colombia, fecha_legible, hora_
 logger = logging.getLogger("saludya.lista_espera")
 
 
+NO_EXISTE = "No existe esa solicitud de lista de espera."
+
+
 def _plazo() -> timedelta:
     return timedelta(minutes=settings.lista_espera_plazo_minutos)
 
@@ -181,7 +184,7 @@ def vencer_ofertas(db: Session) -> int:
 def _solicitud_del_paciente(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
     solicitud = repo.obtener_con_lock(db, solicitud_id)
     if solicitud is None or solicitud.paciente_id != paciente.id:
-        raise ListaEsperaInvalidaError("No existe esa solicitud de lista de espera.")
+        raise ListaEsperaInvalidaError(NO_EXISTE)
     return solicitud
 
 
@@ -369,7 +372,7 @@ def solicitud_admin_out(db: Session, s: SolicitudEspera, fila: list[uuid.UUID] |
 def _solicitud_con_lock(db: Session, solicitud_id: uuid.UUID) -> SolicitudEspera:
     solicitud = repo.obtener_con_lock(db, solicitud_id)
     if solicitud is None:
-        raise ListaEsperaInvalidaError("No existe esa solicitud de lista de espera.")
+        raise ListaEsperaInvalidaError(NO_EXISTE)
     return solicitud
 
 
@@ -377,7 +380,7 @@ def horarios_para(db: Session, solicitud_id: uuid.UUID) -> list[dict]:
     """HU-55 criterio 1 / HU-59: el cupo ya ofrecido (si lo hay) y los horarios libres que se ajustan a la solicitud."""
     solicitud = repo.obtener(db, solicitud_id)
     if solicitud is None:
-        raise ListaEsperaInvalidaError("No existe esa solicitud de lista de espera.")
+        raise ListaEsperaInvalidaError(NO_EXISTE)
     if solicitud.estado not in repo.ACTIVAS:
         return []
     oferta = solicitud.oferta_vigente

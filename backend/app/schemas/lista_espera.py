@@ -14,7 +14,7 @@ class UnirseListaEsperaRequest(BaseModel):
     especialidad_id: uuid.UUID
     sede_ids: list[uuid.UUID] = Field(min_length=1)  # HU-55: al menos una sede
     jornada: Jornada = Jornada.CUALQUIERA
-    modalidad: Modalidad | None = None  # None = cualquiera
+    modalidad: Modalidad | None = None  # sin valor: cualquier modalidad
     canal: CanalContacto
 
 

@@ -18,6 +18,7 @@ duplica datos ni toca las franjas pasadas o sus citas.
 
 from dataclasses import dataclass
 from datetime import date, time, timedelta
+from itertools import product
 
 from sqlalchemy.orm import Session
 
@@ -61,22 +62,18 @@ def generar_franjas(db: Session, dias: int = DIAS_POR_TANDA) -> Tanda:
     filas = []
     for especialista in especialista_repository.listar_especialistas(db):
         modalidades = especialista_repository.obtener_modalidades(db, especialista.id)
-        for sede in especialista.sedes:
-            for modalidad in modalidades:
-                for dia in dias_habiles:
-                    for i, hora in enumerate(HORAS_DEL_DIA):
-                        filas.append({
-                            "especialista_id": especialista.id,
-                            "sede_id": sede.id,
-                            "modalidad": modalidad,
-                            "fecha": dia,
-                            "hora": hora,
-                            "estado": (
-                                EstadoDisponibilidad.RESERVADO
-                                if i == 0
-                                else EstadoDisponibilidad.DISPONIBLE
-                            ),
-                        })
+        combinaciones = product(especialista.sedes, modalidades, dias_habiles, HORAS_DEL_DIA)
+        filas += [
+            {
+                "especialista_id": especialista.id,
+                "sede_id": sede.id,
+                "modalidad": modalidad,
+                "fecha": dia,
+                "hora": hora,
+                "estado": EstadoDisponibilidad.RESERVADO if hora == HORAS_DEL_DIA[0] else EstadoDisponibilidad.DISPONIBLE,
+            }
+            for sede, modalidad, dia, hora in combinaciones
+        ]
 
     creadas = disponibilidad_repository.insertar_franjas(db, filas) if filas else 0
     return Tanda(creadas, len(filas) - creadas, dias_habiles[0], dias_habiles[-1])

@@ -84,6 +84,8 @@ ESTADOS_VISIBLES = {
     "reprogramada": "Reprogramada",
 }
 
+HORARIO_NO_DISPONIBLE = "Ese horario ya no está disponible. Por favor elige otro."
+
 # Citas que todavía van a ocurrir (o están ocurriendo); el resto forma
 # el historial del paciente (HU-28).
 ESTADOS_ACTIVOS = {"pendiente_confirmar", "asistencia_confirmada", "llegada_registrada"}
@@ -177,41 +179,38 @@ def texto_estado(cita: Cita) -> str:
     return ESTADOS_VISIBLES[estado_visible(cita)]
 
 
+def _cierre(cita: Cita) -> tuple[str, str]:
+    """Tipo y texto del resultado registrado (HU-25)."""
+    if cita.estado == EstadoCita.ATENDIDA:
+        return "atendida", "Atención registrada"
+    return "no_asistio", "Se registró que no asistió"
+
+
 def historial_de_estado(cita: Cita) -> list[dict]:
     """
     HU-18: línea de tiempo del estado de la cita, de lo más antiguo a lo
     más reciente. Se arma a partir de las fechas que se guardan en cada
     cambio, así que siempre refleja el estado actual (criterio 2).
     """
-    eventos = []
-    if cita.reprogramada_desde is not None:
-        eventos.append(
-            ("agendada", cita.creado_en,
-             f"Cita agendada al reprogramar la cita {cita.reprogramada_desde.numero_comprobante}")
-        )
-    else:
-        eventos.append(("agendada", cita.creado_en, "Cita agendada"))
-    if cita.recordatorio_enviado_en:
-        eventos.append(("recordatorio", cita.recordatorio_enviado_en, "Recordatorio enviado"))
-    if cita.asistencia_confirmada_en:
-        eventos.append(("asistencia_confirmada", cita.asistencia_confirmada_en, "Asistencia confirmada"))
-    if cita.llegada_registrada_en:
-        eventos.append(("llegada", cita.llegada_registrada_en, "Llegada registrada"))
-    if cita.cerrada_en:
-        if cita.estado == EstadoCita.ATENDIDA:
-            eventos.append(("atendida", cita.cerrada_en, "Atención registrada"))
-        else:
-            eventos.append(("no_asistio", cita.cerrada_en, "Se registró que no asistió"))
-    if cita.cancelada_en:
-        detalle = f": {cita.motivo_cancelacion}" if cita.motivo_cancelacion else ""
-        eventos.append(("cancelada", cita.cancelada_en, f"Cita cancelada{detalle}"))
-    if cita.reprogramada_en:
-        nueva = cita.reemplazada_por
-        destino = f" a la cita {nueva.numero_comprobante}" if nueva is not None else ""
-        eventos.append(("reprogramada", cita.reprogramada_en, f"Cita reprogramada{destino}"))
-    if cita.calificada_en:
-        eventos.append(("calificada", cita.calificada_en, f"Calificó la atención con {cita.calificacion} de 5"))
-    eventos.sort(key=lambda e: e[1])
+    origen, nueva = cita.reprogramada_desde, cita.reemplazada_por
+    agendada = (
+        f"Cita agendada al reprogramar la cita {origen.numero_comprobante}" if origen is not None else "Cita agendada"
+    )
+    motivo = f": {cita.motivo_cancelacion}" if cita.motivo_cancelacion else ""
+    destino = f" a la cita {nueva.numero_comprobante}" if nueva is not None else ""
+    tipo_cierre, texto_cierre = _cierre(cita)
+    # (tipo, fecha, descripción): solo cuentan los pasos que ya ocurrieron (tienen fecha).
+    posibles = [
+        ("agendada", cita.creado_en, agendada),
+        ("recordatorio", cita.recordatorio_enviado_en, "Recordatorio enviado"),
+        ("asistencia_confirmada", cita.asistencia_confirmada_en, "Asistencia confirmada"),
+        ("llegada", cita.llegada_registrada_en, "Llegada registrada"),
+        (tipo_cierre, cita.cerrada_en, texto_cierre),
+        ("cancelada", cita.cancelada_en, f"Cita cancelada{motivo}"),
+        ("reprogramada", cita.reprogramada_en, f"Cita reprogramada{destino}"),
+        ("calificada", cita.calificada_en, f"Calificó la atención con {cita.calificacion} de 5"),
+    ]
+    eventos = sorted((e for e in posibles if e[1]), key=lambda e: e[1])
     return [{"tipo": t, "fecha": f, "descripcion": d} for t, f, d in eventos]
 
 
@@ -269,7 +268,7 @@ def confirmar_cita(
 
     if disponibilidad.estado != EstadoDisponibilidad.DISPONIBLE:
         raise HorarioYaNoDisponibleError(
-            "Ese horario ya no está disponible. Por favor elige otro."
+            HORARIO_NO_DISPONIBLE
         )
 
     if _inicio(disponibilidad) <= ahora_colombia():
@@ -300,7 +299,7 @@ def confirmar_cita(
         # único de citas activas por franja rechaza la segunda.
         db.rollback()
         raise HorarioYaNoDisponibleError(
-            "Ese horario ya no está disponible. Por favor elige otro."
+            HORARIO_NO_DISPONIBLE
         )
 
     db.refresh(cita)
@@ -604,7 +603,7 @@ def reprogramar_cita(
         )
     if nueva.estado != EstadoDisponibilidad.DISPONIBLE or _inicio(nueva) <= ahora_colombia():
         db.rollback()
-        raise HorarioYaNoDisponibleError("Ese horario ya no está disponible. Por favor elige otro.")
+        raise HorarioYaNoDisponibleError(HORARIO_NO_DISPONIBLE)
 
     especialidad_actual = cita.disponibilidad.especialista.especialidad
     if nueva.especialista.especialidad_id != especialidad_actual.id:
@@ -651,7 +650,7 @@ def reprogramar_cita(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HorarioYaNoDisponibleError("Ese horario ya no está disponible. Por favor elige otro.")
+        raise HorarioYaNoDisponibleError(HORARIO_NO_DISPONIBLE)
 
     db.refresh(cita_nueva)
     _ofrecer_a_la_lista_de_espera(db)

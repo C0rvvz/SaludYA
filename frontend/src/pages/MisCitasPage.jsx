@@ -120,6 +120,24 @@ export default function MisCitasPage() {
     />
   );
 
+  let contenido;
+  if (cargando) {
+    contenido = <p>Cargando sus citas...</p>;
+  } else if (visibles.length === 0) {
+    contenido = (
+      <div className="empty-state">
+        <p>{actual.vacio}</p>
+        <Link to="/panel" className="btn btn--primary">
+          Agendar una cita
+        </Link>
+      </div>
+    );
+  } else if (actual.id === "historial") {
+    contenido = <HistorialCitas citas={visibles} renderCita={renderCita} />;
+  } else {
+    contenido = <div className="lista-citas">{visibles.map(renderCita)}</div>;
+  }
+
   return (
     <div>
       <EncabezadoPaciente />
@@ -167,20 +185,7 @@ export default function MisCitasPage() {
               </p>
             )}
 
-            {cargando ? (
-              <p>Cargando sus citas...</p>
-            ) : visibles.length === 0 ? (
-              <div className="empty-state">
-                <p>{actual.vacio}</p>
-                <Link to="/panel" className="btn btn--primary">
-                  Agendar una cita
-                </Link>
-              </div>
-            ) : actual.id === "historial" ? (
-              <HistorialCitas citas={visibles} renderCita={renderCita} />
-            ) : (
-              <div className="lista-citas">{visibles.map(renderCita)}</div>
-            )}
+            {contenido}
           </>
         )}
       </div>

@@ -75,6 +75,9 @@ export function formatearDuracion(minutos) {
   if (minutos == null) return "—";
   if (minutos < 60) return `${minutos} min`;
   const [dias, horas, mins] = [Math.floor(minutos / 1440), Math.floor((minutos % 1440) / 60), minutos % 60];
-  if (dias) return `${dias} ${dias === 1 ? "día" : "días"}${horas ? ` ${horas} h` : ""}`;
-  return `${horas} h${mins ? ` ${mins} min` : ""}`;
+  if (dias) {
+    const textoDias = `${dias} ${dias === 1 ? "día" : "días"}`;
+    return horas ? `${textoDias} ${horas} h` : textoDias;
+  }
+  return mins ? `${horas} h ${mins} min` : `${horas} h`;
 }

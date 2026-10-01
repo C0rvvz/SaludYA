@@ -312,7 +312,7 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
         except openai.OpenAIError as e:
             # Llave inválida, API desactivada, petición mal formada: cambiar
             # de modelo no lo arregla.
-            logger.error("Error del proveedor de IA con %s: %s", modelo, e)
+            logger.exception("Error del proveedor de IA con %s: %s", modelo, e)
             raise AsistenteNoDisponibleError(
                 "El asistente no está disponible en este momento. Intente de nuevo en unos minutos."
             ) from e

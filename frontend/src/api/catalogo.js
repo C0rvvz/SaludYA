@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, conFiltros } from "./client";
 
 export function listarEspecialidades() {
   return apiFetch("/especialidades");
@@ -14,12 +14,7 @@ export function listarSedes() {
  * hora -- los que vengan vacíos/undefined simplemente no se envían.
  */
 export function buscarDisponibilidad(filtros = {}) {
-  const params = new URLSearchParams();
-  Object.entries(filtros).forEach(([clave, valor]) => {
-    if (valor) params.set(clave, valor);
-  });
-  const query = params.toString();
-  return apiFetch(`/disponibilidad/buscar${query ? `?${query}` : ""}`);
+  return apiFetch(conFiltros("/disponibilidad/buscar", filtros));
 }
 
 // Especialistas de una especialidad, con las sedes donde atienden.

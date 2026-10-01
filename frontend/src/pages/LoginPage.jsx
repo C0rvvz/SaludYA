@@ -203,10 +203,10 @@ export default function LoginPage() {
           {error && <div className="alert alert--error">{error}</div>}
 
           {codigoDemo && (
-            <div className="alert alert--demo" role="status">
+            <output className="alert alert--demo">
               <strong>Modo demostración:</strong> WhatsApp no está conectado, así que mostramos
               aquí el código que le habría llegado: <strong className="codigo-demo">{codigoDemo}</strong>
-            </div>
+            </output>
           )}
 
           <form onSubmit={manejarValidacion} noValidate>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { obtenerPacienteActual } from "../api/auth";
 
 const AuthContext = createContext(null);
@@ -34,23 +34,30 @@ export function AuthProvider({ children }) {
     cargarPacienteActual();
   }, [cargarPacienteActual]);
 
-  function iniciarSesion(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-    return cargarPacienteActual();
-  }
+  const iniciarSesion = useCallback(
+    (token) => {
+      localStorage.setItem(TOKEN_KEY, token);
+      return cargarPacienteActual();
+    },
+    [cargarPacienteActual]
+  );
 
-  function cerrarSesion() {
+  const cerrarSesion = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setPaciente(null);
-  }
+  }, []);
 
-  const value = {
-    paciente,
-    cargando,
-    estaAutenticado: Boolean(paciente),
-    iniciarSesion,
-    cerrarSesion,
-  };
+  // Mismo objeto mientras no cambie la sesión: evita volver a dibujar a todos los que la usan.
+  const value = useMemo(
+    () => ({
+      paciente,
+      cargando,
+      estaAutenticado: Boolean(paciente),
+      iniciarSesion,
+      cerrarSesion,
+    }),
+    [paciente, cargando, iniciarSesion, cerrarSesion]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

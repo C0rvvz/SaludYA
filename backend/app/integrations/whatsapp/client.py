@@ -83,11 +83,11 @@ def _enviar_real(telefono: str, mensaje: str) -> bool:
     except httpx.HTTPStatusError as e:
         # La respuesta de Meta dice el motivo (token vencido, número no
         # autorizado en modo de prueba, etc.).
-        logger.error(
+        logger.exception(
             "WhatsApp Cloud API rechazó el mensaje (HTTP %s): %s",
             e.response.status_code, e.response.text,
         )
         return False
     except httpx.HTTPError as e:
-        logger.error("Error enviando mensaje real por WhatsApp Cloud API: %s", e)
+        logger.exception("Error enviando mensaje real por WhatsApp Cloud API: %s", e)
         return False

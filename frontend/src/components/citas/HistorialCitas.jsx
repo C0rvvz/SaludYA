@@ -56,7 +56,8 @@ export default function HistorialCitas({ citas, renderCita }) {
   return (
     <>
       {filtrosVisibles.length > 2 && (
-        <div className="filtros-historial" role="group" aria-label="Filtrar el historial por resultado">
+        <fieldset className="filtros-historial">
+          <legend className="sr-only">Filtrar el historial por resultado</legend>
           {filtrosVisibles.map((f) => (
             <button
               key={f.id}
@@ -68,7 +69,7 @@ export default function HistorialCitas({ citas, renderCita }) {
               {f.titulo} ({conteos[f.id]})
             </button>
           ))}
-        </div>
+        </fieldset>
       )}
 
       {grupos.length === 0 ? (

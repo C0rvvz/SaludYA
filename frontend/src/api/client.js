@@ -31,7 +31,17 @@ export const TOKEN_PERSONAL = "saludya_personal_token";
  * partir de la Parte 6 del backend: /auth/paciente/me, /citas, etc.).
  * `auth: "personal"` usa el token del personal (/admin/...).
  */
-export async function apiFetch(path, { method = "GET", body, auth = false } = {}) {
+/** "/ruta?clave=valor&...", solo con los filtros que tienen valor. */
+export function conFiltros(path, filtros = {}) {
+  const params = new URLSearchParams();
+  for (const [clave, valor] of Object.entries(filtros)) {
+    if (valor) params.set(clave, valor);
+  }
+  const query = params.toString();
+  return query ? path + "?" + query : path;
+}
+
+export async function apiFetch(path, { method = "GET", body, auth } = {}) {
   const headers = { "Content-Type": "application/json" };
 
   if (auth) {

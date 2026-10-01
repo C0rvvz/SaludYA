@@ -37,5 +37,24 @@ services:
       # Pruebas: docker compose exec api pytest
       - ./backend/tests:/app/tests
 
+  # Calidad del código (opcional, no arranca con "docker compose up"):
+  #   docker compose --profile calidad up -d sonarqube
+  # Ver README, sección "Calidad del código (SonarQube)".
+  sonarqube:
+    image: sonarqube:community
+    container_name: saludya_sonarqube
+    profiles: ["calidad"]
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    ports:
+      - "127.0.0.1:9000:9000" # solo en este equipo
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+
 volumes:
   saludya_pgdata:
+  sonarqube_data:
+    name: saludya_sonar_data
+  sonarqube_extensions:
+    name: saludya_sonar_extensions

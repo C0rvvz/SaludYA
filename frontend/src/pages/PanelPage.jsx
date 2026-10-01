@@ -5,7 +5,7 @@ import AsistenteChat from "../components/AsistenteChat";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
 import { listarEspecialidades, listarSedes, buscarDisponibilidad } from "../api/catalogo";
 import { confirmarCita } from "../api/citas";
-import { ApiError } from "../api/client";
+import { ApiError, conFiltros } from "../api/client";
 import {
   formatearFecha,
   formatearHora,
@@ -319,7 +319,7 @@ export default function PanelPage() {
             {yaConsulto && !buscando && (
               <p className="field__hint">
                 ¿No encuentra un horario que le sirva?{" "}
-                <Link to={`/lista-espera${filtros.especialidad_id ? `?especialidad=${filtros.especialidad_id}` : ""}`}>
+                <Link to={conFiltros("/lista-espera", { especialidad: filtros.especialidad_id })}>
                   Únase a la lista de espera
                 </Link>{" "}
                 y le avisamos cuando se libere un cupo.
