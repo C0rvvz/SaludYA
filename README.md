@@ -78,15 +78,15 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
    - Pacientes: http://localhost:5173
    - Personal: http://localhost:5173/admin/ingresar
 
-### Ingresar como paciente sin WhatsApp real
+### Ingresar como paciente sin WhatsApp real (modo demostración)
 
-Mientras `WHATSAPP_MODE=mock`, los mensajes no se envían: se escriben en el log de la API. Para ver el código de verificación después de pedirlo:
+Mientras `WHATSAPP_MODE=mock` y `APP_ENV=development`, los mensajes no se envían y **la pantalla de ingreso muestra el código de verificación** en un aviso de "Modo demostración". Con WhatsApp real o en otro entorno el código nunca se muestra (HU-02, criterio 4).
+
+Los demás mensajes (comprobante, recordatorios, cancelaciones) quedan en el log de la API, en las líneas `[WHATSAPP MOCK]`:
 
 ```bash
 docker compose logs -f api
 ```
-
-Busque la línea `[WHATSAPP MOCK]`.
 
 ### Horarios disponibles
 
@@ -137,6 +137,8 @@ Todas están explicadas en [.env.example](.env.example). Las principales:
 | `CORS_ORIGINS`, `FRONTEND_URL` | Dirección del frontend |
 
 ## WhatsApp real (Meta)
+
+> **Antes de empezar:** Meta puede exigir **verificar la empresa** (documentos legales como RUT o Cámara de Comercio) incluso para usar el número de prueba. Si en el Administrador de WhatsApp la cuenta aparece como **"Cuenta restringida"**, no entregará ningún mensaje hasta verificarla. Para este proyecto universitario se usa el modo `mock`, que funciona completo sin Meta.
 
 1. En [developers.facebook.com](https://developers.facebook.com/) cree una app con el caso de uso **"Connect with customers through WhatsApp"** y un portafolio comercial.
 2. En **WhatsApp > API Setup**: copie el **Phone number ID** del número de prueba, genere un token con **Generate access token** y, en el campo **To**, agregue y verifique los celulares que van a recibir mensajes (máximo 5 en modo de prueba).

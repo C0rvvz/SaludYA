@@ -480,6 +480,18 @@ select:focus-visible {
   color: var(--color-success);
 }
 
+/* Modo demostración: código de verificación en pantalla (WhatsApp simulado) */
+.alert--demo {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+}
+
+.codigo-demo {
+  font-size: var(--text-md);
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+}
+
 /* ============ Pasos (progreso multi-paso) ============ */
 .steps {
   display: flex;

@@ -25,6 +25,8 @@ export default function LoginPage() {
   const [codigo, setCodigo] = useState("");
   const [telefonoEnmascarado, setTelefonoEnmascarado] = useState("");
   const [nombrePaciente, setNombrePaciente] = useState("");
+  // Modo demostración: el backend solo lo envía con WhatsApp simulado y en desarrollo.
+  const [codigoDemo, setCodigoDemo] = useState(null);
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
@@ -71,6 +73,7 @@ export default function LoginPage() {
       // HU-02: generar y enviar el código automáticamente
       const envio = await enviarOtp(numeroDocumento);
       setTelefonoEnmascarado(envio.telefono_enmascarado);
+      setCodigoDemo(envio.codigo_demo);
       iniciarEnfriamiento();
       setPaso("otp");
     } catch (err) {
@@ -91,6 +94,7 @@ export default function LoginPage() {
     try {
       const envio = await reenviarOtp(numeroDocumento);
       setTelefonoEnmascarado(envio.telefono_enmascarado);
+      setCodigoDemo(envio.codigo_demo);
       iniciarEnfriamiento();
     } catch (err) {
       setError(err.message);
@@ -197,6 +201,13 @@ export default function LoginPage() {
           </div>
 
           {error && <div className="alert alert--error">{error}</div>}
+
+          {codigoDemo && (
+            <div className="alert alert--demo" role="status">
+              <strong>Modo demostración:</strong> WhatsApp no está conectado, así que mostramos
+              aquí el código que le habría llegado: <strong className="codigo-demo">{codigoDemo}</strong>
+            </div>
+          )}
 
           <form onSubmit={manejarValidacion} noValidate>
             <div className="field">

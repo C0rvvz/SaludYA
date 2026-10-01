@@ -42,6 +42,7 @@ class EnviarOTPResponse(BaseModel):
     telefono_enmascarado: str
     expira_en_minutos: int
     mensaje: str
+    codigo_demo: str | None = None  # solo en modo demostración (ver settings.codigo_otp_en_pantalla)
 
 
 class ValidarOTPRequest(BaseModel):
@@ -86,6 +87,7 @@ class ReenviarOTPResponse(BaseModel):
     telefono_enmascarado: str
     expira_en_minutos: int
     mensaje: str
+    codigo_demo: str | None = None  # solo en modo demostración (ver settings.codigo_otp_en_pantalla)
 
 
 class MePacienteResponse(BaseModel):

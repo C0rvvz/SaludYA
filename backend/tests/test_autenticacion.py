@@ -1,6 +1,10 @@
 """Registro e ingreso del paciente con código por WhatsApp — HU-01 a HU-08."""
 
+import pytest
+
+from app.core.config import settings
 from app.models import CodigoOTP, Paciente
+from app.services import otp_service
 
 
 def _registro(fabrica, **cambios) -> dict:
@@ -89,3 +93,27 @@ def test_no_permite_registrar_dos_veces_el_mismo_documento(cliente, fabrica):
 def test_rutas_protegidas_exigen_sesion(cliente):
     assert cliente.get("/citas").status_code in (401, 403)
     assert cliente.get("/citas", headers={"Authorization": "Bearer token-falso"}).status_code == 401
+
+
+# --- Modo demostración: el código se muestra en pantalla solo con WhatsApp simulado y en desarrollo ---
+
+def _pedir_codigo(cliente, paciente):
+    r = cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
+    assert r.status_code == 201
+    return r.json()["codigo_demo"]
+
+
+def test_modo_demostracion_devuelve_el_codigo(cliente, fabrica, db, monkeypatch):
+    monkeypatch.setattr(settings, "whatsapp_mode", "mock")
+    monkeypatch.setattr(settings, "app_env", "development")
+    paciente = fabrica.paciente()
+    assert _pedir_codigo(cliente, paciente) == _ultimo_codigo(db, paciente.numero_documento)
+
+
+@pytest.mark.parametrize("modo, entorno", [("real", "development"), ("mock", "production")])
+def test_fuera_del_modo_demostracion_el_codigo_no_se_muestra(cliente, fabrica, monkeypatch, modo, entorno):
+    monkeypatch.setattr(settings, "whatsapp_mode", modo)
+    monkeypatch.setattr(settings, "app_env", entorno)
+    # El envío real no sale a internet: solo importa lo que responde la API.
+    monkeypatch.setattr(otp_service, "enviar_mensaje_whatsapp", lambda telefono, mensaje: True)
+    assert _pedir_codigo(cliente, fabrica.paciente()) is None

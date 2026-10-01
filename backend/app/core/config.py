@@ -93,6 +93,17 @@ class Settings(BaseSettings):
     ia_timeout_segundos: float = 15.0
 
     @property
+    def codigo_otp_en_pantalla(self) -> bool:
+        """
+        Modo demostración: con WhatsApp simulado y en desarrollo, la API
+        devuelve el código de verificación para que la pantalla de ingreso
+        lo muestre (si no, solo se ve en el log). Nunca con WhatsApp real
+        ni en otro entorno: ahí rige HU-02, criterio 4 (el código no debe
+        ser visible dentro de la plataforma).
+        """
+        return self.whatsapp_mode == "mock" and self.app_env == "development"
+
+    @property
     def ia_modelos(self) -> list[str]:
         respaldo = [m.strip() for m in self.ia_modelos_respaldo.split(",") if m.strip()]
         return [self.ia_modelo, *respaldo]
