@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Los scripts de Bash siempre con saltos de línea LF (con CRLF, Bash no los ejecuta)
+*.sh text eol=lf

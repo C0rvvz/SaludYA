@@ -214,6 +214,10 @@ frontend/
     pages/          pantallas del paciente y del personal (admin/)
     components/     componentes compartidos
     styles/         estilos y tokens de diseño
+  tests/            pruebas (Vitest) y backend simulado
+scripts/
+  analisis-sonar.sh pruebas con cobertura + análisis en SonarQube
 docker-compose.yml
+sonar-project.properties
 .env.example
 ```
