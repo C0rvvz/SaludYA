@@ -148,10 +148,19 @@ SonarQube analiza el código del backend y del frontend (errores, vulnerabilidad
 
 2. **Primera vez:** entre a http://localhost:9000 con usuario `admin` y contraseña `admin`. Le pedirá cambiar la contraseña. Después, en **Mi cuenta → Seguridad**, genere un token de tipo **Global Analysis Token**.
 
-3. **Analizar** (corre las pruebas del backend y del frontend con cobertura y envía todo a SonarQube). Desde la raíz del proyecto, en Git Bash:
+3. **Analizar** (corre las pruebas del backend y del frontend con cobertura y envía todo a SonarQube). Desde la raíz del proyecto, reemplazando `sqa_xxx` por su token.
+
+   En **PowerShell** (se llama al Bash de Git por su ruta: el `bash` de Windows es el de WSL, que no ve Docker ni npm):
+
+   ```powershell
+   $env:SONAR_TOKEN = "sqa_xxx"
+   & "C:\Program Files\Git\bin\bash.exe" scripts/analisis-sonar.sh
+   ```
+
+   En **Git Bash**:
 
    ```bash
-   SONAR_TOKEN=<su token> scripts/analisis-sonar.sh
+   SONAR_TOKEN=sqa_xxx scripts/analisis-sonar.sh
    ```
 
    Los resultados quedan en http://localhost:9000/dashboard?id=saludya.

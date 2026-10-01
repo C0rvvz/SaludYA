@@ -50,24 +50,35 @@ from app.utils.tiempo import hoy_en_colombia  # noqa: E402
 
 BACKEND = Path(__file__).resolve().parents[1]
 
+# Identificador del candado de PostgreSQL que reserva la base de pruebas.
+_CANDADO_PRUEBAS = 71_026
+
 
 @pytest.fixture(scope="session", autouse=True)
 def base_de_pruebas():
     """Crea la base de pruebas desde cero y le aplica todas las migraciones."""
     nombre = _URL_PRUEBAS.database
     servidor = create_engine(_URL_DESARROLLO, isolation_level="AUTOCOMMIT")
-    with servidor.connect() as conexion:
+    conexion = servidor.connect()
+    # Una sola corrida a la vez: si se lanzan dos (p. ej. desde dos
+    # terminales), la segunda espera aquí a que termine la primera en vez
+    # de borrarle la base o chocar al crearla.
+    conexion.execute(text("SELECT pg_advisory_lock(:id)"), {"id": _CANDADO_PRUEBAS})
+    try:
         conexion.execute(text(f'DROP DATABASE IF EXISTS "{nombre}" WITH (FORCE)'))
         conexion.execute(text(f'CREATE DATABASE "{nombre}"'))
-    servidor.dispose()
 
-    # Sin alembic.ini a propósito: su configuración de logging apagaría
-    # los loggers de la app que ya existen (y las pruebas que los revisan).
-    config = Config()
-    config.set_main_option("script_location", str(BACKEND / "alembic"))
-    command.upgrade(config, "head")
-    yield
-    engine.dispose()
+        # Sin alembic.ini a propósito: su configuración de logging apagaría
+        # los loggers de la app que ya existen (y las pruebas que los revisan).
+        config = Config()
+        config.set_main_option("script_location", str(BACKEND / "alembic"))
+        command.upgrade(config, "head")
+        yield
+    finally:
+        engine.dispose()
+        conexion.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": _CANDADO_PRUEBAS})
+        conexion.close()
+        servidor.dispose()
 
 
 @pytest.fixture
