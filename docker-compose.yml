@@ -34,6 +34,8 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/app:/app/app
+      # Pruebas: docker compose exec api pytest
+      - ./backend/tests:/app/tests
 
 volumes:
   saludya_pgdata:

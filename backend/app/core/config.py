@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     whatsapp_access_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_verify_token: str = ""
+    # Versión de la Graph API de Meta. Cada versión dura unos dos años;
+    # al vencer, Meta pasa las llamadas a la más antigua vigente.
+    whatsapp_api_version: str = "v26.0"
 
     # --- JWT (HU-03: se emite tras validar el OTP correctamente) ---
     # SUPUESTO: la duración no está definida en ninguna fuente; 60
