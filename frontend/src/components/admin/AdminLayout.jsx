@@ -1,26 +1,28 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { usePersonal } from "../../context/personal";
-import Logo from "../Logo";
+import { iniciales } from "../../utils/avatar";
+import { IconoSalir } from "../Iconos";
+import "../../styles/admin.css";
 
 // Solo aparecen las secciones que el rol puede usar. Cada una dice debajo,
 // en pocas palabras, para qué sirve: nadie tiene que entrar a adivinarlo.
 const SECCIONES = [
-  { to: "/admin/dashboard", texto: "Dashboard", ayuda: "Cifras de hoy y del mes", permiso: "ver_reportes" },
+  { to: "/admin/dashboard", texto: "Dashboard", ayuda: "Indicadores del día y del mes", permiso: "ver_reportes" },
   { to: "/admin/reportes", texto: "Reportes", ayuda: "Indicadores por periodo", permiso: "ver_reportes" },
-  { to: "/admin/citas", texto: "Gestión de citas", ayuda: "Buscar y atender las citas", permiso: "ver_citas" },
+  { to: "/admin/citas", texto: "Gestión de citas", ayuda: "Consulta y seguimiento", permiso: "ver_citas" },
   {
     to: "/admin/recordatorios",
-    texto: "Centro de recordatorios",
-    ayuda: "Avisos y llamadas a pacientes",
+    texto: "Recordatorios",
+    ayuda: "Mensajes y llamadas programados",
     permiso: "gestionar_citas",
   },
-  { to: "/admin/lista-espera", texto: "Lista de espera", ayuda: "Pacientes esperando un cupo", permiso: "ver_citas" },
-  { to: "/admin/solicitudes", texto: "Cartas y peticiones", ayuda: "Lo que piden por escrito", permiso: "ver_citas" },
-  { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Quién hizo qué y cuándo", permiso: "ver_auditoria" },
+  { to: "/admin/lista-espera", texto: "Lista de espera", ayuda: "Pacientes en espera de cupo", permiso: "ver_citas" },
+  { to: "/admin/solicitudes", texto: "Solicitudes", ayuda: "Cartas y derechos de petición", permiso: "ver_citas" },
+  { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];
 
-/** Estructura del apartado de administración: menú lateral y contenido. */
+/** Estructura del panel del personal: menú lateral oscuro y contenido. */
 export default function AdminLayout() {
   const { personal, cerrarSesion, tienePermiso } = usePersonal();
   const navigate = useNavigate();
@@ -33,13 +35,37 @@ export default function AdminLayout() {
   return (
     <div className="admin">
       <aside className="admin-sidebar">
-        <Logo to="/admin/citas" />
+        <Link to="/admin/citas" className="admin-marca" aria-label="SaludYA Personal: ir a Gestión de citas">
+          <span className="admin-marca__icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none">
+              <path
+                d="M2 12h4l2-7 4 14 2-7h8"
+                stroke="white"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span>
+            SaludYA <span className="admin-marca__sub">Personal</span>
+          </span>
+        </Link>
+
         <div className="admin-sidebar__usuario">
-          <strong>{personal.nombre}</strong>
-          <span className="admin-sidebar__rol">{personal.rol_texto}</span>
+          <span className="admin-sidebar__iniciales" aria-hidden="true">
+            {iniciales(personal.nombre)}
+          </span>
+          <div>
+            <p className="admin-sidebar__nombre">{personal.nombre}</p>
+            <p className="admin-sidebar__rol">{personal.rol_texto}</p>
+          </div>
         </div>
 
         <nav className="admin-nav" aria-label="Secciones de administración">
+          <span className="admin-nav__titulo" aria-hidden="true">
+            Módulos
+          </span>
           {SECCIONES.filter((s) => tienePermiso(s.permiso)).map((s) => (
             <NavLink
               key={s.to}
@@ -53,6 +79,7 @@ export default function AdminLayout() {
         </nav>
 
         <button type="button" className="admin-sidebar__salir" onClick={salir}>
+          <IconoSalir />
           Cerrar sesión
         </button>
       </aside>

@@ -113,7 +113,7 @@ describe("Ingreso del personal", () => {
     const menu = screen.getByRole("navigation", { name: "Secciones de administración" });
     expect(within(menu).queryByText("Reportes")).not.toBeInTheDocument();
     expect(within(menu).queryByText("Usuarios")).not.toBeInTheDocument();
-    expect(within(menu).getByText("Centro de recordatorios")).toBeInTheDocument();
+    expect(within(menu).getByText("Recordatorios")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/admin/auth/login")[1].cuerpo).toEqual({
       correo: "agenda@saludya.co",
       password: "clave-correcta",

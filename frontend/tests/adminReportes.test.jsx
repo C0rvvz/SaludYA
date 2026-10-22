@@ -97,15 +97,22 @@ describe("Dashboard", () => {
       "GET /admin/reportes": ({ query }) => (query.periodo === "anio" ? reporte({ periodo_texto: "Este año", citas: 400 }) : reporte()),
     });
     const usuario = abrir("/admin/dashboard", { personal: true });
-    expect(await esperarTexto("Hoy, Jueves, 1 de octubre")).toBeInTheDocument();
-    expect(screen.getByText("35 %")).toBeInTheDocument();
+    const hoy = (await screen.findByRole("heading", { name: "Hoy" })).closest("section");
+    expect(within(hoy).getByText("Jueves, 1 de octubre")).toBeInTheDocument();
+    expect(within(hoy).getByText("35 %")).toBeInTheDocument();
+    // Barra apilada de hoy con su leyenda.
+    expect(within(hoy).getByText("Pendientes")).toBeInTheDocument();
+    // Donas de confirmación y de canal.
+    expect(screen.getByRole("img", { name: "Confirmadas: 20, Sin confirmar: 10" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /WhatsApp: 30, Mensaje de texto: 6/ })).toBeInTheDocument();
     expect(screen.getByText("3 para pedir otra fecha · 1 derechos de petición")).toBeInTheDocument();
     expect(screen.getByText("45 min")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver historial" })).toHaveAttribute("href", "/admin/citas/c9");
 
     await usuario.selectOptions(screen.getByLabelText("Periodo"), "anio");
-    expect(await esperarTexto("Resumen de este año")).toBeInTheDocument();
-    expect(screen.getByText("400")).toBeInTheDocument();
+    const resumen = (await screen.findByRole("heading", { name: "Resumen del periodo" })).closest("section");
+    expect(await within(resumen).findByText("Este año")).toBeInTheDocument();
+    expect(within(resumen).getByText("400")).toBeInTheDocument();
     expect(llamadasA(llamadas, "GET", "/admin/reportes").map((l) => l.query.periodo)).toEqual(["mes", "anio"]);
   });
 
@@ -124,15 +131,21 @@ describe("Reportes", () => {
   it("indicadores, satisfacción (HU-71), demanda, inasistencia, canales y tendencia", async () => {
     backendFalso({ "GET /admin/reportes": reporte() });
     abrir("/admin/reportes", { personal: true });
-    expect(await esperarTexto("Indicadores de citas: este mes")).toBeInTheDocument();
+    const indicadores = (await screen.findByRole("heading", { name: "Indicadores de citas" })).closest("section");
+    expect(within(indicadores).getByText("Este mes")).toBeInTheDocument();
+    expect(within(indicadores).getByText("3 / 4")).toBeInTheDocument();
     expect(screen.getByText("3 de 12 citas ya cerradas")).toBeInTheDocument();
     expect(screen.getByText("3 h 20 min")).toBeInTheDocument();
 
     const satisfaccion = screen.getByRole("heading", { name: "Satisfacción de los pacientes" }).closest("section");
-    expect(within(satisfaccion).getByText("4,3 de 5")).toBeInTheDocument();
-    expect(within(satisfaccion).getByText("Buena")).toBeInTheDocument();
-    expect(within(satisfaccion).getByText("3 de 9")).toBeInTheDocument();
-    expect(within(satisfaccion).getByText("5 ★ Excelente").closest("li")).toHaveClass("is-mayor");
+    expect(within(satisfaccion).getByText("4,3")).toBeInTheDocument();
+    expect(within(satisfaccion).getByText("de 5 · Buena")).toBeInTheDocument();
+    expect(within(satisfaccion).getByText("3 de 9 citas atendidas")).toBeInTheDocument();
+    expect(within(satisfaccion).getByRole("img", { name: "5 · Excelente: 2, 4 · Buena: 0, 3 o menos: 1" })).toBeInTheDocument();
+
+    // Barras: la mayor resaltada.
+    const demanda = screen.getByRole("heading", { name: "Demanda por especialidad" }).closest("section");
+    expect(within(demanda).getByText("Cardiología", { selector: ".barras__nombre" }).closest("li")).toHaveClass("is-mayor");
 
     expect(screen.getByText("Cardiología", { selector: ".reporte__destacado strong" })).toBeInTheDocument();
     expect(screen.getByText("Dermatología", { selector: ".reporte__destacado strong" })).toBeInTheDocument();

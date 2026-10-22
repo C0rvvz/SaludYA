@@ -1,0 +1,1087 @@
+/* ============ Panel del personal (sistema visual) ============
+   Más sobrio que el lado del paciente: menú lateral oscuro de 248 px,
+   contenido sobre gris muy claro, tarjetas blancas de radio 12, botones
+   rectangulares (radio 8), indicadores sin cajas separados por líneas y
+   tablas compactas. Tono de los textos: formal e institucional.
+   Lo carga AdminLayout, así que solo aplica dentro del panel. */
+
+.admin {
+  --admin-fondo: #f5f6f7;
+  --admin-borde: #e1e4e7;
+  --admin-separador: #f0f2f4;
+  --admin-oscuro: #15191e;
+  --admin-oscuro-2: #22272e;
+  --admin-oscuro-activo: #2d333b;
+  --admin-texto-menu: #d0d7de;
+  --admin-texto-tenue: #8b949e;
+  --admin-barra: #8fa6c4;
+
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--admin-fondo);
+  font-size: 0.875rem;
+}
+
+/* --- Menú lateral --- */
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  height: 100vh;
+  padding: 24px 14px;
+  overflow-y: auto;
+  background: var(--admin-oscuro);
+  color: #c9d0d8;
+}
+
+.admin-marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  color: #fff;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-marca__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--color-primary);
+}
+
+.admin-marca__sub {
+  color: var(--admin-texto-tenue);
+  font-weight: 500;
+}
+
+.admin-sidebar__usuario {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--admin-oscuro-2);
+}
+
+.admin-sidebar__iniciales {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #33404f;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.admin-sidebar__usuario p {
+  margin: 0;
+}
+
+.admin-sidebar__nombre {
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.admin-sidebar__rol {
+  color: var(--admin-texto-tenue);
+  font-size: 0.75rem;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-nav__titulo {
+  padding: 0 12px 8px;
+  color: #6e7781;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-nav__enlace {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--admin-texto-menu);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-nav__enlace:hover {
+  background: var(--admin-oscuro-2);
+}
+
+.admin-nav__enlace.is-active {
+  background: var(--admin-oscuro-activo);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+  color: #fff;
+}
+
+.admin-nav__ayuda {
+  color: var(--admin-texto-tenue);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.admin-sidebar__salir {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-top: auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--admin-texto-menu);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-sidebar__salir:hover {
+  background: var(--admin-oscuro-2);
+  color: #fff;
+}
+
+.admin-sidebar :focus-visible {
+  outline: 2px solid var(--color-primary-on-dark);
+  outline-offset: 2px;
+}
+
+/* --- Contenido --- */
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 32px 40px 40px;
+}
+
+.admin-main > *,
+.admin-main .alert {
+  margin: 0;
+}
+
+/* Encabezado de cada página: título y descripción a la izquierda, acciones a la derecha */
+.admin-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.admin-encabezado > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 60em;
+}
+
+.admin-titulo {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.admin-subtitulo {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.admin-titulo--seccion {
+  margin: 8px 0 0;
+  font-size: 1.0625rem;
+}
+
+/* --- Tarjetas --- */
+.admin .card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--admin-borde);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.admin .card > * {
+  margin: 0;
+}
+
+.admin-card__titulo {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* Título de tarjeta con un dato a la derecha ("Hoy" · "Jueves 22 de octubre") */
+.admin-card__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.admin-card__dato {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.admin-separador {
+  height: 1px;
+  background: var(--admin-borde);
+}
+
+/* --- Indicadores: sin cajas, separados por una línea vertical --- */
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  row-gap: 14px;
+  margin-left: -18px;
+}
+
+.cifras + .cifras {
+  padding-top: 14px;
+  border-top: 1px solid var(--admin-borde);
+}
+
+.cifra {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 2px 18px;
+  border-left: 1px solid var(--admin-borde);
+}
+
+.cifra__nombre {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.cifra__valor {
+  color: var(--color-ink);
+  font-size: 1.625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.cifra__detalle {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.cifra--exito .cifra__valor {
+  color: var(--color-success);
+}
+
+.cifra--aviso .cifra__valor {
+  color: var(--color-warning-ink);
+}
+
+.cifra--peligro .cifra__valor {
+  color: var(--color-error);
+}
+
+/* --- Gráficas --- */
+.reporte {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reporte__columnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.reporte__destacado {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.reporte__destacado strong {
+  color: var(--color-ink);
+}
+
+.reporte__destacado--exito {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.reporte__destacado--peligro {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* Barras horizontales finas: la mayor en azul oscuro, el resto en azul grisáceo */
+.barras {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barras li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.barras__fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8125rem;
+}
+
+.barras__valor {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.barras__pista {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--color-bg);
+}
+
+.barras__relleno {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--admin-barra);
+}
+
+.barras .is-mayor .barras__relleno {
+  background: var(--color-navy);
+}
+
+/* Dona: conic-gradient con el valor en el centro, y su leyenda al lado */
+.dona {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 22px;
+}
+
+.dona__anillo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+}
+
+.dona__centro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #fff;
+  text-align: center;
+}
+
+.dona__valor {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.dona__texto {
+  color: var(--color-ink-soft);
+  font-size: 0.6875rem;
+}
+
+.leyenda {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 140px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+}
+
+.leyenda__color {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.leyenda__nombre {
+  flex: 1;
+}
+
+/* Barra apilada de 8 px (p. ej. confirmadas · pendientes · canceladas de hoy) */
+.barra-apilada {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--color-bg);
+}
+
+.leyenda--linea {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.leyenda--linea li {
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.leyenda--linea .leyenda__color {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.leyenda--linea strong {
+  color: var(--color-ink);
+}
+
+/* Columnas para la tendencia */
+.columnas {
+  display: grid;
+  grid-auto-columns: minmax(48px, 1fr);
+  grid-auto-flow: column;
+  gap: 14px;
+  align-items: end;
+  min-height: 170px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.columnas li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 100%;
+}
+
+.columnas__valor {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.columnas__barra {
+  width: 100%;
+  max-width: 56px;
+  min-height: 4px;
+  border-radius: 6px 6px 2px 2px;
+  background: var(--admin-barra);
+}
+
+.columnas li:last-child .columnas__barra {
+  background: var(--color-navy);
+}
+
+.columnas__nombre {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* --- Tablas --- */
+.tabla-contenedor {
+  overflow-x: auto;
+  border: 1px solid var(--admin-borde);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.card .tabla-contenedor {
+  margin: 0 -20px -18px;
+  border-width: 1px 0 0;
+  border-radius: 0 0 12px 12px;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.tabla th {
+  padding: 10px 14px;
+  background: #fafbfb;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tabla td {
+  padding: 11px 14px;
+  border-top: 1px solid var(--admin-separador);
+  vertical-align: middle;
+}
+
+.tabla tbody tr:hover td {
+  background: #fafbfc;
+}
+
+.tabla tr.is-actual td {
+  background: var(--color-primary-soft);
+}
+
+.tabla select,
+.tabla input {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.tabla--compacta th,
+.tabla--compacta td {
+  padding: 8px 12px;
+}
+
+/* El estado sí puede ocupar dos líneas en una tarjeta angosta */
+.tabla--compacta .badge {
+  white-space: normal;
+}
+
+.celda-fecha {
+  display: block;
+  white-space: nowrap;
+}
+
+.celda-texto {
+  max-width: 320px;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+/* Paciente con círculo de iniciales */
+.celda-persona {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.celda-persona__iniciales {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-navy);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.celda-persona__textos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.celda-persona__nombre {
+  font-weight: 600;
+}
+
+.celda-persona__dato {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.etiqueta-actual {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+/* Estados: píldora suave con punto */
+.admin .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin .badge::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* --- Botones del panel: rectangulares --- */
+.admin .btn {
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  box-shadow: none;
+}
+
+.admin .btn:hover:not(:disabled) {
+  transform: none;
+}
+
+.admin .btn--primary:hover:not(:disabled) {
+  box-shadow: var(--halo);
+}
+
+.admin .btn--compacto {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 0.8125rem;
+}
+
+.admin .btn--link {
+  min-height: 0;
+  padding: 0;
+}
+
+/* Acción secundaria de una fila: ícono de 32 px con su nombre en title/aria-label */
+.boton-icono {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.boton-icono:hover:not(:disabled) {
+  border-color: var(--color-navy);
+}
+
+.boton-icono:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.boton-icono--peligro {
+  color: var(--color-error);
+}
+
+.boton-icono--peligro:hover:not(:disabled) {
+  border-color: var(--color-error);
+}
+
+.acciones-tabla {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- Campos y filtros --- */
+.admin .field {
+  margin-bottom: 0;
+}
+
+.admin .field label {
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+}
+
+.admin .field input,
+.admin .field select {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.admin .field textarea {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+/* Barra de filtros: blanca, campos de 40 px y botón "Buscar" */
+.filters-card,
+.filtros-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-borde);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.filters-card .field input,
+.filters-card .field select,
+.filtros-admin .field input,
+.filtros-admin .field select {
+  min-height: 40px;
+  height: 40px;
+}
+
+/* El periodo del Dashboard y Reportes, compacto y a la derecha del título */
+.selector-periodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selector-periodo label {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.selector-periodo select {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Estados de una lista como chips con contador */
+.chips-estado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip-estado.is-activo {
+  border-color: var(--admin-oscuro);
+  background: var(--admin-oscuro);
+  color: #fff;
+}
+
+.chip-estado__conteo {
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  font-size: 0.75rem;
+}
+
+.chip-estado.is-activo .chip-estado__conteo {
+  background: #2a3038;
+}
+
+.formulario-admin {
+  display: grid;
+  gap: 12px;
+}
+
+/* --- Avisos --- */
+.info-admin {
+  padding: 12px 16px;
+  border: 1px solid #c8dcf3;
+  border-radius: 10px;
+  background: #f1f7fd;
+  color: var(--color-navy);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.admin .alert {
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+.panel-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+
+.panel-admin > * {
+  margin: 0;
+}
+
+.panel-admin--peligro {
+  background: var(--color-error-soft);
+}
+
+/* Pregunta antes de un cambio delicado, fuera de una tarjeta: debe resaltar */
+.panel-admin--confirmar {
+  padding: 16px 18px;
+  border: 1px solid var(--color-primary);
+  background: #fff;
+}
+
+.panel-admin--confirmar.panel-admin--peligro {
+  border-color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+/* --- Detalle de una cita / revisión --- */
+.admin-detalle__encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-detalle__estado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.admin-detalle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-detalle__columna {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.admin-detalle__columna > * {
+  min-width: 0;
+}
+
+.resumen-asistencia {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.resumen-asistencia strong {
+  color: var(--color-ink);
+  font-size: 1.0625rem;
+}
+
+.historial-admin,
+.observaciones,
+.factores {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historial-admin li,
+.observaciones li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--admin-separador);
+  font-size: 0.8125rem;
+}
+
+.observaciones li {
+  flex-direction: column;
+}
+
+.factores li {
+  position: relative;
+  padding: 5px 0 5px 16px;
+  font-size: 0.8125rem;
+}
+
+.factores li::before {
+  content: "•";
+  position: absolute;
+  left: 3px;
+  color: var(--color-primary);
+}
+
+.revision__motivo {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--color-bg);
+  white-space: pre-line;
+}
+
+/* Riesgo estimado de inasistencia (HU-34): anillo con el porcentaje */
+.indicador-riesgo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.indicador-riesgo__medidor {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.indicador-riesgo__medidor span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+
+.indicador-riesgo--grande .indicador-riesgo__medidor {
+  width: 84px;
+  height: 84px;
+}
+
+.indicador-riesgo--grande .indicador-riesgo__medidor span {
+  width: 68px;
+  height: 68px;
+  font-size: 1.125rem;
+}
+
+.lista-espera-admin__cifras {
+  margin: 0;
+}
+
+/* --- Pantallas angostas: el menú arriba, en una franja --- */
+@media (max-width: 900px) {
+  .admin {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-sidebar {
+    position: static;
+    height: auto;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .admin-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .admin-nav__titulo,
+  .admin-nav__ayuda {
+    display: none;
+  }
+
+  .admin-sidebar__salir {
+    margin-top: 0;
+  }
+
+  .admin-main {
+    padding: 20px 16px 32px;
+  }
+
+  .cifras {
+    grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  }
+}
