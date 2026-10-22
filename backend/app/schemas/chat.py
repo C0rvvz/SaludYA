@@ -1,5 +1,6 @@
 """Esquemas de entrada/salida del asistente conversacional — HU-33."""
 
+import uuid
 from datetime import date, time
 from typing import Literal
 
@@ -31,6 +32,21 @@ class CitaChatOut(BaseModel):
     estado: str
 
 
+class PropuestaChatOut(BaseModel):
+    """El horario que el asistente le propone al paciente y espera su "sí"
+    (todavía no está agendado): el chat lo muestra como tarjeta, con
+    "Agendar esa cita", "Elegir otra fecha" y "Escribir carta de petición"."""
+
+    especialidad: str
+    especialidad_id: uuid.UUID
+    profesional: str
+    sede: str
+    ciudad: str
+    modalidad: str
+    fecha: date
+    hora: time
+
+
 class ChatResponse(BaseModel):
     respuesta: str
     # "urgencia": mensaje fijo de redirección a urgencias (la IA no
@@ -46,6 +62,7 @@ class ChatResponse(BaseModel):
         "llegada_registrada",
     ]
     cita: CitaChatOut | None = None
+    propuesta: PropuestaChatOut | None = None
 
 
 class MensajeHistorialOut(BaseModel):

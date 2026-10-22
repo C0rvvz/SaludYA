@@ -68,6 +68,7 @@ _MAX_CITAS = 5
 class _HorarioOfrecido:
     inicio: datetime  # fecha + hora de la franja, hora de Colombia
     resumen: dict  # lo que se le mostró al modelo, para armar la confirmación
+    especialidad_id: uuid.UUID  # para que el chat ofrezca la carta de esa especialidad
 
 
 @dataclass
@@ -92,6 +93,11 @@ class EstadoConversacion:
     # tarjeta: ("cita_agendada" | "cita_cancelada" | "cita_reprogramada"
     # | "asistencia_confirmada", resumen de la cita).
     eventos: list[tuple[str, dict]] = field(default_factory=list)
+    # La cita que se le propuso al paciente y espera su "sí" (crear_cita
+    # sin confirmar), con el turno en que se propuso: el chat la muestra
+    # como tarjeta con "Agendar esa cita" / "Elegir otra fecha".
+    propuesta: dict | None = None
+    propuesta_turno: int = 0
 
 
 class _ErrorParaElModelo(Exception):
@@ -180,7 +186,7 @@ def _cita_para_ia(cita: Cita) -> dict:
 def _registrar_ofrecidos(estado: EstadoConversacion, horarios: list[Disponibilidad]) -> None:
     for h in horarios:
         estado.horarios_ofrecidos[h.id] = _HorarioOfrecido(
-            datetime.combine(h.fecha, h.hora), _franja_para_ia(h)
+            datetime.combine(h.fecha, h.hora), _franja_para_ia(h), h.especialista.especialidad_id
         )
 
 
@@ -387,6 +393,8 @@ def _crear_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, arg
         },
     )
     if pendiente is not None:
+        estado.propuesta = {**ofrecido.resumen, "especialidad_id": ofrecido.especialidad_id}
+        estado.propuesta_turno = estado.turno
         return pendiente
 
     # --- La misma lógica que POST /citas (HU-16 + HU-17) ---

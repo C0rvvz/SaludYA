@@ -11,5 +11,6 @@ afterEach(() => {
   localStorage.clear();
   sessionStorage.clear(); // ahí viven los tokens (utils/sesion.js)
   vi.restoreAllMocks();
+  vi.unstubAllGlobals(); // p. ej. el micrófono simulado del dictado
   vi.useRealTimers();
 });

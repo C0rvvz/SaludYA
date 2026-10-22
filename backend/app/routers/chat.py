@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import get_current_paciente
 from app.models.paciente import Paciente
-from app.schemas.chat import ChatRequest, ChatResponse, CitaChatOut, MensajeHistorialOut
+from app.schemas.chat import ChatRequest, ChatResponse, CitaChatOut, MensajeHistorialOut, PropuestaChatOut
 from app.services import chatbot
 from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError
 
@@ -44,6 +44,12 @@ def conversar(
         tipo, cita = resultado.eventos[-1]
         return ChatResponse(
             respuesta=resultado.texto, tipo=tipo, cita=CitaChatOut.model_validate(cita)
+        )
+    if resultado.propuesta:
+        return ChatResponse(
+            respuesta=resultado.texto,
+            tipo="mensaje",
+            propuesta=PropuestaChatOut.model_validate(resultado.propuesta),
         )
     return ChatResponse(respuesta=resultado.texto, tipo="mensaje")
 

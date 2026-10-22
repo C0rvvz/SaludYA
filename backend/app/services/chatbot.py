@@ -63,6 +63,9 @@ class RespuestaChat:
     eventos: list[tuple[str, dict]] = field(default_factory=list)
     # El mensaje activó la detección de urgencias (la IA no intervino).
     urgencia: bool = False
+    # La cita que se le acaba de proponer y espera su "sí" (ver
+    # EstadoConversacion.propuesta), para mostrarla como tarjeta.
+    propuesta: dict | None = None
 
 
 _conversaciones: dict[uuid.UUID, _Conversacion] = {}
@@ -208,7 +211,10 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
             raise
 
         _recortar(conv)
-        return RespuestaChat(texto=respuesta, eventos=conv.estado.eventos[eventos_antes:])
+        eventos = conv.estado.eventos[eventos_antes:]
+        estado = conv.estado
+        propuesta = estado.propuesta if estado.propuesta_turno == estado.turno and not eventos else None
+        return RespuestaChat(texto=respuesta, eventos=eventos, propuesta=propuesta)
     finally:
         conv.ultima_actividad = datetime.now(timezone.utc)
         conv.ocupada.release()

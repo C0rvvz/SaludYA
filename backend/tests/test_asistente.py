@@ -211,7 +211,7 @@ def test_conversacion_con_funciones(cliente, fabrica, modelo):
     modelo.respuestas += [_mensaje(None, ("buscar_especialidades", {})), _mensaje("Tenemos estas especialidades.")]
 
     r = cliente.post("/chat", headers=encabezado(paciente), json={"mensaje": "¿Qué especialidades hay?"})
-    assert r.json() == {"respuesta": "Tenemos estas especialidades.", "tipo": "mensaje", "cita": None}
+    assert r.json() == {"respuesta": "Tenemos estas especialidades.", "tipo": "mensaje", "cita": None, "propuesta": None}
     resultado_tool = modelo.enviados[1][-1]
     assert resultado_tool["role"] == "tool"
     assert "especialidades" in resultado_tool["content"]
@@ -221,6 +221,35 @@ def test_conversacion_con_funciones(cliente, fabrica, modelo):
     assert [m["rol"] for m in historial] == ["paciente", "asistente"]
     assert cliente.delete("/chat", headers=encabezado(paciente)).status_code == 204
     assert cliente.get("/chat", headers=encabezado(paciente)).json() == []
+
+
+def test_la_cita_propuesta_llega_como_tarjeta_hasta_que_se_confirma(cliente, fabrica, modelo, especialidad):
+    paciente = fabrica.paciente()
+    fecha = hoy_en_colombia() + timedelta(days=10)
+    franja = fabrica.franja(fecha=fecha)
+    buscar = {"especialidad": especialidad, "fecha": fecha.isoformat()}
+    crear = {"disponibilidad_id": str(franja.id), "canal_recordatorio": "whatsapp"}
+    modelo.respuestas += [
+        _mensaje(None, ("buscar_horarios", buscar)),
+        _mensaje(None, ("crear_cita", crear)),
+        _mensaje("Le propongo esta cita. ¿Confirma la cita?"),
+    ]
+    r = cliente.post("/chat", headers=encabezado(paciente), json={"mensaje": "Quiero una cita"}).json()
+    assert r["tipo"] == "mensaje"
+    assert r["propuesta"]["especialidad"] == especialidad
+    assert r["propuesta"]["especialidad_id"] == str(fabrica.especialista.especialidad_id)
+    assert r["propuesta"]["fecha"] == fecha.isoformat()
+
+    # En el mensaje siguiente, sin volver a proponer, ya no se repite la tarjeta.
+    modelo.respuestas += [_mensaje("¿Algo más?")]
+    r = cliente.post("/chat", headers=encabezado(paciente), json={"mensaje": "Déjeme pensarlo"}).json()
+    assert r["propuesta"] is None
+
+    # Al confirmar, llega la cita agendada y no la propuesta.
+    modelo.respuestas += [_mensaje(None, ("crear_cita", crear)), _mensaje("Listo, quedó agendada.")]
+    r = cliente.post("/chat", headers=encabezado(paciente), json={"mensaje": "Sí, confirmo"}).json()
+    assert r["tipo"] == "cita_agendada"
+    assert r["propuesta"] is None
 
 
 def test_una_sola_escritura_por_mensaje_y_tarjeta_de_la_cita(cliente, fabrica, modelo):

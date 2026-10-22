@@ -1,5 +1,5 @@
-import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { TOKEN_PACIENTE } from "../src/api/client";
 import { abrir, backendFalso, error, esperarTexto, llamadasA } from "./backendFalso";
 import { ESPECIALIDAD, FRANJAS, SEDE, citaPasada, miCita } from "./datos";
@@ -526,7 +526,7 @@ describe("Asistente conversacional (HU-33)", () => {
     await usuario.click(await screen.findByRole("button", { name: "Sí, confirmo" }));
 
     expect(await esperarTexto("Listo, quedó agendada.")).toBeInTheDocument();
-    const tarjeta = screen.getByText("SY-CHAT").closest(".chat-cita");
+    const tarjeta = screen.getByText("SY-CHAT").closest(".eli-cita");
     expect(within(tarjeta).getByText("Cita confirmada")).toBeInTheDocument();
     expect(within(tarjeta).getByText("WhatsApp")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/chat").map((l) => l.cuerpo.mensaje)).toEqual([
@@ -539,6 +539,89 @@ describe("Asistente conversacional (HU-33)", () => {
     expect(await esperarTexto(/Soy Eli, su guía de SaludYA/)).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Cerrar a Eli" }));
     expect(screen.queryByRole("dialog", { name: /Eli, su guía de SaludYA/ })).not.toBeInTheDocument();
+  });
+
+  it("la cita que Eli propone se ve como tarjeta, con 'Agendar esa cita', 'Elegir otra fecha' y la carta", async () => {
+    const PROPUESTA = {
+      especialidad: "Cardiología",
+      especialidad_id: "esp-1",
+      profesional: "Dr. Carlos Ramírez",
+      sede: "Sede Poblado",
+      ciudad: "Medellín",
+      modalidad: "presencial",
+      fecha: "2026-10-26",
+      hora: "14:30:00",
+    };
+    const respuestas = [
+      { respuesta: "Le recomiendo Cardiología. ¿Confirma la cita?", tipo: "mensaje", cita: null, propuesta: PROPUESTA },
+      { respuesta: "¿Qué otra fecha le sirve?", tipo: "mensaje", cita: null, propuesta: null },
+      { respuesta: "Le propongo esta otra. ¿Confirma la cita?", tipo: "mensaje", cita: null, propuesta: PROPUESTA },
+      { respuesta: "Listo, quedó agendada.", tipo: "cita_agendada", cita: CITA_CHAT, propuesta: null },
+    ];
+    const llamadas = backendFalso({ ...CATALOGO, "POST /chat": () => respuestas.shift() });
+    const usuario = abrir("/panel", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
+    await usuario.type(await screen.findByLabelText("Escriba su mensaje"), "Me duele el pecho al subir escaleras{Enter}");
+
+    expect(await esperarTexto(/Cardiología · Lun 26 oct/)).toBeInTheDocument();
+    expect(screen.getByText(/2:30 p. m. · Sede Poblado · Presencial/)).toBeInTheDocument();
+    // Con la propuesta, las respuestas rápidas son las del diseño (no "Sí, confirmo").
+    expect(screen.queryByRole("button", { name: "Sí, confirmo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Escribir carta de petición" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal&especialidad=esp-1"
+    );
+
+    await usuario.click(screen.getByRole("button", { name: "Elegir otra fecha" }));
+    expect(await esperarTexto("¿Qué otra fecha le sirve?")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Agendar esa cita" })).not.toBeInTheDocument();
+
+    await usuario.type(screen.getByLabelText("Escriba su mensaje"), "El lunes en la tarde{Enter}");
+    await usuario.click(await screen.findByRole("button", { name: "Agendar esa cita" }));
+    expect(await esperarTexto("Listo, quedó agendada.")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "POST", "/chat").map((l) => l.cuerpo.mensaje)).toEqual([
+      "Me duele el pecho al subir escaleras",
+      "Quiero elegir otra fecha",
+      "El lunes en la tarde",
+      "Sí, agende esa cita",
+    ]);
+  });
+
+  it("'Escriba o hable…': dicta el mensaje con el micrófono, si el navegador lo permite", async () => {
+    let ultimo;
+    class ReconocimientoFalso {
+      start() {
+        ultimo = this;
+      }
+      stop() {
+        this.onend();
+      }
+      abort() {}
+    }
+    vi.stubGlobal("SpeechRecognition", ReconocimientoFalso);
+    backendFalso({ ...CATALOGO, "POST /chat": { respuesta: "Con gusto.", tipo: "mensaje", cita: null } });
+    const usuario = abrir("/panel", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
+
+    const entrada = await screen.findByLabelText("Escriba su mensaje");
+    expect(entrada).toHaveAttribute("placeholder", "Escriba o hable…");
+    await usuario.click(screen.getByRole("button", { name: "Hablar: dictar el mensaje" }));
+    expect(ultimo.lang).toBe("es-CO");
+    expect(entrada).toHaveAttribute("placeholder", "Le escucho… hable ahora");
+
+    act(() => ultimo.onresult({ results: [[{ transcript: "Necesito una cita" }]] }));
+    expect(entrada).toHaveValue("Necesito una cita");
+    await usuario.click(screen.getByRole("button", { name: "Dejar de escuchar" }));
+    await usuario.click(screen.getByRole("button", { name: "Enviar" }));
+    expect(await esperarTexto("Con gusto.")).toBeInTheDocument();
+
+    // Si el navegador no deja usar el micrófono, lo explica.
+    await usuario.click(screen.getByRole("button", { name: "Hablar: dictar el mensaje" }));
+    act(() => {
+      ultimo.onerror({ error: "not-allowed" });
+      ultimo.onend();
+    });
+    expect(screen.getByText(/permita el uso del micrófono/)).toBeInTheDocument();
   });
 
   it("una urgencia se muestra destacada con botones para llamar", async () => {

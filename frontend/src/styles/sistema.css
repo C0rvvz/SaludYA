@@ -672,12 +672,6 @@ summary:focus-visible {
   }
 }
 
-.chat-panel__quien {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .eli-lanzador__nube,
   .eli-lanzador__boton {

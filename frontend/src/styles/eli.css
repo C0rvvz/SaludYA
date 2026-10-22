@@ -1,0 +1,437 @@
+/* ============ Eli por dentro (AsistenteChat) ============
+   Computador: una columna de 440 px a la derecha, debajo del encabezado.
+   Celular (≤1099 px): ocupa toda la pantalla, por encima de las pestañas.
+   Letra grande y botones amplios: muchos pacientes son adultos mayores. */
+
+.eli-panel {
+  /* Es un <dialog>: sin los márgenes, bordes y tamaño que trae el navegador */
+  position: fixed;
+  top: 108px;
+  right: 32px;
+  bottom: 32px;
+  left: auto;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 28px;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  box-shadow: 0 40px 80px -30px rgba(14, 31, 57, 0.6);
+  animation: eli-aparece 0.2s ease-out;
+}
+
+/* --- Encabezado --- */
+.eli-panel__cabeza {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--color-line);
+  background: #fff;
+}
+
+.eli-panel__cabeza .eli-avatar {
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.eli-panel__quien {
+  flex: 1;
+  min-width: 0;
+}
+
+.eli-panel__quien h2 {
+  margin: 0;
+  font-size: 1.1875rem;
+  line-height: 1.2;
+}
+
+.eli-panel__quien p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.eli-panel__en-linea {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.eli-panel__boton {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.eli-panel__boton:hover:not(:disabled) {
+  box-shadow: var(--halo);
+}
+
+.eli-panel__boton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* --- Mensajes --- */
+.eli-panel__mensajes {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.eli-burbuja {
+  max-width: 88%;
+  padding: 14px 18px;
+  font-size: var(--text-base);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.eli-burbuja--eli {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: flex-start;
+  border-radius: 22px 22px 22px 6px;
+  background: #fff;
+  box-shadow: 0 12px 26px -18px rgba(14, 31, 57, 0.4);
+}
+
+.eli-burbuja--paciente {
+  align-self: flex-end;
+  max-width: 80%;
+  border-radius: 22px 22px 6px 22px;
+  background: var(--color-navy);
+  color: #fff;
+  white-space: pre-line;
+}
+
+.eli-burbuja__texto {
+  margin: 0;
+  color: inherit;
+  white-space: pre-line;
+}
+
+.eli-burbuja__nota {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.eli-burbuja__nota strong {
+  color: var(--color-ink);
+}
+
+/* La cita que Eli propone (todavía sin agendar) */
+.eli-propuesta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--color-bg);
+}
+
+.eli-propuesta p {
+  margin: 0;
+}
+
+.eli-propuesta__titulo {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.eli-propuesta__detalle {
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.eli-propuesta__circulo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-navy);
+  color: #fff;
+}
+
+/* "Escribiendo": tres puntos que suben y bajan */
+.eli-escribiendo {
+  flex-direction: row;
+  gap: 6px;
+  padding: 18px 20px;
+}
+
+.eli-escribiendo__punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa3ad;
+  animation: eli-punto 1.2s ease-in-out infinite;
+}
+
+.eli-escribiendo__punto:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.eli-escribiendo__punto:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+/* La cita sobre la que Eli acaba de actuar (agendada, cancelada...) */
+.eli-cita {
+  align-self: stretch;
+  padding: 16px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: #fff;
+  font-size: var(--text-sm);
+}
+
+.eli-cita__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.eli-cita__numero {
+  color: var(--color-ink-soft);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--text-xs);
+}
+
+.eli-cita .summary-row {
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.eli-cita .summary-row__value {
+  text-align: right;
+}
+
+.eli-aviso {
+  margin: 0;
+}
+
+.eli-urgencia {
+  align-self: stretch;
+  padding: 18px;
+  border: 2px solid var(--color-error);
+  border-radius: 18px;
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.eli-urgencia__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  white-space: normal;
+}
+
+.eli-urgencia__llamar {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+/* Respuestas rápidas */
+.eli-rapidas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.eli-rapida {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.eli-rapida:hover {
+  border-color: var(--color-navy);
+}
+
+.eli-rapida--principal {
+  border-color: var(--color-navy);
+  background: var(--color-navy);
+  color: #fff;
+}
+
+/* --- Campo para escribir o hablar --- */
+.eli-panel__entrada {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-line);
+  background: #fff;
+}
+
+.eli-panel__fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eli-panel__entrada input {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  padding: 0 18px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-base);
+}
+
+.eli-panel__entrada input::placeholder {
+  color: #6b7684;
+}
+
+.eli-panel__entrada input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: var(--halo-campo);
+}
+
+.eli-panel__enviar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-navy);
+  color: #fff;
+  cursor: pointer;
+}
+
+.eli-panel__enviar:hover:not(:disabled) {
+  box-shadow: var(--halo);
+}
+
+.eli-panel__enviar:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Escuchando: el micrófono se pone rojo y late */
+.eli-panel__enviar.is-escuchando {
+  background: var(--color-error);
+  animation: eli-escucha 1.4s ease-in-out infinite;
+}
+
+.eli-panel__dictado-error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: var(--text-xs);
+}
+
+@keyframes eli-aparece {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes eli-punto {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+@keyframes eli-escucha {
+  50% {
+    box-shadow: 0 0 0 8px rgba(163, 58, 43, 0.18);
+  }
+}
+
+/* --- Celular y tableta: pantalla completa --- */
+@media (max-width: 1099px) {
+  .eli-panel {
+    inset: 0;
+    width: auto;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .eli-panel__cabeza {
+    padding: 14px 16px;
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+
+  .eli-panel__mensajes {
+    padding: 16px;
+  }
+
+  .eli-panel__entrada {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eli-panel,
+  .eli-escribiendo__punto,
+  .eli-panel__enviar.is-escuchando {
+    animation: none;
+  }
+}
