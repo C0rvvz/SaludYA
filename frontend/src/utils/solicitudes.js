@@ -12,14 +12,14 @@ export const EXPLICACION_SOLICITUD = {
       "Ninguno de los horarios disponibles le sirve, o necesita la cita antes. Cuéntenos por qué y el personal de su EPS la revisa.",
     ejemplo: "Ejemplo: «Necesito la cita antes del 15 porque ese día me operan».",
     pregunta: "¿Por qué no le sirven los horarios disponibles, o por qué necesita esa fecha?",
-    boton: "Enviar carta",
+    boton: "Enviar mi carta",
   },
   derecho_peticion: {
     texto:
       "Es una petición formal que protege la ley: su EPS está obligada a responderle por escrito en máximo 15 días hábiles. Úsela si ya pidió la cita y no le han dado respuesta.",
     ejemplo: "Ejemplo: «Pedí la cita de cardiología hace un mes y no me han respondido».",
     pregunta: "¿Qué le pide a su EPS y por qué?",
-    boton: "Enviar derecho de petición",
+    boton: "Enviar mi derecho de petición",
   },
 };
 

@@ -287,28 +287,61 @@ describe("Confirmar asistencia desde el enlace del recordatorio", () => {
     ya_estaba_confirmada: false,
   };
 
-  it("confirma con un toque, sin iniciar sesión", async () => {
-    const llamadas = backendFalso({ "POST /citas/confirmar-asistencia/enlace": RESPUESTA });
+  it("muestra la cita antes de confirmar y confirma con un toque, sin iniciar sesión", async () => {
+    const llamadas = backendFalso({
+      "POST /citas/confirmar-asistencia/enlace/ver": RESPUESTA,
+      "POST /citas/confirmar-asistencia/enlace": RESPUESTA,
+    });
     const usuario = abrir("/confirmar-asistencia?token=abc");
-    expect(llamadas).toHaveLength(0); // abrir el enlace no confirma nada
+    expect(await esperarTexto("Dr. Carlos Ramírez")).toBeInTheDocument();
+    expect(screen.getByText("Sede Poblado · Presencial")).toBeInTheDocument();
+    // Abrir el enlace solo consulta la cita: no confirma nada.
+    expect(llamadasA(llamadas, "POST", "/citas/confirmar-asistencia/enlace")).toHaveLength(0);
+    expect(llamadasA(llamadas, "POST", "/citas/confirmar-asistencia/enlace/ver")[0].cuerpo).toEqual({ token: "abc" });
+
     await usuario.click(screen.getByRole("button", { name: "Sí, asistiré" }));
     expect(await esperarTexto("¡Asistencia confirmada!")).toBeInTheDocument();
-    expect(screen.getByText("Dr. Carlos Ramírez")).toBeInTheDocument();
-    expect(llamadas[0].cuerpo).toEqual({ token: "abc" });
+    expect(screen.queryByRole("button", { name: "Sí, asistiré" })).not.toBeInTheDocument();
+    expect(llamadasA(llamadas, "POST", "/citas/confirmar-asistencia/enlace")[0].cuerpo).toEqual({ token: "abc" });
   });
 
-  it("si ya estaba confirmada, lo dice", async () => {
-    backendFalso({ "POST /citas/confirmar-asistencia/enlace": { ...RESPUESTA, ya_estaba_confirmada: true } });
+  it("si ya estaba confirmada, lo dice sin ofrecer el botón", async () => {
+    backendFalso({ "POST /citas/confirmar-asistencia/enlace/ver": { ...RESPUESTA, ya_estaba_confirmada: true } });
+    abrir("/confirmar-asistencia?token=abc");
+    expect(await esperarTexto("Su asistencia ya está confirmada")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sí, asistiré" })).not.toBeInTheDocument();
+  });
+
+  it("si al confirmar ya lo estaba (desde otro lado), también lo dice", async () => {
+    backendFalso({
+      "POST /citas/confirmar-asistencia/enlace/ver": RESPUESTA,
+      "POST /citas/confirmar-asistencia/enlace": { ...RESPUESTA, ya_estaba_confirmada: true },
+    });
     const usuario = abrir("/confirmar-asistencia?token=abc");
-    await usuario.click(screen.getByRole("button", { name: "Sí, asistiré" }));
+    await usuario.click(await screen.findByRole("button", { name: "Sí, asistiré" }));
     expect(await esperarTexto("Su asistencia ya estaba confirmada")).toBeInTheDocument();
   });
 
-  it("muestra los errores del enlace", async () => {
-    backendFalso({ "POST /citas/confirmar-asistencia/enlace": error(400, "Este enlace ya venció.") });
-    const usuario = abrir("/confirmar-asistencia?token=viejo");
-    await usuario.click(screen.getByRole("button", { name: "Sí, asistiré" }));
+  it("muestra los errores del enlace y al confirmar", async () => {
+    backendFalso({ "POST /citas/confirmar-asistencia/enlace/ver": error(400, "Este enlace ya venció.") });
+    abrir("/confirmar-asistencia?token=viejo");
     expect(await esperarTexto("Este enlace ya venció.")).toBeInTheDocument();
+    expect(screen.getByText("No podemos confirmar con este enlace")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sí, asistiré" })).not.toBeInTheDocument();
+
+    backendFalso({
+      "POST /citas/confirmar-asistencia/enlace/ver": RESPUESTA,
+      "POST /citas/confirmar-asistencia/enlace": error(409, "Esta cita ya fue cancelada."),
+    });
+    const usuario = abrir("/confirmar-asistencia?token=abc");
+    await usuario.click(await screen.findByRole("button", { name: "Sí, asistiré" }));
+    expect(await esperarTexto("Esta cita ya fue cancelada.")).toBeInTheDocument();
+  });
+
+  it("con la sesión abierta, Eli también está", async () => {
+    backendFalso({ "POST /citas/confirmar-asistencia/enlace/ver": RESPUESTA });
+    abrir("/confirmar-asistencia?token=abc", { paciente: true });
+    expect(await screen.findByRole("button", { name: /^Pregúntele a Eli/ })).toBeInTheDocument();
   });
 
   it("sin token no ofrece confirmar", () => {

@@ -864,8 +864,6 @@ select:focus-visible {
   color: white;
 }
 
-/* ============ Confirmación en dos columnas ============ */
-
 /* ============ Canal preferido (tarjetas) ============ */
 .channel-grid {
   display: grid;
@@ -1367,8 +1365,6 @@ select:focus-visible {
 .panel-accion--peligro {
   border-color: var(--color-error-soft);
 }
-
-/* HU-24: aviso al registrar la llegada, con el número para recepción */
 
 /* Línea de tiempo del estado de la cita (HU-18) */
 .linea-tiempo {
@@ -1887,50 +1883,6 @@ select:focus-visible {
   color: var(--color-ink-soft);
 }
 
-/* Lista de espera del paciente (HU-19, HU-31, HU-32) */
-.lista-espera .card {
-  display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.lista-espera__posicion {
-  font-size: var(--text-md);
-}
-
-.lista-espera__posicion strong {
-  font-size: var(--text-lg);
-  color: var(--color-primary);
-}
-
-.lista-espera__oferta {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border: 2px solid var(--color-success);
-  border-radius: var(--radius-md);
-  background: var(--color-success-soft);
-}
-
-.lista-espera__oferta-titulo {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--color-success);
-}
-
-.lista-espera__pregunta {
-  margin-top: var(--space-1);
-  font-weight: 700;
-}
-
-.lista-espera__acciones {
-  margin-bottom: var(--space-3);
-}
-
-.lista-espera .card > .btn {
-  justify-self: start;
-}
-
 /* Lista de espera del personal (Fase D) */
 .lista-espera-admin__cifras {
   margin-bottom: var(--space-3);
@@ -2053,44 +2005,3 @@ select:focus-visible {
   font-size: var(--text-xs);
   font-weight: 700;
 }
-
-/* Cartas y peticiones: primero se elige qué necesita */
-.opciones-carta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.opcion-carta {
-  display: grid;
-  align-content: start;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border: 2px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.opcion-carta:hover,
-.opcion-carta:focus-visible {
-  border-color: var(--color-primary);
-}
-
-.opcion-carta__titulo {
-  color: var(--color-primary);
-  font-size: var(--text-md);
-  font-weight: 800;
-}
-
-.opcion-carta__ejemplo {
-  color: var(--color-ink-soft);
-  font-size: var(--text-sm);
-  font-style: italic;
-}
-
-/* "¿Ninguno de estos horarios le sirve?" al buscar cita */

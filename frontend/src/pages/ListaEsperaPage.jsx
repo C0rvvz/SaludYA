@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AyudaApartado from "../components/AyudaApartado";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
+import Ventana from "../components/Ventana";
 import { listarEspecialidades, listarEspecialistas } from "../api/catalogo";
 import {
   aceptarCupo,
@@ -11,13 +12,18 @@ import {
   unirseListaEspera,
 } from "../api/listaEspera";
 import { CANALES } from "../utils/citas";
-import { formatearFechaHora, formatearFechaLarga, formatearHora } from "../utils/formato";
+import { formatearFechaLarga, formatearHora, formatearSoloHora } from "../utils/formato";
+import { cuandoEs } from "../utils/agendar";
+import "../styles/espera-y-cartas.css";
 
 /**
- * Lista de espera — HU-19 (posición), HU-31 (cupo liberado) y HU-32
- * (aceptarlo o rechazarlo). El paciente se une con sus preferencias y
- * aquí ve su lugar en la fila y el cupo que se le ofrece. En el menú se
- * llama "Esperar un cupo": "lista de espera" no decía para qué servía.
+ * "Avisarme si hay cupo" (lista de espera) — HU-19 (posición), HU-31
+ * (cupo liberado) y HU-32 (aceptarlo o rechazarlo).
+ *
+ * A la izquierda, los avisos que ya pidió: su lugar en la fila (número
+ * grande y barra), el cupo que se le ofrece y "Ya no quiero el aviso". A
+ * la derecha, el formulario para pedir un aviso nuevo. Desde "Agendar"
+ * se llega con ?especialidad=... ya elegida.
  */
 
 const JORNADAS = [
@@ -35,7 +41,108 @@ const MODALIDADES = [
 const TEXTO_JORNADA = Object.fromEntries(JORNADAS);
 const TEXTO_MODALIDAD = Object.fromEntries(MODALIDADES);
 
-function FormularioUnirse({ especialidadInicial, onListo, onVolver }) {
+const ESTADOS = {
+  en_espera: ["En espera", "badge--info"],
+  cupo_ofrecido: ["Cupo ofrecido", "badge--info"],
+  asignada: ["Cita asignada", "badge--success"],
+  cancelada: ["Sin aviso", "badge--neutral"],
+};
+
+// "hasta hoy a las 6:00 p. m.", "hasta mañana a las…" o "hasta el Lun 3 nov a las…"
+function hastaCuando(fechaHoraIso) {
+  const fecha = new Date(fechaHoraIso).toLocaleDateString("en-CA");
+  const dia = cuandoEs(fecha);
+  const cuando = ["Hoy", "Mañana"].includes(dia) ? dia.toLowerCase() : `el ${dia}`;
+  return `hasta ${cuando} a las ${formatearSoloHora(fechaHoraIso)}`;
+}
+
+/** Barra con una rayita por persona (hasta 20): las de antes, la suya y las de después. */
+function BarraPosicion({ posicion, total }) {
+  const rayas = Math.min(total, 20);
+  const suya = Math.max(1, Math.ceil((posicion / total) * rayas));
+  return (
+    <div className="barra-posicion" style={{ gridTemplateColumns: `repeat(${rayas}, 1fr)` }} aria-hidden="true">
+      {Array.from({ length: rayas }, (_, i) => (
+        <span key={i} className={i + 1 < suya ? "is-antes" : i + 1 === suya ? "is-suya" : ""} />
+      ))}
+    </div>
+  );
+}
+
+function TarjetaAviso({ solicitud: s, ocupado, onAceptar, onRechazar, onSalir }) {
+  const activa = ["en_espera", "cupo_ofrecido"].includes(s.estado);
+  const [estado, clase] = ESTADOS[s.estado] ?? [s.estado, "badge--neutral"];
+  const tituloId = `aviso-${s.id}`;
+
+  return (
+    <article className="card tarjeta-aviso" aria-labelledby={tituloId}>
+      <div className="tarjeta-aviso__cabeza">
+        <h2 id={tituloId}>{s.especialidad}</h2>
+        <span className={`badge ${clase}`}>{estado}</span>
+      </div>
+
+      {activa && s.posicion && (
+        <>
+          <div className="tarjeta-aviso__posicion">
+            <span className="tarjeta-aviso__numero" aria-hidden="true">
+              {s.posicion}
+            </span>
+            <span>
+              Usted es el número {s.posicion} de {s.total_en_lista} en la lista
+            </span>
+          </div>
+          <BarraPosicion posicion={s.posicion} total={s.total_en_lista} />
+        </>
+      )}
+
+      {s.oferta && (
+        <div className="oferta-cupo">
+          <p className="oferta-cupo__rotulo">Se liberó un cupo para usted</p>
+          <p className="oferta-cupo__cuando">
+            {formatearFechaLarga(s.oferta.fecha)}, {formatearHora(s.oferta.hora)}
+          </p>
+          <p className="oferta-cupo__quien">
+            {s.oferta.especialista} · {s.oferta.sede} · {s.oferta.modalidad === "virtual" ? "Virtual" : "Presencial"}
+          </p>
+          {/* Sin punto final: la hora ya termina en "a. m." / "p. m." */}
+          <p className="oferta-cupo__hasta">Lo tenemos reservado {hastaCuando(s.oferta.expira_en)}</p>
+          <div className="oferta-cupo__acciones">
+            <button type="button" className="btn oferta-cupo__aceptar" disabled={ocupado} onClick={() => onAceptar(s)}>
+              Aceptar esta cita
+            </button>
+            <button type="button" className="btn oferta-cupo__rechazar" disabled={ocupado} onClick={() => onRechazar(s)}>
+              No me sirve
+            </button>
+          </div>
+        </div>
+      )}
+
+      {s.estado === "asignada" && s.cita && (
+        <div className="alert alert--success">
+          Su cita quedó agendada para el {formatearFechaLarga(s.cita.fecha).toLowerCase()} a las{" "}
+          {formatearHora(s.cita.hora)} con {s.cita.especialista} en {s.cita.sede}. Comprobante{" "}
+          {s.cita.numero_comprobante}. <Link to="/mis-citas">Ver mis citas</Link>
+        </div>
+      )}
+
+      <p className="tarjeta-aviso__preferencias">
+        {s.sedes.join(", ")} · {TEXTO_JORNADA[s.jornada]} · {TEXTO_MODALIDAD[s.modalidad ?? ""]} · Le avisamos por{" "}
+        {CANALES[s.canal]}
+      </p>
+
+      {activa && (
+        <button type="button" className="btn btn--peligro-outline boton-quitar-aviso" onClick={() => onSalir(s)}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+          Ya no quiero el aviso
+        </button>
+      )}
+    </article>
+  );
+}
+
+function FormularioAviso({ titulo, especialidadInicial, onListo }) {
   const [especialidades, setEspecialidades] = useState([]);
   const [especialidadId, setEspecialidadId] = useState(especialidadInicial ?? "");
   const [sedes, setSedes] = useState([]); // las de la especialidad elegida
@@ -68,7 +175,7 @@ function FormularioUnirse({ especialidadInicial, onListo, onVolver }) {
     setSedeIds((actuales) => (actuales.includes(id) ? actuales.filter((x) => x !== id) : [...actuales, id]));
   }
 
-  async function unirse(evento) {
+  async function pedirAviso(evento) {
     evento.preventDefault();
     setEnviando(true);
     setError("");
@@ -80,10 +187,11 @@ function FormularioUnirse({ especialidadInicial, onListo, onVolver }) {
         modalidad: modalidad || null,
         canal,
       });
+      setEnviando(false);
       onListo(
         solicitud.oferta
-          ? `Ya está en la lista de espera de ${solicitud.especialidad}, y hay un cupo para usted: revíselo abajo.`
-          : `Ya está en la lista de espera de ${solicitud.especialidad}. Usted es el número ${solicitud.posicion}. Le avisaremos por ${CANALES[canal]} cuando se libere un cupo.`
+          ? `Listo: ya está en la lista de ${solicitud.especialidad}, y hay un cupo para usted. Revíselo en su aviso.`
+          : `Listo: ya está en la lista de ${solicitud.especialidad}. Usted es el número ${solicitud.posicion}. Le avisaremos por ${CANALES[canal]} cuando se libere un cupo.`
       );
     } catch (err) {
       setError(err.message);
@@ -91,10 +199,25 @@ function FormularioUnirse({ especialidadInicial, onListo, onVolver }) {
     }
   }
 
+  const opciones = (nombre, lista, valorActual, cambiar) => (
+    <div className="opciones-fila">
+      {lista.map(([valor, texto]) => (
+        <label className="opcion-radio" key={valor || "todas"}>
+          <input type="radio" name={nombre} checked={valorActual === valor} onChange={() => cambiar(valor)} />
+          {texto}
+        </label>
+      ))}
+    </div>
+  );
+
   return (
-    <form className="card lista-espera__formulario" onSubmit={unirse}>
-      <h2>Unirme a la lista de espera</h2>
-      {error && <div className="alert alert--error">{error}</div>}
+    <form className="card formulario-paciente" onSubmit={pedirAviso} aria-labelledby="titulo-pedir-aviso">
+      <h2 id="titulo-pedir-aviso">{titulo}</h2>
+      {error && (
+        <div className="alert alert--error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="field">
         <label htmlFor="especialidad">¿Qué especialidad necesita?</label>
@@ -110,129 +233,40 @@ function FormularioUnirse({ especialidadInicial, onListo, onVolver }) {
 
       {especialidadId && (
         <>
-          <p className="lista-espera__pregunta">¿En qué sedes puede atenderse?</p>
-          <div className="channel-grid">
-            {sedes.map((s) => (
-              <label className="channel-card" key={s.id}>
-                <input type="checkbox" checked={sedeIds.includes(s.id)} onChange={() => alternarSede(s.id)} />
-                {s.nombre}
-              </label>
-            ))}
-          </div>
-
-          <p className="lista-espera__pregunta">¿A qué hora le queda mejor?</p>
-          <div className="channel-grid">
-            {JORNADAS.map(([valor, texto]) => (
-              <label className="channel-card" key={valor}>
-                <input type="radio" name="jornada" checked={jornada === valor} onChange={() => setJornada(valor)} />
-                {texto}
-              </label>
-            ))}
-          </div>
-
-          <p className="lista-espera__pregunta">¿Cómo prefiere la cita?</p>
-          <div className="channel-grid">
-            {MODALIDADES.map(([valor, texto]) => (
-              <label className="channel-card" key={valor || "cualquiera"}>
-                <input type="radio" name="modalidad" checked={modalidad === valor} onChange={() => setModalidad(valor)} />
-                {texto}
-              </label>
-            ))}
-          </div>
-
-          <p className="lista-espera__pregunta">¿Cómo le avisamos cuando haya un cupo?</p>
-          <div className="channel-grid">
-            {Object.entries(CANALES).map(([valor, texto]) => (
-              <label className="channel-card" key={valor}>
-                <input type="radio" name="canal" checked={canal === valor} onChange={() => setCanal(valor)} />
-                {texto}
-              </label>
-            ))}
-          </div>
+          <fieldset className="pregunta-paciente">
+            <legend>¿En qué sedes puede atenderse?</legend>
+            <div className="opciones-fila">
+              {sedes.map((s) => (
+                <label className="opcion-radio" key={s.id}>
+                  <input type="checkbox" checked={sedeIds.includes(s.id)} onChange={() => alternarSede(s.id)} />
+                  {s.nombre}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="pregunta-paciente">
+            <legend>¿A qué hora le queda mejor?</legend>
+            {opciones("jornada", JORNADAS, jornada, setJornada)}
+          </fieldset>
+          <fieldset className="pregunta-paciente">
+            <legend>¿Cómo prefiere la cita?</legend>
+            {opciones("modalidad", MODALIDADES, modalidad, setModalidad)}
+          </fieldset>
+          <fieldset className="pregunta-paciente">
+            <legend>¿Cómo le avisamos?</legend>
+            {opciones("canal", Object.entries(CANALES), canal, setCanal)}
+          </fieldset>
         </>
       )}
 
-      <div className="acciones-admin">
-        <button className="btn btn--primary" type="submit" disabled={enviando || !especialidadId || sedeIds.length === 0}>
-          {enviando ? "Guardando..." : "Unirme a la lista de espera"}
-        </button>
-        {onVolver && (
-          <button className="btn btn--outline" type="button" onClick={onVolver}>
-            Volver
-          </button>
-        )}
-      </div>
+      <button
+        className="btn btn--primary formulario-paciente__enviar"
+        type="submit"
+        disabled={enviando || !especialidadId || sedeIds.length === 0}
+      >
+        {enviando ? "Guardando…" : "Avisarme cuando haya cupo"}
+      </button>
     </form>
-  );
-}
-
-function TarjetaSolicitud({ solicitud: s, ocupado, onAceptar, onRechazar, onSalir }) {
-  const [confirmandoSalida, setConfirmandoSalida] = useState(false);
-  const activa = ["en_espera", "cupo_ofrecido"].includes(s.estado);
-
-  return (
-    <article className="card lista-espera__solicitud">
-      <h2>{s.especialidad}</h2>
-
-      {activa && (
-        <p className="lista-espera__posicion">
-          Usted es el número <strong>{s.posicion}</strong> de {s.total_en_lista} en la lista.
-        </p>
-      )}
-
-      {s.oferta && (
-        <div className="lista-espera__oferta">
-          <p className="lista-espera__oferta-titulo">Se liberó un cupo para usted</p>
-          <p>
-            <strong>
-              {formatearFechaLarga(s.oferta.fecha)}, {formatearHora(s.oferta.hora)}
-            </strong>
-            <br />
-            {s.oferta.especialista} · {s.oferta.sede} · {s.oferta.modalidad === "virtual" ? "Virtual" : "Presencial"}
-          </p>
-          <p className="texto-suave">Lo tenemos reservado para usted hasta el {formatearFechaHora(s.oferta.expira_en)}.</p>
-          <div className="acciones-admin">
-            <button className="btn btn--success" disabled={ocupado} onClick={() => onAceptar(s)}>
-              Aceptar esta cita
-            </button>
-            <button className="btn btn--outline" disabled={ocupado} onClick={() => onRechazar(s)}>
-              No me sirve
-            </button>
-          </div>
-        </div>
-      )}
-
-      {s.estado === "asignada" && s.cita && (
-        <div className="alert alert--success">
-          Su cita quedó agendada para el {formatearFechaLarga(s.cita.fecha)} a las {formatearHora(s.cita.hora)} con{" "}
-          {s.cita.especialista} en {s.cita.sede}. Comprobante {s.cita.numero_comprobante}.{" "}
-          <Link to="/mis-citas">Ver mis citas</Link>
-        </div>
-      )}
-
-      <p className="texto-suave">
-        {s.sedes.join(", ")} · {TEXTO_JORNADA[s.jornada]} ·{" "}
-        {TEXTO_MODALIDAD[s.modalidad ?? ""]} · Le
-        avisamos por {CANALES[s.canal]}
-      </p>
-
-      {activa &&
-        (confirmandoSalida ? (
-          <div className="acciones-admin">
-            <span>¿Seguro que quiere salir de esta lista?</span>
-            <button className="btn btn--peligro" disabled={ocupado} onClick={() => onSalir(s)}>
-              Sí, salir
-            </button>
-            <button className="btn btn--outline" onClick={() => setConfirmandoSalida(false)}>
-              No
-            </button>
-          </div>
-        ) : (
-          <button className="btn btn--peligro-outline btn--compacto" onClick={() => setConfirmandoSalida(true)}>
-            Salir de la lista
-          </button>
-        ))}
-    </article>
   );
 }
 
@@ -243,7 +277,9 @@ export default function ListaEsperaPage() {
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const [uniendose, setUniendose] = useState(Boolean(especialidadInicial));
+  const [quitando, setQuitando] = useState(null); // el aviso que se va a quitar (ventana)
+  const [errorVentana, setErrorVentana] = useState("");
+  const [formulario, setFormulario] = useState(0); // al pedir un aviso, el formulario vuelve a empezar
 
   const cargar = useCallback(
     () =>
@@ -276,76 +312,130 @@ export default function ListaEsperaPage() {
     }
   }
 
-  const sinSolicitudes = solicitudes !== null && solicitudes.length === 0;
+  async function quitarAviso() {
+    setOcupado(true);
+    setErrorVentana("");
+    try {
+      await salirListaEspera(quitando.id);
+      setAviso(`Listo: ya no le avisaremos de cupos de ${quitando.especialidad}.`);
+      setQuitando(null);
+      await cargar();
+    } catch (err) {
+      setErrorVentana(err.message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const tiene = (solicitudes ?? []).length > 0;
+  const activas = (solicitudes ?? []).some((s) => ["en_espera", "cupo_ofrecido"].includes(s.estado));
 
   return (
     <div>
       <EncabezadoPaciente />
 
-      <div className="section lista-espera">
-        <h1 style={{ fontSize: "var(--text-xl)" }}>Esperar un cupo</h1>
-        <AyudaApartado>
-          <ul>
-            <li>Si ningún horario le sirve, anótese aquí en la lista de espera de la especialidad que necesita.</li>
-            <li>Cuando otro paciente cancele una cita que le sirva, le avisamos por el medio que elija.</li>
-            <li>Le guardamos ese cupo un tiempo para que usted lo acepte o lo rechace. Si lo rechaza, sigue en la lista.</li>
-          </ul>
-        </AyudaApartado>
+      <div className="section pagina-paciente">
+        <div className="pagina-paciente__titulo">
+          <div>
+            <h1>Avisarme si hay cupo</h1>
+            <p>Díganos qué horario le queda mejor y le avisamos apenas se libere un cupo.</p>
+          </div>
+          {activas && (
+            <button type="button" className="btn btn--outline" disabled={ocupado} onClick={() => cargar()}>
+              Actualizar mi posición
+            </button>
+          )}
+        </div>
 
-        {aviso && <div className="alert alert--success">{aviso}</div>}
-        {error && <div className="alert alert--error">{error}</div>}
-
-        {(solicitudes ?? []).map((s) => (
-          <TarjetaSolicitud
-            key={s.id}
-            solicitud={s}
-            ocupado={ocupado}
-            onAceptar={(x) =>
-              responder(
-                () => aceptarCupo(x.id),
-                (r) =>
-                  `¡Listo! Su cita quedó agendada para el ${formatearFechaLarga(r.cita.fecha)} a las ${formatearHora(r.cita.hora)}. Comprobante ${r.cita.numero_comprobante}.`
-              )
-            }
-            onRechazar={(x) =>
-              responder(
-                () => rechazarCupo(x.id),
-                () => "Entendido. Conserva su lugar en la lista y le avisaremos del próximo cupo."
-              )
-            }
-            onSalir={(x) =>
-              responder(() => salirListaEspera(x.id), () => `Salió de la lista de espera de ${x.especialidad}.`)
-            }
-          />
-        ))}
-
-        {solicitudes !== null && (
-          <div className="acciones-admin lista-espera__acciones">
-            {!sinSolicitudes && (
-              <button className="btn btn--outline" disabled={ocupado} onClick={() => cargar()}>
-                Actualizar mi posición
-              </button>
-            )}
-            {!uniendose && !sinSolicitudes && (
-              <button className="btn btn--outline" onClick={() => setUniendose(true)}>
-                Unirme a otra lista
-              </button>
-            )}
+        {aviso && (
+          <div className="alert alert--success" role="status">
+            {aviso}
+          </div>
+        )}
+        {error && (
+          <div className="alert alert--error" role="alert">
+            {error}
           </div>
         )}
 
-        {(uniendose || sinSolicitudes) && (
-          <FormularioUnirse
-            especialidadInicial={especialidadInicial}
-            onVolver={sinSolicitudes ? null : () => setUniendose(false)}
-            onListo={(mensaje) => {
-              setAviso(mensaje);
-              setUniendose(false);
-              cargar();
-            }}
-          />
-        )}
+        <div className={`pagina-paciente__cuerpo ${tiene ? "con-lista" : ""}`}>
+          {tiene && (
+            <div className="pagina-paciente__lista">
+              {solicitudes.map((s) => (
+                <TarjetaAviso
+                  key={s.id}
+                  solicitud={s}
+                  ocupado={ocupado}
+                  onAceptar={(x) =>
+                    responder(
+                      () => aceptarCupo(x.id),
+                      (r) =>
+                        `¡Listo! Su cita quedó agendada para el ${formatearFechaLarga(r.cita.fecha).toLowerCase()} a las ${formatearHora(r.cita.hora)}. Comprobante ${r.cita.numero_comprobante}.`
+                    )
+                  }
+                  onRechazar={(x) =>
+                    responder(
+                      () => rechazarCupo(x.id),
+                      () => "Entendido. Conserva su lugar en la lista y le avisaremos del próximo cupo."
+                    )
+                  }
+                  onSalir={(x) => {
+                    setErrorVentana("");
+                    setQuitando(x);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="pagina-paciente__lado">
+            {solicitudes !== null && (
+              <FormularioAviso
+                key={formulario}
+                titulo={tiene ? "Pedir aviso para otra especialidad" : "Pedir un aviso"}
+                especialidadInicial={formulario === 0 ? especialidadInicial : ""}
+                onListo={(mensaje) => {
+                  setAviso(mensaje);
+                  setFormulario((n) => n + 1);
+                  cargar();
+                }}
+              />
+            )}
+            <AyudaApartado titulo="¿Cómo funciona?">
+              <ul>
+                <li>Cuando otro paciente cancele una cita que le sirva, le avisamos por el medio que elija.</li>
+                <li>Le guardamos ese cupo un tiempo para que lo acepte o lo rechace. Si lo rechaza, sigue en la lista.</li>
+              </ul>
+            </AyudaApartado>
+          </div>
+        </div>
       </div>
+
+      {quitando && (
+        <Ventana titulo="¿Ya no quiere el aviso?" ocupado={ocupado} onCerrar={() => setQuitando(null)}>
+          <p className="ventana__texto">
+            Dejaremos de avisarle cuando haya cupos de {quitando.especialidad} y perderá su lugar en la lista.
+          </p>
+          {errorVentana && (
+            <div className="alert alert--error" role="alert">
+              {errorVentana}
+            </div>
+          )}
+          <div className="ventana__acciones">
+            <button type="button" className="btn btn--peligro" disabled={ocupado} onClick={quitarAviso}>
+              {ocupado ? "Quitando…" : "Sí, quitar el aviso"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--outline"
+              disabled={ocupado}
+              onClick={() => setQuitando(null)}
+            >
+              No, seguir en la lista
+            </button>
+          </div>
+        </Ventana>
+      )}
     </div>
   );
 }

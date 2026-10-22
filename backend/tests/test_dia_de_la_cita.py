@@ -63,6 +63,38 @@ def test_confirmar_por_enlace(cliente, fabrica):
     assert otra_vez.json()["ya_estaba_confirmada"] is True
 
 
+def test_ver_la_cita_del_enlace_no_la_confirma(cliente, fabrica):
+    cita = fabrica.cita(fabrica.paciente())
+    token = citas_service.token_de_confirmacion(cita)
+
+    r = cliente.post("/citas/confirmar-asistencia/enlace/ver", json={"token": token})
+    assert r.status_code == 200, r.text
+    assert r.json()["ya_estaba_confirmada"] is False
+    assert r.json()["especialidad"] == cita.disponibilidad.especialista.especialidad.nombre
+    assert "numero_documento" not in r.json()  # respuesta pública: sin datos personales
+    # Solo verla (o la vista previa de WhatsApp) no cuenta como confirmación.
+    assert cliente.post("/citas/confirmar-asistencia/enlace/ver", json={"token": token}).json()["ya_estaba_confirmada"] is False
+
+    cliente.post("/citas/confirmar-asistencia/enlace", json={"token": token})
+    assert cliente.post("/citas/confirmar-asistencia/enlace/ver", json={"token": token}).json()["ya_estaba_confirmada"] is True
+
+
+def test_ver_un_enlace_invalido_vencido_o_de_cita_cancelada(cliente, fabrica):
+    ver = "/citas/confirmar-asistencia/enlace/ver"
+    assert cliente.post(ver, json={"token": "x" * 40}).status_code == 400
+
+    paciente = fabrica.paciente()
+    pasada = _cita_a(fabrica, paciente, -10)
+    r = cliente.post(ver, json={"token": citas_service.token_de_confirmacion(pasada)})
+    assert r.status_code == 400
+    assert "venció" in r.json()["detail"]
+
+    cancelada = fabrica.cita(paciente, EstadoCita.CANCELADA)
+    r = cliente.post(ver, json={"token": citas_service.token_de_confirmacion(cancelada)})
+    assert r.status_code == 409
+    assert "cancelada" in r.json()["detail"]
+
+
 def test_enlace_invalido_vencido_o_de_cita_cancelada(cliente, fabrica):
     assert cliente.post("/citas/confirmar-asistencia/enlace", json={"token": "x" * 40}).status_code == 400
 

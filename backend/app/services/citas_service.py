@@ -334,13 +334,8 @@ def token_de_confirmacion(cita: Cita) -> str:
     return crear_token_confirmacion_asistencia(cita.id, vence)
 
 
-def confirmar_asistencia_por_enlace(db: Session, token: str) -> tuple[Cita, bool]:
-    """
-    HU-23: confirmar desde el enlace del recordatorio, sin iniciar
-    sesión (criterio 2: "fácilmente"). El token firmado ya es la
-    autorización: solo sirve para esta acción sobre esta cita.
-    Devuelve (cita, ya_estaba_confirmada).
-    """
+def _cita_del_enlace(db: Session, token: str, *, con_lock: bool) -> Cita:
+    """La cita a la que apunta el enlace del recordatorio (HU-23), si el token es válido."""
     try:
         cita_id = leer_token_confirmacion_asistencia(token)
     except jwt.ExpiredSignatureError:
@@ -348,9 +343,33 @@ def confirmar_asistencia_por_enlace(db: Session, token: str) -> tuple[Cita, bool
     except jwt.InvalidTokenError:
         raise EnlaceInvalidoError("Este enlace no es válido.")
 
-    cita = cita_repository.obtener_con_lock(db, cita_id)
+    obtener = cita_repository.obtener_con_lock if con_lock else cita_repository.obtener_por_id
+    cita = obtener(db, cita_id)
     if cita is None:
         raise EnlaceInvalidoError("Este enlace no es válido.")
+    return cita
+
+
+def ver_cita_por_enlace(db: Session, token: str) -> Cita:
+    """
+    HU-23: los datos de la cita del enlace, para que el paciente vea qué
+    va a confirmar ANTES de tocar el botón. Solo lee: abrir el enlace (o
+    la vista previa que arma WhatsApp) no confirma nada.
+    """
+    cita = _cita_del_enlace(db, token, con_lock=False)
+    if cita.asistencia_confirmada_en is None and not esta_activa(cita):
+        raise CitaNoModificableError(_por_que_no_se_puede(cita))
+    return cita
+
+
+def confirmar_asistencia_por_enlace(db: Session, token: str) -> tuple[Cita, bool]:
+    """
+    HU-23: confirmar desde el enlace del recordatorio, sin iniciar
+    sesión (criterio 2: "fácilmente"). El token firmado ya es la
+    autorización: solo sirve para esta acción sobre esta cita.
+    Devuelve (cita, ya_estaba_confirmada).
+    """
+    cita = _cita_del_enlace(db, token, con_lock=True)
     if cita.asistencia_confirmada_en is not None:
         db.rollback()
         return cita, True

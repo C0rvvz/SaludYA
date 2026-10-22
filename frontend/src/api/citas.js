@@ -33,7 +33,12 @@ export function registrarLlegada(citaId) {
 }
 
 // HU-23: desde el enlace del recordatorio, SIN sesión (el token del
-// enlace ya autoriza esta única acción).
+// enlace ya autoriza estas dos acciones sobre esa cita).
+// Ver la cita antes de confirmar (solo lee).
+export function verCitaPorEnlace(token) {
+  return apiFetch("/citas/confirmar-asistencia/enlace/ver", { method: "POST", body: { token } });
+}
+
 export function confirmarAsistenciaPorEnlace(token) {
   return apiFetch("/citas/confirmar-asistencia/enlace", { method: "POST", body: { token } });
 }

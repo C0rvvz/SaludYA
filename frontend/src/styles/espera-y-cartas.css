@@ -1,0 +1,339 @@
+/* ============ "Avisarme si hay cupo" y "Carta de petición" ============
+   Mismo esquema en las dos: título con su explicación y, debajo, dos
+   columnas (lo que ya pidió · el formulario). En celular, una columna. */
+
+.section.pagina-paciente {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 1320px;
+  padding-top: 40px;
+  padding-bottom: 124px; /* que Eli no tape lo último */
+}
+
+.pagina-paciente > *,
+.pagina-paciente .alert {
+  margin: 0;
+}
+
+.pagina-paciente__titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.pagina-paciente__titulo h1 {
+  margin: 0 0 8px;
+  font-size: var(--text-xl);
+  line-height: 1.1;
+}
+
+.pagina-paciente__titulo p {
+  max-width: 44em;
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 1.1875rem;
+}
+
+.pagina-paciente__cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 680px);
+  gap: 24px;
+  align-items: start;
+}
+
+.pagina-paciente__cuerpo.con-lista {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+}
+
+.pagina-paciente__cuerpo--cartas.con-lista {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+.pagina-paciente__lista,
+.pagina-paciente__lado {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pagina-paciente__lado .ayuda-apartado {
+  margin: 0;
+}
+
+.pagina-paciente__vacio {
+  margin: 0;
+  padding: 22px;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  color: var(--color-ink-soft);
+}
+
+/* --- Formulario (pedir aviso / escribir carta) --- */
+.formulario-paciente {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formulario-paciente > *,
+.formulario-paciente .field {
+  margin: 0;
+}
+
+.formulario-paciente h2 {
+  font-size: 1.5rem;
+}
+
+.formulario-paciente__enviar {
+  align-self: flex-start;
+}
+
+.pregunta-paciente {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pregunta-paciente legend {
+  margin-bottom: 10px;
+  padding: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.pregunta-paciente__ayuda {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.opciones-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.formulario-paciente .campos-dobles {
+  gap: 16px;
+}
+
+/* --- Un aviso (lista de espera) --- */
+.tarjeta-aviso,
+.tarjeta-carta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tarjeta-aviso > *,
+.tarjeta-carta > *,
+.tarjeta-aviso .alert {
+  margin: 0;
+}
+
+.tarjeta-aviso__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.tarjeta-aviso__cabeza h2 {
+  margin: 0;
+  font-size: 1.625rem;
+}
+
+.tarjeta-aviso__cabeza h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.tarjeta-aviso__posicion {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  color: var(--color-ink-soft);
+  font-size: 1.1875rem;
+}
+
+.tarjeta-aviso__numero {
+  color: var(--color-ink);
+  font-size: 5rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.85;
+}
+
+.tarjeta-aviso__posicion span:last-child {
+  padding-bottom: 6px;
+}
+
+.barra-posicion {
+  display: grid;
+  gap: 4px;
+}
+
+.barra-posicion span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-line);
+}
+
+.barra-posicion span.is-antes {
+  background: var(--color-navy);
+}
+
+.barra-posicion span.is-suya {
+  background: var(--color-primary);
+}
+
+.tarjeta-aviso__preferencias {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.boton-quitar-aviso {
+  align-self: flex-start;
+  padding-left: 18px;
+  border-width: 1.5px;
+  border-color: var(--color-error-line);
+}
+
+/* El cupo que se liberó: azul oscuro, para que no pase desapercibido */
+.oferta-cupo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border-radius: var(--radius-md);
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.oferta-cupo p {
+  margin: 0;
+  color: inherit;
+}
+
+.oferta-cupo .oferta-cupo__rotulo {
+  color: var(--color-primary-on-dark);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.oferta-cupo__cuando {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.oferta-cupo .oferta-cupo__quien {
+  color: #c9d0d8;
+}
+
+.oferta-cupo .oferta-cupo__hasta {
+  color: var(--color-primary-on-dark);
+  font-size: 0.9375rem;
+}
+
+.oferta-cupo__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.oferta-cupo__aceptar {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-navy);
+}
+
+.oferta-cupo__rechazar {
+  border-color: #4f5d72;
+  background: transparent;
+  color: #fff;
+}
+
+.oferta-cupo__rechazar:hover:not(:disabled) {
+  border-color: #fff;
+}
+
+/* --- Una carta enviada --- */
+.tarjeta-carta {
+  gap: 10px;
+  padding: 22px;
+}
+
+.tarjeta-carta__meta {
+  color: var(--color-ink-soft);
+  font-size: 0.9375rem;
+}
+
+.tarjeta-carta__cita {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--color-success-soft);
+  color: #14532d;
+  line-height: 1.5;
+}
+
+.tarjeta-carta__cita a {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* --- Celular y tableta --- */
+@media (max-width: 1099px) {
+  .section.pagina-paciente {
+    gap: 16px;
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+
+  .pagina-paciente__titulo h1 {
+    font-size: 1.875rem;
+  }
+
+  .pagina-paciente__titulo p {
+    font-size: var(--text-base);
+  }
+
+  .pagina-paciente__titulo .btn {
+    width: 100%;
+  }
+
+  .pagina-paciente__cuerpo.con-lista,
+  .pagina-paciente__cuerpo--cartas.con-lista {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tarjeta-aviso__numero {
+    font-size: 4rem;
+  }
+
+  .tarjeta-aviso__posicion {
+    font-size: var(--text-base);
+  }
+
+  .formulario-paciente__enviar,
+  .boton-quitar-aviso,
+  .oferta-cupo__acciones .btn {
+    width: 100%;
+  }
+
+  .opciones-fila .opcion-radio {
+    flex: 1 1 200px;
+  }
+}

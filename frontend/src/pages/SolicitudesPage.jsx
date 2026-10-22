@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import AyudaApartado from "../components/AyudaApartado";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
 import { listarEspecialidades } from "../api/catalogo";
 import { listarMisSolicitudes, radicarSolicitud } from "../api/solicitudes";
 import { CANALES } from "../utils/citas";
-import { formatearFechaHora, formatearFechaLarga, formatearHora } from "../utils/formato";
+import { formatearFechaLarga, formatearHora } from "../utils/formato";
 import { ESTADOS_SOLICITUD, EXPLICACION_SOLICITUD, TIPOS_CITA, TIPOS_SOLICITUD } from "../utils/solicitudes";
+import "../styles/espera-y-cartas.css";
 
 /**
- * Cartas y peticiones del paciente (HU-76 a HU-79). Antes se llamaba
- * "Solicitudes" y no se entendía para qué era. Ahora, en un solo
- * apartado, el paciente primero elige qué necesita:
+ * "Carta de petición" — HU-76 a HU-79. Un solo apartado con dos tipos de
+ * carta (cada uno explicado con un ejemplo antes de escribir):
  *   - "Pedir una cita en otra fecha": ningún horario le sirve y explica por qué.
  *   - "Derecho de petición": la petición formal que la EPS debe responder por ley.
- * y después escribe la carta. El personal las revisa en el mismo lugar.
- * Desde la búsqueda de citas se llega con ?tipo=formal&especialidad=...
+ * A la izquierda se escribe la carta; a la derecha, las que ya envió, con
+ * su estado y la respuesta. Desde "Agendar" se llega con
+ * ?tipo=formal&especialidad=... ya elegidos.
  */
 
 const manana = () => {
@@ -24,34 +24,16 @@ const manana = () => {
   return d.toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
 };
 
-function ElegirTipo({ onElegir, onVolver }) {
-  return (
-    <section className="card lista-espera__formulario" aria-labelledby="elegir-carta">
-      <h2 id="elegir-carta">¿Qué necesita?</h2>
-      <div className="opciones-carta">
-        {Object.entries(TIPOS_SOLICITUD).map(([valor, titulo]) => (
-          <button key={valor} type="button" className="opcion-carta" onClick={() => onElegir(valor)}>
-            <span className="opcion-carta__titulo">{titulo}</span>
-            <span>{EXPLICACION_SOLICITUD[valor].texto}</span>
-            <span className="opcion-carta__ejemplo">{EXPLICACION_SOLICITUD[valor].ejemplo}</span>
-          </button>
-        ))}
-      </div>
-      {onVolver && (
-        <div className="acciones-admin">
-          <button className="btn btn--outline" type="button" onClick={onVolver}>
-            Volver
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
+// "2 oct"
+const diaCorto = (fechaIso) =>
+  new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" })
+    .format(new Date(fechaIso.length > 10 ? fechaIso : `${fechaIso}T00:00:00`))
+    .replace(".", "");
 
-function FormularioSolicitud({ tipo, especialidadInicial, onCambiarTipo, onListo }) {
-  const explicacion = EXPLICACION_SOLICITUD[tipo];
+function FormularioCarta({ tipoInicial, especialidadInicial, onListo }) {
   const [especialidades, setEspecialidades] = useState([]);
   const [datos, setDatos] = useState({
+    tipo: tipoInicial,
     especialidad_id: especialidadInicial,
     tipo_cita: "primera_vez",
     fecha_deseada: "",
@@ -60,6 +42,7 @@ function FormularioSolicitud({ tipo, especialidadInicial, onCambiarTipo, onListo
   });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
+  const explicacion = EXPLICACION_SOLICITUD[datos.tipo];
 
   useEffect(() => {
     listarEspecialidades()
@@ -68,14 +51,16 @@ function FormularioSolicitud({ tipo, especialidadInicial, onCambiarTipo, onListo
   }, []);
 
   const cambiar = (campo) => (e) => setDatos({ ...datos, [campo]: e.target.value });
+  const elegir = (campo, valor) => setDatos({ ...datos, [campo]: valor });
 
   async function enviar(evento) {
     evento.preventDefault();
     setEnviando(true);
     setError("");
     try {
-      const s = await radicarSolicitud({ tipo, ...datos });
-      const que = tipo === "formal" ? "su carta" : "su derecho de petición";
+      const s = await radicarSolicitud(datos);
+      const que = datos.tipo === "formal" ? "su carta" : "su derecho de petición";
+      setEnviando(false);
       onListo(
         `Recibimos ${que}. Su número de radicado es ${s.numero_radicado}: guárdelo por si necesita preguntar por ella. Le avisaremos por ${CANALES[s.canal]} cuando sea revisada.`
       );
@@ -85,98 +70,117 @@ function FormularioSolicitud({ tipo, especialidadInicial, onCambiarTipo, onListo
     }
   }
 
+  const opciones = (campo, lista) => (
+    <div className="opciones-fila">
+      {Object.entries(lista).map(([valor, texto]) => (
+        <label className="opcion-radio" key={valor}>
+          <input type="radio" name={campo} checked={datos[campo] === valor} onChange={() => elegir(campo, valor)} />
+          {texto}
+        </label>
+      ))}
+    </div>
+  );
+
   return (
-    <form className="card lista-espera__formulario" onSubmit={enviar}>
-      <h2>{TIPOS_SOLICITUD[tipo]}</h2>
-      <p>{explicacion.texto}</p>
-      <button type="button" className="btn btn--link" onClick={onCambiarTipo}>
-        Elegir otro tipo de carta
-      </button>
-      {error && <div className="alert alert--error">{error}</div>}
+    <form className="card formulario-paciente" onSubmit={enviar} aria-labelledby="titulo-escribir-carta">
+      <h2 id="titulo-escribir-carta">Escribir mi carta</h2>
+      {error && (
+        <div className="alert alert--error" role="alert">
+          {error}
+        </div>
+      )}
 
-      <div className="field">
-        <label htmlFor="especialidad">¿Qué especialidad necesita?</label>
-        <select id="especialidad" required value={datos.especialidad_id} onChange={cambiar("especialidad_id")}>
-          <option value="">Elija una especialidad</option>
-          {especialidades.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.nombre}
-            </option>
-          ))}
-        </select>
+      <fieldset className="pregunta-paciente">
+        <legend>¿Qué tipo de carta es?</legend>
+        {opciones("tipo", TIPOS_SOLICITUD)}
+        <p className="pregunta-paciente__ayuda">{explicacion.texto}</p>
+      </fieldset>
+
+      <div className="campos-dobles">
+        <div className="field">
+          <label htmlFor="especialidad">¿Qué especialidad necesita?</label>
+          <select id="especialidad" required value={datos.especialidad_id} onChange={cambiar("especialidad_id")}>
+            <option value="">Elija una especialidad</option>
+            {especialidades.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="fecha_deseada">¿Para qué fecha la necesita?</label>
+          <input
+            id="fecha_deseada"
+            type="date"
+            required
+            min={manana()}
+            value={datos.fecha_deseada}
+            onChange={cambiar("fecha_deseada")}
+          />
+        </div>
       </div>
 
-      <p className="lista-espera__pregunta">¿Es su primera cita con esa especialidad o un control?</p>
-      <div className="channel-grid">
-        {Object.entries(TIPOS_CITA).map(([valor, texto]) => (
-          <label className="channel-card" key={valor}>
-            <input
-              type="radio"
-              name="tipo_cita"
-              checked={datos.tipo_cita === valor}
-              onChange={() => setDatos({ ...datos, tipo_cita: valor })}
-            />
-            {texto}
-          </label>
-        ))}
-      </div>
-
-      <div className="field">
-        <label htmlFor="fecha_deseada">¿Para qué fecha necesita la cita?</label>
-        <input id="fecha_deseada" type="date" required min={manana()} value={datos.fecha_deseada} onChange={cambiar("fecha_deseada")} />
-      </div>
+      <fieldset className="pregunta-paciente">
+        <legend>¿Es su primera cita o un control?</legend>
+        {opciones("tipo_cita", TIPOS_CITA)}
+      </fieldset>
 
       <div className="field">
         <label htmlFor="motivo">{explicacion.pregunta}</label>
-        <textarea id="motivo" rows={4} required minLength={10} maxLength={2000} value={datos.motivo} onChange={cambiar("motivo")} />
+        <textarea
+          id="motivo"
+          rows={4}
+          required
+          minLength={10}
+          maxLength={2000}
+          value={datos.motivo}
+          onChange={cambiar("motivo")}
+        />
         <p className="field__hint">{explicacion.ejemplo}</p>
       </div>
 
-      <p className="lista-espera__pregunta">¿Cómo le avisamos la respuesta?</p>
-      <div className="channel-grid">
-        {Object.entries(CANALES).map(([valor, texto]) => (
-          <label className="channel-card" key={valor}>
-            <input type="radio" name="canal" checked={datos.canal === valor} onChange={() => setDatos({ ...datos, canal: valor })} />
-            {texto}
-          </label>
-        ))}
-      </div>
+      <fieldset className="pregunta-paciente">
+        <legend>¿Cómo le avisamos la respuesta?</legend>
+        {opciones("canal", CANALES)}
+      </fieldset>
 
-      <div className="acciones-admin">
-        <button
-          className="btn btn--primary"
-          type="submit"
-          disabled={enviando || !datos.especialidad_id || !datos.fecha_deseada || datos.motivo.trim().length < 10}
-        >
-          {enviando ? "Enviando..." : explicacion.boton}
-        </button>
-      </div>
+      <button
+        className="btn btn--primary formulario-paciente__enviar"
+        type="submit"
+        disabled={enviando || !datos.especialidad_id || !datos.fecha_deseada || datos.motivo.trim().length < 10}
+      >
+        {enviando ? "Enviando…" : explicacion.boton}
+      </button>
     </form>
   );
 }
 
-function TarjetaSolicitud({ s }) {
+function TarjetaCarta({ s }) {
   const [estado, clase] = ESTADOS_SOLICITUD[s.estado];
+  const tituloId = `carta-${s.id}`;
   return (
-    <article className="card lista-espera__solicitud">
-      <h2>
-        {TIPOS_SOLICITUD[s.tipo]} · {s.especialidad}
-      </h2>
-      <p>
+    <article className="card tarjeta-carta" aria-labelledby={tituloId}>
+      <div className="tarjeta-aviso__cabeza">
+        <h3 id={tituloId}>
+          {s.especialidad} · {TIPOS_CITA[s.tipo_cita]}
+        </h3>
         <span className={`badge ${clase}`}>{estado}</span>
+      </div>
+      <p className="tarjeta-carta__meta">
+        {TIPOS_SOLICITUD[s.tipo]} {s.numero_radicado} · enviada el {diaCorto(s.radicada_en)} · para el{" "}
+        {diaCorto(s.fecha_deseada)}
       </p>
-      <p className="texto-suave">
-        {TIPOS_CITA[s.tipo_cita]} · para el {formatearFechaLarga(s.fecha_deseada).toLowerCase()} · enviada el{" "}
-        {formatearFechaHora(s.radicada_en)} · radicado {s.numero_radicado}
-      </p>
-      {s.estado === "pendiente_eps" && <p>Su carta está en trámite con su EPS. Le avisaremos la respuesta.</p>}
+
       {s.cita && (
-        <div className="alert alert--success">
-          Su cita quedó agendada para el {formatearFechaLarga(s.cita.fecha)} a las {formatearHora(s.cita.hora)} con{" "}
+        <div className="tarjeta-carta__cita">
+          Su cita quedó para el {formatearFechaLarga(s.cita.fecha).toLowerCase()} a las {formatearHora(s.cita.hora)} con{" "}
           {s.cita.especialista} en {s.cita.sede}. Comprobante {s.cita.numero_comprobante}.{" "}
           <Link to="/mis-citas">Ver mis citas</Link>
         </div>
       )}
+      {s.estado === "pendiente" && <p>La estamos revisando. Le avisaremos por {CANALES[s.canal]}.</p>}
+      {s.estado === "pendiente_eps" && <p>Su carta está en trámite con su EPS. Le avisaremos la respuesta.</p>}
       {s.respuesta && (
         <p>
           <strong>Respuesta:</strong> {s.respuesta}
@@ -188,12 +192,11 @@ function TarjetaSolicitud({ s }) {
 
 export default function SolicitudesPage() {
   const [params] = useSearchParams();
-  const tipoPedido = params.get("tipo");
+  const tipoPedido = TIPOS_SOLICITUD[params.get("tipo")] ? params.get("tipo") : "formal";
   const [solicitudes, setSolicitudes] = useState(null);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
-  // null: solo la lista · "elegir": las dos opciones · "formal" | "derecho_peticion": la carta
-  const [paso, setPaso] = useState(TIPOS_SOLICITUD[tipoPedido] ? tipoPedido : null);
+  const [formulario, setFormulario] = useState(0); // al enviar, el formulario vuelve a empezar
 
   const cargar = useCallback(
     () =>
@@ -207,62 +210,57 @@ export default function SolicitudesPage() {
     cargar();
   }, [cargar]);
 
-  const sinSolicitudes = solicitudes !== null && solicitudes.length === 0;
-  // Sin cartas todavía, se empieza directamente por elegir qué necesita.
-  const pasoVisible = paso ?? (sinSolicitudes ? "elegir" : null);
-
   return (
     <div>
       <EncabezadoPaciente />
 
-      <div className="section lista-espera">
-        <h1 style={{ fontSize: "var(--text-xl)" }}>Cartas y peticiones</h1>
-        <AyudaApartado>
-          <p>
-            Escríbale a su EPS cuando no consigue la cita que necesita. El personal lee su carta, le responde por el
-            medio que usted elija y, si la aprueba, le asigna la cita.
-          </p>
-        </AyudaApartado>
+      <div className="section pagina-paciente">
+        <div className="pagina-paciente__titulo">
+          <div>
+            <h1>Carta de petición</h1>
+            <p>
+              ¿No consigue la cita que necesita? Escríbanos una carta contando su caso y le ayudamos a conseguirla.
+              Aquí también ve la respuesta.
+            </p>
+          </div>
+        </div>
 
-        {aviso && <div className="alert alert--success">{aviso}</div>}
-        {error && <div className="alert alert--error">{error}</div>}
-
-        {pasoVisible === "elegir" && (
-          <ElegirTipo onElegir={setPaso} onVolver={sinSolicitudes ? null : () => setPaso(null)} />
+        {aviso && (
+          <div className="alert alert--success" role="status">
+            {aviso}
+          </div>
         )}
-
-        {TIPOS_SOLICITUD[pasoVisible] && (
-          <FormularioSolicitud
-            key={pasoVisible}
-            tipo={pasoVisible}
-            especialidadInicial={params.get("especialidad") ?? ""}
-            onCambiarTipo={() => setPaso("elegir")}
-            onListo={(mensaje) => {
-              setAviso(mensaje);
-              setPaso(null);
-              cargar();
-            }}
-          />
-        )}
-
-        {pasoVisible === null && solicitudes !== null && (
-          <div className="acciones-admin lista-espera__acciones">
-            <button
-              className="btn btn--primary"
-              onClick={() => {
-                setAviso("");
-                setPaso("elegir");
-              }}
-            >
-              Escribir una carta
-            </button>
+        {error && (
+          <div className="alert alert--error" role="alert">
+            {error}
           </div>
         )}
 
-        {!sinSolicitudes && solicitudes !== null && <h2 className="grupo-mes__titulo">Sus cartas</h2>}
-        {(solicitudes ?? []).map((s) => (
-          <TarjetaSolicitud key={s.id} s={s} />
-        ))}
+        <div className="pagina-paciente__cuerpo con-lista pagina-paciente__cuerpo--cartas">
+          <FormularioCarta
+            key={formulario}
+            tipoInicial={formulario === 0 ? tipoPedido : "formal"}
+            especialidadInicial={formulario === 0 ? (params.get("especialidad") ?? "") : ""}
+            onListo={(mensaje) => {
+              setAviso(mensaje);
+              setFormulario((n) => n + 1);
+              cargar();
+            }}
+          />
+
+          <section className="pagina-paciente__lista" aria-labelledby="titulo-cartas-enviadas">
+            <p className="rotulo" id="titulo-cartas-enviadas">
+              Cartas que ya envié
+            </p>
+            {solicitudes === null && !error && <p className="texto-suave">Cargando sus cartas…</p>}
+            {solicitudes?.length === 0 && (
+              <p className="pagina-paciente__vacio">Todavía no ha enviado cartas. Cuando envíe una, aquí verá su respuesta.</p>
+            )}
+            {(solicitudes ?? []).map((s) => (
+              <TarjetaCarta key={s.id} s={s} />
+            ))}
+          </section>
+        </div>
       </div>
     </div>
   );

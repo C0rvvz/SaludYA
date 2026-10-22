@@ -18,6 +18,7 @@ POST /citas/{id}/reprogramar            -> HU-20
 Bloque 6 — el día de la consulta:
 POST /citas/{id}/registrar-llegada      -> HU-24
 POST /citas/confirmar-asistencia/enlace -> HU-23 (desde el recordatorio)
+POST /citas/confirmar-asistencia/enlace/ver -> HU-23 (ver la cita antes de confirmar)
 
 Después de la consulta:
 POST /citas/{id}/calificar              -> HU-71 (satisfacción del paciente)
@@ -288,6 +289,34 @@ def calificar_cita(
     return _mi_cita_out(citas_service.obtener_del_paciente(db, paciente.id, cita.id))
 
 
+def _datos_del_enlace(cita, ya_estaba: bool) -> ConfirmacionPorEnlaceOut:
+    franja = cita.disponibilidad
+    return ConfirmacionPorEnlaceOut(
+        especialidad=franja.especialista.especialidad.nombre,
+        profesional=franja.especialista.nombre,
+        sede=franja.sede.nombre,
+        modalidad=franja.modalidad.value,
+        fecha=franja.fecha,
+        hora=franja.hora,
+        ya_estaba_confirmada=ya_estaba,
+    )
+
+
+# El token va en el cuerpo (POST) y no en la URL de la API, para que no
+# quede en los registros del servidor.
+@router.post("/citas/confirmar-asistencia/enlace/ver", response_model=ConfirmacionPorEnlaceOut)
+def ver_cita_por_enlace(datos: ConfirmarPorEnlaceRequest, db: Session = Depends(get_db)):
+    """
+    HU-23: los datos de la cita del enlace, antes de confirmar. Solo lee:
+    abrir el enlace no cuenta como confirmación.
+    """
+    try:
+        cita = citas_service.ver_cita_por_enlace(db, datos.token)
+    except _ERRORES_DE_CITA as e:
+        raise _error_http(e)
+    return _datos_del_enlace(cita, cita.asistencia_confirmada_en is not None)
+
+
 @router.post("/citas/confirmar-asistencia/enlace", response_model=ConfirmacionPorEnlaceOut)
 def confirmar_asistencia_por_enlace(datos: ConfirmarPorEnlaceRequest, db: Session = Depends(get_db)):
     """
@@ -300,17 +329,7 @@ def confirmar_asistencia_por_enlace(datos: ConfirmarPorEnlaceRequest, db: Sessio
         cita, ya_estaba = citas_service.confirmar_asistencia_por_enlace(db, datos.token)
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
-
-    franja = cita.disponibilidad
-    return ConfirmacionPorEnlaceOut(
-        especialidad=franja.especialista.especialidad.nombre,
-        profesional=franja.especialista.nombre,
-        sede=franja.sede.nombre,
-        modalidad=franja.modalidad.value,
-        fecha=franja.fecha,
-        hora=franja.hora,
-        ya_estaba_confirmada=ya_estaba,
-    )
+    return _datos_del_enlace(cita, ya_estaba)
 
 
 @router.get("/citas/{cita_id}/comprobante", response_model=ComprobanteOut)

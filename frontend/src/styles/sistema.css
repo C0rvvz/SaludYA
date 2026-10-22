@@ -1777,3 +1777,73 @@ summary:focus-visible {
     transform: none;
   }
 }
+
+/* ============ Confirmar asistencia desde el recordatorio (HU-23) ============ */
+.confirmar-asistencia {
+  min-height: 100vh;
+  padding-bottom: 124px; /* que Eli no tape la nota */
+  background: var(--color-bg);
+}
+
+.confirmar-asistencia__cabeza {
+  padding: 32px 56px;
+}
+
+.confirmar-asistencia__centro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(540px, 100% - 32px);
+  margin: 8px auto 0;
+}
+
+.confirmar-asistencia__tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 36px 40px;
+}
+
+.confirmar-asistencia__tarjeta > *,
+.confirmar-asistencia__tarjeta .alert {
+  margin: 0;
+}
+
+.confirmar-asistencia__tarjeta h1 {
+  font-size: 2.125rem;
+  line-height: 1.15;
+}
+
+.confirmar-asistencia__texto {
+  color: var(--color-ink-soft);
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.confirmar-asistencia__tarjeta .summary-row__value {
+  text-align: right;
+}
+
+.confirmar-asistencia__nota {
+  margin: 0;
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
+.confirmar-asistencia__nota a {
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .confirmar-asistencia__cabeza {
+    padding: 20px 16px;
+  }
+
+  .confirmar-asistencia__tarjeta {
+    padding: 24px;
+  }
+
+  .confirmar-asistencia__tarjeta h1 {
+    font-size: var(--text-lg);
+  }
+}
