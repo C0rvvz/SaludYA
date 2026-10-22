@@ -211,7 +211,8 @@ describe("Lista de espera del personal", () => {
         solicitudAdmin({ prioridad: cuerpo.prioridad, posicion: 1 }),
     });
     const usuario = abrir("/admin/lista-espera", { personal: true });
-    expect(await esperarTexto("Puesto 1 de 2")).toBeInTheDocument();
+    expect(await esperarTexto("Posición 1 de 2")).toBeInTheDocument();
+    expect(screen.getByText("En espera actualmente")).toBeInTheDocument();
     expect(screen.getAllByText("5 h")).toHaveLength(2); // cifra de mayor espera y su fila
     expect(screen.queryByText("Pedro Asignado")).not.toBeInTheDocument(); // solo los que siguen esperando
 
@@ -228,13 +229,13 @@ describe("Lista de espera del personal", () => {
     expect(await esperarTexto("Prioridad de Mario Ruiz: Alta. Ahora es el puesto 1.")).toBeInTheDocument();
     expect(llamadasA(llamadas, "PATCH", "/admin/lista-espera/le-1/prioridad")[0].cuerpo).toEqual({ prioridad: "alta" });
 
-    fireEvent.change(screen.getByLabelText("Día"), { target: { value: "2026-09-30" } });
+    fireEvent.change(screen.getByLabelText("Fecha"), { target: { value: "2026-09-30" } });
     await waitFor(() =>
       expect(llamadasA(llamadas, "GET", "/admin/lista-espera").at(-1).query).toEqual({ dia: "2026-09-30" })
     );
   });
 
-  it("confirma una cita eligiendo un horario compatible", async () => {
+  it("asigna una cita eligiendo un horario compatible", async () => {
     const llamadas = backendFalso({
       "GET /admin/lista-espera": LISTA,
       "GET /admin/lista-espera/:id/horarios": [
@@ -246,15 +247,15 @@ describe("Lista de espera del personal", () => {
       }),
     });
     const usuario = abrir("/admin/lista-espera", { personal: true });
-    await usuario.click((await screen.findAllByRole("button", { name: "Confirmar" }))[0]);
+    await usuario.click(await screen.findByRole("button", { name: "Asignar cita a Mario Ruiz" }));
     expect(await esperarTexto(/ya se le ofreció/)).toBeInTheDocument();
     await usuario.click(screen.getByLabelText(/Miércoles, 21 de octubre/));
-    await usuario.click(screen.getByRole("button", { name: "Confirmar cita" }));
-    expect(await esperarTexto(/Cita confirmada para Mario Ruiz: .*Comprobante SY-7\./)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Asignar cita" }));
+    expect(await esperarTexto(/Cita asignada a Mario Ruiz: .*Comprobante SY-7\./)).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/admin/lista-espera/le-1/confirmar")[0].cuerpo).toEqual({ disponibilidad_id: "h2" });
   });
 
-  it("sacar de la lista o cancelar la cita asignada", async () => {
+  it("retirar de la lista o cancelar la cita asignada", async () => {
     const llamadas = backendFalso({
       "GET /admin/lista-espera": LISTA,
       "POST /admin/lista-espera/:id/cancelar": ({ params }) =>
@@ -263,15 +264,15 @@ describe("Lista de espera del personal", () => {
           : solicitudAdmin({ estado: "cancelada" }),
     });
     const usuario = abrir("/admin/lista-espera", { personal: true });
-    await usuario.click((await screen.findAllByRole("button", { name: "Sacar" }))[0]);
-    expect(screen.getByRole("heading", { name: "¿Sacar a Mario Ruiz de la lista de Cardiología?" })).toBeInTheDocument();
+    await usuario.click(await screen.findByRole("button", { name: "Retirar a Mario Ruiz de la lista" }));
+    expect(screen.getByRole("heading", { name: "¿Retirar a Mario Ruiz de la lista de Cardiología?" })).toBeInTheDocument();
     await usuario.type(screen.getByLabelText("Motivo (opcional)"), "Ya no la necesita");
-    await usuario.click(screen.getByRole("button", { name: "Sí, sacar de la lista" }));
-    expect(await esperarTexto("Mario Ruiz salió de la lista de Cardiología.")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Sí, retirar de la lista" }));
+    expect(await esperarTexto("Se retiró a Mario Ruiz de la lista de Cardiología.")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/admin/lista-espera/le-1/cancelar")[0].cuerpo).toEqual({ motivo: "Ya no la necesita" });
 
     await usuario.selectOptions(screen.getByLabelText("Mostrar"), "todas");
-    await usuario.click(screen.getByRole("button", { name: "Cancelar cita" }));
+    await usuario.click(screen.getByRole("button", { name: "Cancelar la cita de Pedro Asignado" }));
     expect(screen.getByText(/se cancela y el horario se ofrece a la lista de espera/)).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Sí, cancelar la cita" }));
     expect(await esperarTexto("Se canceló la cita de Pedro Asignado.")).toBeInTheDocument();
@@ -284,11 +285,11 @@ describe("Lista de espera del personal", () => {
       "POST /admin/lista-espera/:id/cancelar": error(400, "Esta solicitud ya no está en la lista de espera."),
     });
     let usuario = abrir("/admin/lista-espera", { personal: true });
-    await usuario.click((await screen.findAllByRole("button", { name: "Confirmar" }))[0]);
+    await usuario.click(await screen.findByRole("button", { name: "Asignar cita a Mario Ruiz" }));
     expect(await esperarTexto(/No hay horarios libres que se ajusten/)).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Volver" }));
-    await usuario.click(screen.getAllByRole("button", { name: "Sacar" })[0]);
-    await usuario.click(screen.getByRole("button", { name: "Sí, sacar de la lista" }));
+    await usuario.click(screen.getByRole("button", { name: "Retirar a Mario Ruiz de la lista" }));
+    await usuario.click(screen.getByRole("button", { name: "Sí, retirar de la lista" }));
     expect(await esperarTexto("Esta solicitud ya no está en la lista de espera.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Volver" }));
 
@@ -307,7 +308,7 @@ describe("Lista de espera del personal", () => {
     });
     abrir("/admin/lista-espera", { personal: true });
     expect(await esperarTexto("Mario Ruiz")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Confirmar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Asignar cita/ })).not.toBeInTheDocument();
     expect(screen.getAllByText("Normal").length).toBeGreaterThan(0); // la prioridad se ve, no se edita
 
     backendFalso({ "GET /admin/lista-espera": error(500, "No cargó la lista.") });
@@ -322,7 +323,7 @@ describe("Lista de espera del personal", () => {
       "GET /admin/lista-espera/:id/horarios": error(500, "Sin horarios compatibles."),
     });
     const usuario = abrir("/admin/lista-espera", { personal: true });
-    await usuario.click((await screen.findAllByRole("button", { name: "Confirmar" }))[0]);
+    await usuario.click(await screen.findByRole("button", { name: "Asignar cita a Mario Ruiz" }));
     expect(await esperarTexto("Sin horarios compatibles.")).toBeInTheDocument();
 
     const antes = llamadasA(llamadas, "GET", "/admin/lista-espera").length;
@@ -331,7 +332,7 @@ describe("Lista de espera del personal", () => {
   });
 });
 
-// --- Centro de recordatorios (HU-62 a HU-67) ---
+// --- Recordatorios (HU-62 a HU-67) ---
 
 // Envíos siempre en el futuro: el formulario no deja programar en el pasado
 // (con fechas fijas, las pruebas empezaron a fallar cuando esas fechas pasaron).
@@ -390,7 +391,7 @@ function programado(cambios = {}) {
   };
 }
 
-describe("Centro de recordatorios", () => {
+describe("Recordatorios", () => {
   it("lista pacientes con su último envío y filtra por canal", async () => {
     backendFalso({ "GET /admin/recordatorios": PACIENTES, "GET /admin/recordatorios/programados": [] });
     const usuario = abrir("/admin/recordatorios", { personal: true });
@@ -398,9 +399,11 @@ describe("Centro de recordatorios", () => {
     expect(screen.getByText("Sin envíos")).toBeInTheDocument();
     expect(screen.getByText("Todavía no se ha programado ningún mensaje ni llamada.")).toBeInTheDocument();
 
-    await usuario.selectOptions(screen.getByLabelText("Canal"), "llamada");
+    // Chips por canal, con cuántos pacientes tiene cada uno.
+    expect(screen.getByRole("button", { name: "Todos los canales 2" })).toHaveAttribute("aria-pressed", "true");
+    await usuario.click(screen.getByRole("button", { name: "Llamada 1" }));
     expect(screen.queryByText("Mario Ruiz")).not.toBeInTheDocument();
-    await usuario.selectOptions(screen.getByLabelText("Canal"), "sms");
+    await usuario.click(screen.getByRole("button", { name: "Mensaje de texto 0" }));
     expect(screen.getByText("No hay pacientes con ese canal.")).toBeInTheDocument();
   });
 
@@ -461,7 +464,7 @@ describe("Centro de recordatorios", () => {
     expect(await esperarTexto("Reintentando (1 fallidos)")).toBeInTheDocument();
     expect(screen.getByText("3 intentos")).toBeInTheDocument();
 
-    await usuario.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+    await usuario.click(screen.getAllByRole("button", { name: "Editar el recordatorio de Mario Ruiz" })[0]);
     const formulario = screen.getByRole("heading", { name: "Editar recordatorio para Mario Ruiz" }).closest("form");
     expect(within(formulario).getByLabelText("Mensaje")).toHaveValue("Recuerde su cita.");
     await usuario.clear(within(formulario).getByLabelText("Mensaje"));
@@ -473,13 +476,13 @@ describe("Centro de recordatorios", () => {
       texto: "Texto nuevo",
     });
 
-    await usuario.click(screen.getAllByRole("button", { name: "Cancelar" })[0]);
+    await usuario.click(screen.getAllByRole("button", { name: "Cancelar el recordatorio de Mario Ruiz" })[0]);
     await usuario.click(screen.getByRole("button", { name: "No" }));
-    await usuario.click(screen.getAllByRole("button", { name: "Cancelar" })[0]);
+    await usuario.click(screen.getAllByRole("button", { name: "Cancelar el recordatorio de Mario Ruiz" })[0]);
     await usuario.click(screen.getByRole("button", { name: "Sí, cancelar" }));
     expect(await esperarTexto("Se canceló el recordatorio.")).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole("button", { name: "Reintentar" }));
+    await usuario.click(screen.getByRole("button", { name: "Reintentar el envío a Mario Ruiz" }));
     expect(await esperarTexto(/No salió otra vez/)).toBeInTheDocument();
   });
 
@@ -492,7 +495,7 @@ describe("Centro de recordatorios", () => {
       "POST /admin/recordatorios/programados/:id/reintentar": programado({ estado: "enviado" }),
     });
     const usuario = abrir("/admin/recordatorios", { personal: true });
-    await usuario.click(await screen.findByRole("button", { name: "Reintentar" }));
+    await usuario.click(await screen.findByRole("button", { name: "Reintentar el envío a Mario Ruiz" }));
     expect(await esperarTexto("El recordatorio se envió.")).toBeInTheDocument();
 
     await usuario.click(screen.getAllByRole("button", { name: "Programar" })[0]);
@@ -511,7 +514,7 @@ describe("Centro de recordatorios", () => {
       "POST /admin/recordatorios/programados/:id/cancelar": error(400, "No se puede cancelar: el recordatorio ya está enviado."),
     });
     const otro = abrir("/admin/recordatorios", { personal: true });
-    await otro.click(await screen.findByRole("button", { name: "Cancelar" }));
+    await otro.click(await screen.findByRole("button", { name: "Cancelar el recordatorio de Mario Ruiz" }));
     await otro.click(screen.getByRole("button", { name: "Sí, cancelar" }));
     expect(await esperarTexto(/ya está enviado/)).toBeInTheDocument();
 

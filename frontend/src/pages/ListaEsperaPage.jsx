@@ -12,8 +12,8 @@ import {
   unirseListaEspera,
 } from "../api/listaEspera";
 import { CANALES } from "../utils/citas";
-import { formatearFechaLarga, formatearHora, formatearSoloHora } from "../utils/formato";
-import { cuandoEs } from "../utils/agendar";
+import { formatearFechaLarga, formatearHora } from "../utils/formato";
+import { hastaCuando } from "../utils/agendar";
 import "../styles/espera-y-cartas.css";
 
 /**
@@ -47,14 +47,6 @@ const ESTADOS = {
   asignada: ["Cita asignada", "badge--success"],
   cancelada: ["Sin aviso", "badge--neutral"],
 };
-
-// "hasta hoy a las 6:00 p. m.", "hasta mañana a las…" o "hasta el Lun 3 nov a las…"
-function hastaCuando(fechaHoraIso) {
-  const fecha = new Date(fechaHoraIso).toLocaleDateString("en-CA");
-  const dia = cuandoEs(fecha);
-  const cuando = ["Hoy", "Mañana"].includes(dia) ? dia.toLowerCase() : `el ${dia}`;
-  return `hasta ${cuando} a las ${formatearSoloHora(fechaHoraIso)}`;
-}
 
 /** Barra con una rayita por persona (hasta 20): las de antes, la suya y las de después. */
 function BarraPosicion({ posicion, total }) {

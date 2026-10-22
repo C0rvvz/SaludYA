@@ -8,14 +8,16 @@ import {
   programarRecordatorio,
   reintentarRecordatorio,
 } from "../../api/admin";
+import { BotonIcono, IconoEditar, IconoQuitar, IconoReintentar } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
+import { iniciales } from "../../utils/avatar";
 import { CANALES } from "../../utils/citas";
 import { formatearFecha, formatearFechaHora, formatearHora, ocultarEnlaces } from "../../utils/formato";
 
 /**
- * Centro de recordatorios — HU-67: en un solo apartado, la lista de
- * pacientes con sus recordatorios (HU-63), el filtro por canal (HU-62)
- * y la programación de mensajes escritos (HU-64) y llamadas (HU-65) con
+ * Recordatorios — HU-67: en un solo apartado, la lista de pacientes con
+ * sus recordatorios (HU-63), el filtro por canal (HU-62) y la
+ * programación de mensajes escritos (HU-64) y llamadas (HU-65) con
  * plantillas (HU-66). Los programados se pueden editar o cancelar
  * mientras no salgan, y reintentar si fallaron.
  */
@@ -24,13 +26,13 @@ import { formatearFecha, formatearFechaHora, formatearHora, ocultarEnlaces } fro
 const ESTADO_ENVIO = {
   enviado: ["Enviado", "badge--neutral"],
   respondido: ["Respondido", "badge--success"],
-  fallido: ["Falló", "badge--error"],
+  fallido: ["Fallido", "badge--error"],
 };
 
 const ESTADO_PROGRAMADO = {
-  pendiente: ["Programado", "badge--warning"],
+  pendiente: ["Programado", "badge--info"],
   enviado: ["Enviado", "badge--success"],
-  fallido: ["Falló", "badge--error"],
+  fallido: ["Fallido", "badge--error"],
   cancelado: ["Cancelado", "badge--neutral"],
 };
 
@@ -101,13 +103,16 @@ function PanelProgramar({ paciente, programado, onListo, onCancelar }) {
   }
 
   return (
-    <form className="card formulario-admin" onSubmit={programar}>
-      <h2 className="admin-card__titulo">
-        {programado ? "Editar" : "Programar"} recordatorio para {paciente.nombre}
-      </h2>
+    <form className="card formulario-admin" onSubmit={programar} aria-labelledby="titulo-programar">
+      <div className="admin-card__cabeza">
+        <h2 className="admin-card__titulo" id="titulo-programar">
+          {programado ? "Editar" : "Programar"} recordatorio para {paciente.nombre}
+        </h2>
+        <span className="admin-card__dato">Doc. {paciente.numero_documento}</span>
+      </div>
       {error && <div className="alert alert--error">{error}</div>}
 
-      <div className="filtros-admin">
+      <div className="campos-admin campos-admin--tres">
         <div className="field">
           <label htmlFor="tipo">Tipo</label>
           <select id="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
@@ -171,12 +176,10 @@ function PanelProgramar({ paciente, programado, onListo, onCancelar }) {
       </div>
 
       <div className="field">
-        <label htmlFor="texto_recordatorio">
-          {tipo === "llamada" ? "Mensaje de voz de la llamada" : "Mensaje"}
-        </label>
+        <label htmlFor="texto_recordatorio">{tipo === "llamada" ? "Mensaje de voz de la llamada" : "Mensaje"}</label>
         <textarea
           id="texto_recordatorio"
-          rows={4}
+          rows={3}
           maxLength={1000}
           required
           value={texto}
@@ -229,8 +232,9 @@ export default function AdminRecordatoriosPage() {
     cargar();
   }, [cargar]);
 
-  // HU-62: "Todos" no filtra; un canal muestra los pacientes asociados a él.
+  // HU-62: "Todos los canales" no filtra; un canal muestra los pacientes asociados a él.
   const visibles = canal ? pacientes.filter((p) => p.canal_preferido === canal) : pacientes;
+  const cuantos = (valor) => pacientes.filter((p) => p.canal_preferido === valor).length;
 
   function abrir(paciente, programado = null) {
     setAviso("");
@@ -255,12 +259,15 @@ export default function AdminRecordatoriosPage() {
 
   return (
     <>
-      <h1 className="admin-titulo">Centro de recordatorios</h1>
-      <p className="admin-subtitulo">
-        Aquí se avisa a los pacientes de sus citas: vea a quién se le envió el último recordatorio y programe un
-        mensaje o una llamada para una fecha y hora. Si el mensaje fue leído o entregado solo se sabrá con WhatsApp
-        real conectado.
-      </p>
+      <div className="admin-encabezado">
+        <div>
+          <h1 className="admin-titulo">Recordatorios</h1>
+          <p className="admin-subtitulo">
+            Seguimiento de los avisos enviados a los pacientes y programación de mensajes o llamadas. El estado de
+            lectura y entrega estará disponible con la integración oficial de WhatsApp.
+          </p>
+        </div>
+      </div>
 
       {aviso && <div className="alert alert--success">{aviso}</div>}
       {error && <div className="alert alert--error">{error}</div>}
@@ -279,18 +286,20 @@ export default function AdminRecordatoriosPage() {
         />
       )}
 
-      <div className="filters-card filtros-admin filtros-admin--periodo">
-        <div className="field">
-          <label htmlFor="canal">Canal</label>
-          <select id="canal" value={canal} onChange={(e) => setCanal(e.target.value)}>
-            <option value="">Todos</option>
-            {Object.entries(CANALES).map(([valor, nombre]) => (
-              <option key={valor} value={valor}>
-                {nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="chips-estado" role="group" aria-label="Filtrar por canal preferido">
+        {[["", "Todos los canales", pacientes.length], ...Object.entries(CANALES).map(([v, n]) => [v, n, cuantos(v)])].map(
+          ([valor, nombre, total]) => (
+            <button
+              key={valor || "todos"}
+              type="button"
+              className={`chip-estado ${canal === valor ? "is-activo" : ""}`}
+              aria-pressed={canal === valor}
+              onClick={() => setCanal(valor)}
+            >
+              {nombre} <span className="chip-estado__conteo">{total}</span>
+            </button>
+          )
+        )}
       </div>
 
       <div className="tabla-contenedor">
@@ -302,15 +311,24 @@ export default function AdminRecordatoriosPage() {
               <th>Último envío</th>
               <th>Estado</th>
               <th>Próximo programado</th>
-              <th></th>
+              <th>
+                <span className="sr-only">Acciones</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibles.map((p) => (
               <tr key={p.paciente_id}>
                 <td>
-                  {p.nombre}
-                  <span className="texto-suave">{p.numero_documento}</span>
+                  <span className="celda-persona">
+                    <span className="celda-persona__iniciales" aria-hidden="true">
+                      {iniciales(p.nombre)}
+                    </span>
+                    <span className="celda-persona__textos">
+                      <span className="celda-persona__nombre">{p.nombre}</span>
+                      <span className="celda-persona__dato">Doc. {p.numero_documento}</span>
+                    </span>
+                  </span>
                 </td>
                 <td>{p.canal_preferido ? CANALES[p.canal_preferido] : "—"}</td>
                 <td>
@@ -332,7 +350,7 @@ export default function AdminRecordatoriosPage() {
             ))}
           </tbody>
         </table>
-        {!cargando && visibles.length === 0 && <p className="empty-state">No hay pacientes con ese canal.</p>}
+        {!cargando && visibles.length === 0 && <p className="tabla-vacia">No hay pacientes con ese canal.</p>}
       </div>
 
       <h2 className="admin-titulo admin-titulo--seccion">Mensajes y llamadas programados</h2>
@@ -345,8 +363,8 @@ export default function AdminRecordatoriosPage() {
               <th>Tipo</th>
               <th>Mensaje</th>
               <th>Estado</th>
-              <th>Programó</th>
-              <th></th>
+              <th>Programado por</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -356,8 +374,12 @@ export default function AdminRecordatoriosPage() {
                   <FechaHora valor={r.programado_para} />
                 </td>
                 <td>{r.paciente_nombre}</td>
-                <td>{r.canal === "llamada" ? "Llamada" : `Mensaje por ${CANALES[r.canal]}`}</td>
-                <td className="celda-texto">{ocultarEnlaces(r.texto)}</td>
+                <td>{r.canal === "llamada" ? "Llamada automática" : CANALES[r.canal]}</td>
+                <td>
+                  <span className="celda-texto celda-texto--corta" title={ocultarEnlaces(r.texto)}>
+                    {ocultarEnlaces(r.texto)}
+                  </span>
+                </td>
                 <td>
                   <Insignia estados={ESTADO_PROGRAMADO} estado={r.estado} />
                   {r.estado === "pendiente" && r.intentos > 0 && (
@@ -368,7 +390,7 @@ export default function AdminRecordatoriosPage() {
                 <td>{r.programado_por}</td>
                 <td>
                   {cancelando === r.id ? (
-                    <div className="acciones-admin">
+                    <div className="confirmar-fila">
                       <span>¿Cancelar este recordatorio?</span>
                       <button
                         className="btn btn--peligro btn--compacto"
@@ -383,10 +405,10 @@ export default function AdminRecordatoriosPage() {
                     </div>
                   ) : (
                     ["pendiente", "fallido"].includes(r.estado) && (
-                      <div className="acciones-admin">
+                      <div className="acciones-tabla">
                         {r.estado === "fallido" && (
-                          <button
-                            className="btn btn--primary btn--compacto"
+                          <BotonIcono
+                            nombre={`Reintentar el envío a ${r.paciente_nombre}`}
                             disabled={ocupado}
                             onClick={() =>
                               accion(
@@ -398,23 +420,24 @@ export default function AdminRecordatoriosPage() {
                               )
                             }
                           >
-                            Reintentar
-                          </button>
+                            <IconoReintentar />
+                          </BotonIcono>
                         )}
-                        <button
-                          className="btn btn--outline btn--compacto"
+                        <BotonIcono
+                          nombre={`Editar el recordatorio de ${r.paciente_nombre}`}
                           disabled={ocupado}
                           onClick={() => abrir(pacientes.find((p) => p.paciente_id === r.paciente_id), r)}
                         >
-                          Editar
-                        </button>
-                        <button
-                          className="btn btn--peligro-outline btn--compacto"
+                          <IconoEditar />
+                        </BotonIcono>
+                        <BotonIcono
+                          nombre={`Cancelar el recordatorio de ${r.paciente_nombre}`}
+                          peligro
                           disabled={ocupado}
                           onClick={() => setCancelando(r.id)}
                         >
-                          Cancelar
-                        </button>
+                          <IconoQuitar />
+                        </BotonIcono>
                       </div>
                     )
                   )}
@@ -424,7 +447,7 @@ export default function AdminRecordatoriosPage() {
           </tbody>
         </table>
         {!cargando && programados.length === 0 && (
-          <p className="empty-state">Todavía no se ha programado ningún mensaje ni llamada.</p>
+          <p className="tabla-vacia">Todavía no se ha programado ningún mensaje ni llamada.</p>
         )}
       </div>
     </>

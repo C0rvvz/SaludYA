@@ -1121,6 +1121,95 @@
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 12px;
 }
+
+/* Formulario de programar recordatorio: tres campos por fila */
+.campos-admin--tres {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .campos-admin--tres {
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  }
+}
+
+/* Mensaje largo en una tabla: dos líneas y el resto con "…" */
+.celda-texto--corta {
+  display: -webkit-box;
+  max-width: 280px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Lista de opciones (radio) del panel: p. ej. los horarios para asignar una cita */
+.opciones-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.opciones-admin legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.opcion-admin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.opcion-admin input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-navy);
+}
+
+.opcion-admin:has(input:checked) {
+  border-color: var(--color-navy);
+  background: #f1f7fd;
+}
+
+.opcion-admin:has(input:focus-visible) {
+  box-shadow: var(--halo);
+}
+
+.opcion-admin__textos {
+  display: flex;
+  flex-direction: column;
+}
+
+.opcion-admin__titulo {
+  font-weight: 600;
+}
+
+.opcion-admin__detalle {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+/* Confirmación dentro de una fila ("¿Cancelar este recordatorio?") */
+.confirmar-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
 .admin-detalle__encabezado {
   display: flex;
   flex-wrap: wrap;

@@ -119,3 +119,14 @@ export function cuandoEs(fechaIso, ahora = new Date()) {
   const mes = new Intl.DateTimeFormat("es-CO", { month: "short" }).format(new Date(`${fechaIso}T00:00:00`));
   return `${dia} ${numero} ${mes.replace(".", "")}`;
 }
+
+/** "hasta hoy a las 6:00 p. m.", "hasta mañana a las…" o "hasta el Lun 3 nov a las…" */
+export function hastaCuando(fechaHoraIso, ahora = new Date()) {
+  const fecha = new Date(fechaHoraIso).toLocaleDateString("en-CA");
+  const dia = cuandoEs(fecha, ahora);
+  const cuando = ["Hoy", "Mañana"].includes(dia) ? dia.toLowerCase() : `el ${dia}`;
+  const hora = new Intl.DateTimeFormat("es-CO", { hour: "numeric", minute: "2-digit", hour12: true }).format(
+    new Date(fechaHoraIso)
+  );
+  return `hasta ${cuando} a las ${hora}`;
+}
