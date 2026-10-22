@@ -19,15 +19,6 @@ export function formatearHora(horaIso) {
   }).format(fecha);
 }
 
-export function formatearDiaChip(fechaIso) {
-  const fecha = new Date(`${fechaIso}T00:00:00`);
-  const dia = new Intl.DateTimeFormat("es-CO", { weekday: "short" })
-    .format(fecha)
-    .replace(".", "")
-    .toUpperCase();
-  return { dia, numero: fecha.getDate() };
-}
-
 // "Martes, 29 de septiembre"
 export function formatearFechaLarga(fechaIso) {
   const fecha = new Date(`${fechaIso}T00:00:00`);

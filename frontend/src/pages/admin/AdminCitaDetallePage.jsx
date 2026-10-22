@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import IndicadorRiesgo from "../../components/admin/IndicadorRiesgo";
+import { Cifra } from "../../components/admin/Reportes";
 import TablaHistorial from "../../components/admin/TablaHistorial";
+import { Chevron } from "../../components/Iconos";
 import { EstadoBadge, Fila } from "../../components/citas/ElementosCita";
 import SelectorNuevoHorario from "../../components/citas/SelectorNuevoHorario";
 import {
@@ -53,6 +55,15 @@ function Registro({ registro }) {
       )}
       {registro.detalle && <span className="texto-suave">“{registro.detalle}”</span>}
     </li>
+  );
+}
+
+function Volver() {
+  return (
+    <Link className="admin-volver" to="/admin/citas" aria-label="Volver a Gestión de citas">
+      <Chevron hacia="izquierda" tamano={14} />
+      Gestión de citas
+    </Link>
   );
 }
 
@@ -152,10 +163,8 @@ export default function AdminCitaDetallePage() {
   if (!cita) {
     return (
       <>
-        <Link className="back-link" to="/admin/citas">
-          ← Volver a gestión de citas
-        </Link>
-        {error ? <div className="alert alert--error">{error}</div> : <p>Cargando la cita...</p>}
+        <Volver />
+        {error ? <div className="alert alert--error">{error}</div> : <p className="texto-suave">Cargando la cita…</p>}
       </>
     );
   }
@@ -166,21 +175,19 @@ export default function AdminCitaDetallePage() {
 
   return (
     <>
-      <Link className="back-link" to="/admin/citas">
-        ← Volver a gestión de citas
-      </Link>
+      <Volver />
 
       <div className="admin-detalle__encabezado">
         <div>
           <h1 className="admin-titulo">{p.nombre}</h1>
           <p className="admin-subtitulo">
-            {cita.especialidad} con {cita.especialista} · {formatearFechaLarga(cita.fecha)}, {formatearHora(cita.hora)} ·{" "}
-            {cita.sede} ({capitalizar(cita.modalidad)})
+            {cita.especialidad} · {cita.especialista} · {formatearFechaLarga(cita.fecha)}, {formatearHora(cita.hora)} ·{" "}
+            {cita.sede}, {cita.modalidad}
           </p>
         </div>
         <div className="admin-detalle__estado">
           <EstadoBadge cita={cita} />
-          <span className="comprobante-numero">{cita.numero_comprobante}</span>
+          <span className="admin-comprobante">{cita.numero_comprobante}</span>
         </div>
       </div>
 
@@ -195,36 +202,35 @@ export default function AdminCitaDetallePage() {
               {TIPOS_DOCUMENTO[p.tipo_documento] ?? p.tipo_documento} {p.numero_documento}
             </Fila>
             <Fila etiqueta="Teléfono (WhatsApp)">{p.telefono_whatsapp}</Fila>
-            <Fila etiqueta="Correo">{p.correo ?? "—"}</Fila>
+            <Fila etiqueta="Correo electrónico">{p.correo ?? "—"}</Fila>
             <Fila etiqueta="EPS">{p.eps ?? "—"}</Fila>
-            <Fila etiqueta="Afiliación">{capitalizar(p.estado_afiliacion.replace("_", " "))}</Fila>
+            <Fila etiqueta="Estado de afiliación">{capitalizar(p.estado_afiliacion.replace("_", " "))}</Fila>
             {/* HU-42: el canal que eligió el paciente, referencia para contactarlo */}
-            <Fila etiqueta="Canal preferido">
-              <span className="badge badge--success">{CANALES[cita.canal_recordatorio]}</span>
-            </Fila>
+            <Fila etiqueta="Canal preferido">{CANALES[cita.canal_recordatorio]}</Fila>
           </section>
 
           <section className="card">
             <h2 className="admin-card__titulo">Historial de asistencia</h2>
-            <div className="resumen-asistencia">
-              <span>
-                <strong>{cita.resumen_asistencia.atendidas}</strong> atendidas
-              </span>
-              <span>
-                <strong>{cita.resumen_asistencia.no_asistio}</strong> no asistió
-              </span>
-              <span>
-                <strong>{cita.resumen_asistencia.canceladas}</strong> canceladas
-              </span>
-              <span>
-                <strong>{cita.resumen_asistencia.reprogramadas}</strong> reprogramadas
-              </span>
+            <div className="cifras">
+              <Cifra nombre="Atendidas" valor={cita.resumen_asistencia.atendidas} />
+              <Cifra
+                nombre="Inasistencias"
+                valor={cita.resumen_asistencia.no_asistio}
+                tono={cita.resumen_asistencia.no_asistio ? "peligro" : undefined}
+              />
+              <Cifra nombre="Canceladas" valor={cita.resumen_asistencia.canceladas} />
+              <Cifra nombre="Reprogramadas" valor={cita.resumen_asistencia.reprogramadas} />
             </div>
             <TablaHistorial
               citas={cita.historial_asistencia}
               actualId={cita.id}
               vacio="Es la única cita de este paciente."
             />
+          </section>
+
+          <section className="card">
+            <h2 className="admin-card__titulo">Trazabilidad de la cita</h2>
+            <ListaRegistros registros={cita.auditoria} vacio="Sin registros." />
           </section>
 
           <section className="card">
@@ -245,26 +251,24 @@ export default function AdminCitaDetallePage() {
             <ListaRegistros registros={cita.contactos} vacio="No se han registrado llamadas." />
           </section>
 
-          <section className="card">
-            <h2 className="admin-card__titulo">Historial de la cita</h2>
-            <ListaRegistros registros={cita.auditoria} vacio="Sin registros." />
-          </section>
         </div>
 
         <div className="admin-detalle__columna">
           {cita.riesgo && (
             <section className="card riesgo-card">
-              <h2 className="admin-card__titulo">Nivel estimado de inasistencia</h2>
+              <h2 className="admin-card__titulo">Riesgo estimado de inasistencia</h2>
               <IndicadorRiesgo riesgo={cita.riesgo} grande />
-              <p className="texto-suave" style={{ marginTop: "0.75rem" }}>Factores considerados:</p>
-              <ul className="factores">
-                {cita.riesgo.factores.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
-              <p className="field__hint">
-                Estimación por reglas, no un diagnóstico ni una decisión: es una recomendación de acompañamiento,
-                nunca un motivo para negar la atención.
+              <div>
+                <p className="riesgo-card__subtitulo">Factores considerados</p>
+                <ul className="factores">
+                  {cita.riesgo.factores.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className="texto-suave">
+                Estimación basada en reglas. No constituye un diagnóstico ni una decisión; es un criterio de
+                acompañamiento y no debe utilizarse para negar la atención.
               </p>
             </section>
           )}
@@ -277,7 +281,7 @@ export default function AdminCitaDetallePage() {
             {panel === null && hayAcciones && (
               <div className="acciones-admin">
                 {a.confirmar && (
-                  <button className="btn btn--success" disabled={ocupado} onClick={() => ejecutar(() => confirmarCitaAdmin(cita.id), "Asistencia confirmada.")}>
+                  <button className="btn btn--primary" disabled={ocupado} onClick={() => ejecutar(() => confirmarCitaAdmin(cita.id), "Asistencia confirmada.")}>
                     Confirmar asistencia
                   </button>
                 )}
@@ -294,7 +298,7 @@ export default function AdminCitaDetallePage() {
                 )}
                 {a.contactar && (
                   <button className="btn btn--outline" onClick={() => setPanel("llamada")}>
-                    Llamar al paciente
+                    Registrar llamada
                   </button>
                 )}
                 {a.reprogramar && (
@@ -312,54 +316,6 @@ export default function AdminCitaDetallePage() {
                     Registrar atención
                   </button>
                 )}
-              </div>
-            )}
-
-            {panel === "llamada" && (
-              <div className="panel-admin">
-                <p>
-                  Llame al <strong>{p.telefono_whatsapp}</strong>{" "}
-                  <a className="btn btn--primary btn--compacto" href={`tel:${p.telefono_whatsapp}`}>
-                    Llamar ahora
-                  </a>
-                </p>
-                <div className="field">
-                  <label htmlFor="resultado_llamada">Resultado de la llamada</label>
-                  <select
-                    id="resultado_llamada"
-                    value={llamada.resultado}
-                    onChange={(e) => setLlamada({ ...llamada, resultado: e.target.value })}
-                  >
-                    {RESULTADOS_LLAMADA.map(([valor, texto]) => (
-                      <option key={valor} value={valor}>
-                        {texto}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label htmlFor="nota_llamada">Nota (opcional)</label>
-                  <input
-                    id="nota_llamada"
-                    value={llamada.nota}
-                    maxLength={500}
-                    onChange={(e) => setLlamada({ ...llamada, nota: e.target.value })}
-                  />
-                </div>
-                <div className="acciones-admin">
-                  <button
-                    className="btn btn--primary"
-                    disabled={ocupado}
-                    onClick={() =>
-                      ejecutar(() => registrarContactoAdmin(cita.id, llamada.resultado, llamada.nota), "Llamada registrada.")
-                    }
-                  >
-                    Registrar llamada
-                  </button>
-                  <button className="btn btn--outline" onClick={() => setPanel(null)}>
-                    Volver
-                  </button>
-                </div>
               </div>
             )}
 
@@ -414,6 +370,61 @@ export default function AdminCitaDetallePage() {
             )}
           </section>
 
+          {/* HU-37: la llamada se registra en su propia tarjeta, debajo de "Acciones" */}
+          {panel === "llamada" && (
+            <section className="card" aria-labelledby="titulo-registrar-llamada">
+              <h2 className="admin-card__titulo" id="titulo-registrar-llamada">
+                Registrar llamada
+              </h2>
+              <p className="registrar-llamada__telefono">
+                Teléfono: <strong>{p.telefono_whatsapp}</strong>
+                <a className="btn btn--outline btn--compacto" href={`tel:${p.telefono_whatsapp}`}>
+                  Llamar ahora
+                </a>
+              </p>
+              <div className="campos-admin">
+                <div className="field">
+                  <label htmlFor="resultado_llamada">Resultado de la llamada</label>
+                  <select
+                    id="resultado_llamada"
+                    value={llamada.resultado}
+                    onChange={(e) => setLlamada({ ...llamada, resultado: e.target.value })}
+                  >
+                    {RESULTADOS_LLAMADA.map(([valor, texto]) => (
+                      <option key={valor} value={valor}>
+                        {texto}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="nota_llamada">Nota (opcional)</label>
+                  <input
+                    id="nota_llamada"
+                    value={llamada.nota}
+                    maxLength={500}
+                    placeholder="Ej. Confirma asistencia"
+                    onChange={(e) => setLlamada({ ...llamada, nota: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="acciones-admin">
+                <button
+                  className="btn btn--primary"
+                  disabled={ocupado}
+                  onClick={() =>
+                    ejecutar(() => registrarContactoAdmin(cita.id, llamada.resultado, llamada.nota), "Llamada registrada.")
+                  }
+                >
+                  Guardar registro
+                </button>
+                <button className="btn btn--outline" onClick={() => setPanel(null)}>
+                  Cancelar
+                </button>
+              </div>
+            </section>
+          )}
+
           {panel === "reprogramar" && (
             <SelectorNuevoHorario
               especialidadId={cita.especialidad_id}
@@ -436,11 +447,12 @@ export default function AdminCitaDetallePage() {
                     id="observacion"
                     rows={3}
                     maxLength={2000}
+                    placeholder="Agregar una observación sobre el paciente o la cita"
                     value={observacion}
                     onChange={(e) => setObservacion(e.target.value)}
                   />
                 </div>
-                <button className="btn btn--outline btn--compacto" type="submit" disabled={ocupado || !observacion.trim()}>
+                <button className="btn btn--primary btn--compacto" type="submit" disabled={ocupado || !observacion.trim()}>
                   Guardar observación
                 </button>
               </form>

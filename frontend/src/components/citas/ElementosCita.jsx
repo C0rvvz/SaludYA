@@ -3,9 +3,13 @@ import { formatearMesCorto } from "../../utils/formato";
 
 /** Piezas pequeñas que comparten la lista y el detalle de "Mis citas" (y el personal). */
 
-/** `corto`: "Por confirmar" en vez de "Pendiente de confirmar asistencia" (Mis citas). */
-export function EstadoBadge({ cita, corto = false }) {
-  const texto = corto ? (ESTADO_CORTO[cita.estado_visible] ?? cita.estado_texto) : cita.estado_texto;
+/**
+ * `corto`: "Por confirmar" en vez de "Pendiente de confirmar asistencia" (Mis citas).
+ * `textos`: otro juego de nombres cortos (p. ej. ESTADO_PERSONAL en las tablas del personal).
+ */
+export function EstadoBadge({ cita, corto = false, textos }) {
+  const cortos = textos ?? (corto ? ESTADO_CORTO : null);
+  const texto = cortos?.[cita.estado_visible] ?? cita.estado_texto;
   return <span className={`badge ${CLASE_ESTADO[cita.estado_visible]}`}>{texto}</span>;
 }
 

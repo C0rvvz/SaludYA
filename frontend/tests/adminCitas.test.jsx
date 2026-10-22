@@ -152,6 +152,7 @@ describe("Ingreso del personal", () => {
 describe("Gestión de citas", () => {
   it("lista con riesgo, filtros y acciones rápidas", async () => {
     let citas = [citaAdmin(), citaAdmin({ id: "ca-2", riesgo: null, recordatorio_enviado_en: "2026-10-01T08:00:00-05:00",
+      estado_visible: "asistencia_confirmada", estado_texto: "Asistencia confirmada",
       acciones: { ...ACCIONES_TODAS, confirmar: false, recordatorio: false } })];
     const llamadas = backendFalso({
       "GET /admin/citas": () => citas,
@@ -164,19 +165,26 @@ describe("Gestión de citas", () => {
     });
     const usuario = abrir("/admin", { personal: true });
 
-    expect(await esperarTexto("2 citas · 1 con riesgo alto de inasistencia")).toBeInTheDocument();
+    // Chips por estado, con cuántas citas hay de cada uno.
+    expect(await screen.findByRole("button", { name: "Todas 2" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("1 con riesgo alto")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "70% estimado de inasistencia" })).toBeInTheDocument();
+    expect(screen.getByText("Alto")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Llamar a Mario Ruiz" })[0]).toHaveAttribute("href", "tel:3009998877");
 
-    await usuario.click(screen.getByRole("button", { name: "Recordatorio" }));
-    expect(await esperarTexto("No se pudo enviar el recordatorio.")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Confirmar" }));
-    expect(await esperarTexto("Asistencia de Mario Ruiz confirmada.")).toBeInTheDocument();
-    expect(await esperarTexto("1 cita · 1 con riesgo alto de inasistencia")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Confirmadas 1" }));
+    expect(screen.getAllByRole("row")).toHaveLength(2); // encabezado + la confirmada
+    expect(screen.queryByText("1 con riesgo alto")).not.toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Todas 2" }));
 
-    await usuario.type(screen.getByLabelText("Paciente, documento o comprobante"), "Mario");
+    await usuario.click(screen.getByRole("button", { name: "Enviar recordatorio a Mario Ruiz" }));
+    expect(await esperarTexto("No se pudo enviar el recordatorio.")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Confirmar la asistencia de Mario Ruiz" }));
+    expect(await esperarTexto("Asistencia de Mario Ruiz confirmada.")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Todas 1" })).toBeInTheDocument();
+
+    await usuario.type(screen.getByLabelText("Buscar"), "Mario");
     await usuario.selectOptions(screen.getByLabelText("Especialidad"), "esp-1");
-    await usuario.selectOptions(screen.getByLabelText("Estado"), "cancelada");
     await usuario.type(screen.getByLabelText("Hasta"), "2026-12-31");
     await usuario.clear(screen.getByLabelText("Desde"));
     citas = [];
@@ -186,7 +194,6 @@ describe("Gestión de citas", () => {
       buscar: "Mario",
       hasta: "2026-12-31",
       especialidad_id: "esp-1",
-      estado: "cancelada",
     });
   });
 
@@ -235,11 +242,12 @@ describe("Detalle de una cita para el personal", () => {
     await usuario.click(screen.getByRole("button", { name: "Enviar recordatorio" }));
     expect(await esperarTexto("No se pudo enviar.")).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole("button", { name: "Llamar al paciente" }));
-    expect(screen.getByRole("link", { name: "Llamar ahora" })).toHaveAttribute("href", "tel:3009998877");
+    await usuario.click(screen.getByRole("button", { name: "Registrar llamada" }));
+    const registrar = screen.getByRole("heading", { name: "Registrar llamada" }).closest("section");
+    expect(within(registrar).getByRole("link", { name: "Llamar ahora" })).toHaveAttribute("href", "tel:3009998877");
     await usuario.selectOptions(screen.getByLabelText("Resultado de la llamada"), "buzon_de_voz");
     await usuario.type(screen.getByLabelText("Nota (opcional)"), "Dejé mensaje");
-    await usuario.click(screen.getByRole("button", { name: "Registrar llamada" }));
+    await usuario.click(within(registrar).getByRole("button", { name: "Guardar registro" }));
     expect(await esperarTexto("Llamada registrada.")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/admin/citas/ca-1/contacto")[0].cuerpo).toEqual({
       resultado: "buzon_de_voz",
@@ -347,6 +355,6 @@ describe("Detalle de una cita para el personal", () => {
     backendFalso({ "GET /admin/citas/:id": error(404, "No existe esa cita.") });
     abrir("/admin/citas/nada", { personal: true });
     expect(await esperarTexto("No existe esa cita.")).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "← Volver a gestión de citas" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Volver a Gestión de citas" })).toBeInTheDocument();
   });
 });

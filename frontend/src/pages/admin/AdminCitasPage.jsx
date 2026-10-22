@@ -1,40 +1,40 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import IndicadorRiesgo from "../../components/admin/IndicadorRiesgo";
+import {
+  BotonIcono,
+  IconoBuscar,
+  IconoConfirmar,
+  IconoInfo,
+  IconoLlamar,
+  IconoRecordatorio,
+} from "../../components/admin/IconosAdmin";
 import { EstadoBadge } from "../../components/citas/ElementosCita";
 import { confirmarCitaAdmin, enviarRecordatorioAdmin, listarCitasAdmin } from "../../api/admin";
 import { listarEspecialidades } from "../../api/catalogo";
-import { CANALES } from "../../utils/citas";
-import { formatearFecha, formatearFechaHora, formatearHora } from "../../utils/formato";
+import { iniciales } from "../../utils/avatar";
+import { CANALES, ESTADO_PERSONAL, GRUPOS_ESTADO } from "../../utils/citas";
+import { formatearHora } from "../../utils/formato";
 
 /**
  * Gestión de citas — HU-34 (lista con la información relevante) y HU-43
  * (estado de cada cita y las acciones permitidas según su estado).
- * El detalle (HU-35 a HU-42) está en AdminCitaDetallePage.
+ * Los estados se filtran con chips que dicen cuántas citas hay de cada
+ * uno. El detalle (HU-35 a HU-42) está en AdminCitaDetallePage.
  */
-
-const ESTADOS = [
-  ["", "Todos los estados"],
-  ["pendiente_confirmar", "Pendiente de confirmar asistencia"],
-  ["asistencia_confirmada", "Asistencia confirmada"],
-  ["llegada_registrada", "Llegada registrada"],
-  ["finalizada", "En espera de registro de atención"],
-  ["atendida", "Atendida"],
-  ["no_asistio", "No asistió"],
-  ["cancelada", "Cancelada"],
-  ["reprogramada", "Reprogramada"],
-];
 
 const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
 
+// "22 oct"
+const diaCorto = (fechaIso) =>
+  new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" })
+    .format(new Date(fechaIso.length > 10 ? fechaIso : `${fechaIso}T00:00:00`))
+    .replace(".", "")
+    .replace(" de ", " ");
+
 export default function AdminCitasPage() {
-  const [filtros, setFiltros] = useState(() => ({
-    buscar: "",
-    desde: hoy(),
-    hasta: "",
-    especialidad_id: "",
-    estado: "",
-  }));
+  const [filtros, setFiltros] = useState(() => ({ buscar: "", desde: hoy(), hasta: "", especialidad_id: "" }));
+  const [estado, setEstado] = useState(""); // chip elegido; "" = todas
   const [especialidades, setEspecialidades] = useState([]);
   const [citas, setCitas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -82,27 +82,40 @@ export default function AdminCitasPage() {
     }
   }
 
-  const riesgoAlto = citas.filter((c) => c.riesgo?.nivel === "alto").length;
+  const cuantas = (valor) => citas.filter((c) => c.estado_visible === valor).length;
+  const grupos = GRUPOS_ESTADO.filter(([valor]) => valor === estado || cuantas(valor) > 0);
+  const visibles = estado ? citas.filter((c) => c.estado_visible === estado) : citas;
+  const riesgoAlto = visibles.filter((c) => c.riesgo?.nivel === "alto").length;
 
   return (
     <>
-      <h1 className="admin-titulo">Gestión de citas</h1>
-      <p className="admin-subtitulo">Citas de todos los pacientes, con su estado y el nivel estimado de inasistencia.</p>
-
-      <div className="info-admin">
-        El nivel estimado de inasistencia es solo una recomendación de acompañamiento (llamar, recordar,
-        confirmar). Nunca debe usarse para negar la atención a un paciente.
+      <div className="admin-encabezado">
+        <div>
+          <h1 className="admin-titulo">Gestión de citas</h1>
+          <p className="admin-subtitulo">Citas de todos los pacientes, con su estado y nivel estimado de inasistencia.</p>
+        </div>
       </div>
 
-      <form className="filters-card filtros-admin" onSubmit={buscar}>
-        <div className="field">
-          <label htmlFor="buscar">Paciente, documento o comprobante</label>
-          <input
-            id="buscar"
-            value={filtros.buscar}
-            onChange={(e) => setFiltros({ ...filtros, buscar: e.target.value })}
-            placeholder="Ej. 1234567890 o SAY-..."
-          />
+      <div className="info-admin info-admin--icono">
+        <IconoInfo />
+        <span>
+          El nivel estimado de inasistencia es un criterio de acompañamiento (recordatorio, llamada, confirmación).{" "}
+          <strong>No debe utilizarse para negar la atención.</strong>
+        </span>
+      </div>
+
+      <form className="filtros-admin filtros-admin--busqueda" onSubmit={buscar}>
+        <div className="field filtros-admin__buscar">
+          <label htmlFor="buscar">Buscar</label>
+          <div className="campo-con-icono">
+            <IconoBuscar />
+            <input
+              id="buscar"
+              value={filtros.buscar}
+              onChange={(e) => setFiltros({ ...filtros, buscar: e.target.value })}
+              placeholder="Paciente, documento o comprobante"
+            />
+          </div>
         </div>
         <div className="field">
           <label htmlFor="desde">Desde</label>
@@ -127,18 +140,9 @@ export default function AdminCitasPage() {
             ))}
           </select>
         </div>
-        <div className="field">
-          <label htmlFor="estado">Estado</label>
-          <select id="estado" value={filtros.estado} onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}>
-            {ESTADOS.map(([valor, texto]) => (
-              <option key={valor} value={valor}>
-                {texto}
-              </option>
-            ))}
-          </select>
-        </div>
         <button className="btn btn--primary" type="submit" disabled={cargando}>
-          {cargando ? "Buscando..." : "Buscar"}
+          <IconoBuscar />
+          {cargando ? "Buscando…" : "Buscar"}
         </button>
       </form>
 
@@ -146,10 +150,31 @@ export default function AdminCitasPage() {
       {error && <div className="alert alert--error">{error}</div>}
 
       {!cargando && (
-        <p className="texto-suave">
-          {citas.length} {citas.length === 1 ? "cita" : "citas"}
-          {riesgoAlto > 0 && ` · ${riesgoAlto} con riesgo alto de inasistencia`}
-        </p>
+        <div className="barra-chips">
+          <div className="chips-estado" role="group" aria-label="Filtrar por estado">
+            <button
+              type="button"
+              className={`chip-estado ${estado === "" ? "is-activo" : ""}`}
+              aria-pressed={estado === ""}
+              onClick={() => setEstado("")}
+            >
+              Todas <span className="chip-estado__conteo">{citas.length}</span>
+            </button>
+            {grupos.map(([valor, texto, color]) => (
+              <button
+                key={valor}
+                type="button"
+                className={`chip-estado ${estado === valor ? "is-activo" : ""}`}
+                aria-pressed={estado === valor}
+                onClick={() => setEstado(valor)}
+              >
+                <span className="chip-estado__punto" style={{ background: color }} aria-hidden="true" />
+                {texto} <span className="chip-estado__conteo">{cuantas(valor)}</span>
+              </button>
+            ))}
+          </div>
+          {riesgoAlto > 0 && <span className="barra-chips__alerta">{riesgoAlto} con riesgo alto</span>}
+        </div>
       )}
 
       <div className="tabla-contenedor">
@@ -160,39 +185,55 @@ export default function AdminCitasPage() {
               <th>Especialidad</th>
               <th>Fecha</th>
               <th>Estado</th>
-              <th>Nivel estimado</th>
+              <th>Riesgo estimado</th>
               <th>Recordatorio</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {citas.map((c) => (
+            {visibles.map((c) => (
               <tr key={c.id}>
                 <td>
-                  <strong>{c.paciente.nombre}</strong>
-                  <span className="texto-suave">Doc. {c.paciente.numero_documento}</span>
+                  <span className="celda-persona">
+                    <span
+                      className={`celda-persona__iniciales ${c.riesgo?.nivel === "alto" ? "celda-persona__iniciales--alerta" : ""}`}
+                      aria-hidden="true"
+                    >
+                      {iniciales(c.paciente.nombre)}
+                    </span>
+                    <span className="celda-persona__textos">
+                      <span className="celda-persona__nombre">{c.paciente.nombre}</span>
+                      <span className="celda-persona__dato">Doc. {c.paciente.numero_documento}</span>
+                    </span>
+                  </span>
                 </td>
                 <td>
-                  {c.especialidad}
-                  <span className="texto-suave">{c.especialista}</span>
+                  <span className="celda-doble">
+                    <span>{c.especialidad}</span>
+                    <span className="celda-doble__dato">{c.especialista}</span>
+                  </span>
                 </td>
                 <td>
-                  {formatearFecha(c.fecha)}
-                  <span className="texto-suave">{formatearHora(c.hora)}</span>
+                  <span className="celda-doble celda-doble--fija">
+                    <span>{diaCorto(c.fecha)}</span>
+                    <span className="celda-doble__dato">{formatearHora(c.hora)}</span>
+                  </span>
                 </td>
                 <td>
-                  <EstadoBadge cita={c} />
+                  <EstadoBadge cita={c} textos={ESTADO_PERSONAL} />
                 </td>
                 <td>
                   <IndicadorRiesgo riesgo={c.riesgo} />
                 </td>
                 <td>
-                  {c.recordatorio_enviado_en ? (
-                    <span className="texto-suave">Enviado {formatearFechaHora(c.recordatorio_enviado_en)}</span>
-                  ) : (
-                    <span className="texto-suave">No enviado</span>
-                  )}
-                  <span className="texto-suave">Por {CANALES[c.canal_recordatorio]}</span>
+                  <span className="celda-doble celda-doble--fija">
+                    {c.recordatorio_enviado_en ? (
+                      <span>Enviado {diaCorto(c.recordatorio_enviado_en)}</span>
+                    ) : (
+                      <span className="celda-doble__aviso">No enviado</span>
+                    )}
+                    <span className="celda-doble__dato">{CANALES[c.canal_recordatorio]}</span>
+                  </span>
                 </td>
                 <td>
                   <div className="acciones-tabla">
@@ -200,35 +241,33 @@ export default function AdminCitasPage() {
                       Ver detalle
                     </Link>
                     {c.acciones.confirmar && (
-                      <button
-                        type="button"
-                        className="btn btn--outline btn--compacto"
+                      <BotonIcono
+                        nombre={`Confirmar la asistencia de ${c.paciente.nombre}`}
                         disabled={procesandoId === c.id}
                         onClick={() => accionRapida(c, confirmarCitaAdmin, `Asistencia de ${c.paciente.nombre} confirmada.`)}
                       >
-                        Confirmar
-                      </button>
+                        <IconoConfirmar />
+                      </BotonIcono>
                     )}
                     {c.acciones.recordatorio && (
-                      <button
-                        type="button"
-                        className="btn btn--outline btn--compacto"
+                      <BotonIcono
+                        nombre={`Enviar recordatorio a ${c.paciente.nombre}`}
                         disabled={procesandoId === c.id}
                         onClick={() =>
-                          accionRapida(c, enviarRecordatorioAdmin, `Recordatorio enviado a ${c.paciente.nombre} por ${CANALES[c.canal_recordatorio]}.`)
+                          accionRapida(
+                            c,
+                            enviarRecordatorioAdmin,
+                            `Recordatorio enviado a ${c.paciente.nombre} por ${CANALES[c.canal_recordatorio]}.`
+                          )
                         }
                       >
-                        Recordatorio
-                      </button>
+                        <IconoRecordatorio />
+                      </BotonIcono>
                     )}
                     {c.acciones.contactar && (
-                      <a
-                        className="btn btn--outline btn--compacto"
-                        href={`tel:${c.paciente.telefono_whatsapp}`}
-                        aria-label={`Llamar a ${c.paciente.nombre}`}
-                      >
-                        Llamar
-                      </a>
+                      <BotonIcono nombre={`Llamar a ${c.paciente.nombre}`} href={`tel:${c.paciente.telefono_whatsapp}`}>
+                        <IconoLlamar />
+                      </BotonIcono>
                     )}
                   </div>
                 </td>
@@ -236,7 +275,7 @@ export default function AdminCitasPage() {
             ))}
           </tbody>
         </table>
-        {!cargando && citas.length === 0 && <p className="empty-state">No hay citas con esos filtros.</p>}
+        {!cargando && visibles.length === 0 && <p className="tabla-vacia">No hay citas con esos filtros.</p>}
       </div>
     </>
   );

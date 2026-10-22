@@ -58,3 +58,27 @@ export function enlaceComoLlegar(sede) {
   const lugar = `${sede.nombre.replace(/^Sede\s+/i, "")}, ${sede.ciudad}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
 }
+
+// Estado en pocas palabras para las tablas del personal, y cómo se llama
+// cada grupo en los chips con contador de "Gestión de citas" (con su color).
+export const ESTADO_PERSONAL = {
+  pendiente_confirmar: "Pendiente",
+  asistencia_confirmada: "Confirmada",
+  llegada_registrada: "Llegó",
+  finalizada: "Por registrar",
+  atendida: "Atendida",
+  no_asistio: "No asistió",
+  cancelada: "Cancelada",
+  reprogramada: "Reprogramada",
+};
+
+export const GRUPOS_ESTADO = [
+  ["pendiente_confirmar", "Pendientes de confirmación", "#e0a43a"],
+  ["asistencia_confirmada", "Confirmadas", "#1f7a4d"],
+  ["llegada_registrada", "Llegada registrada", "#1b5fa8"],
+  ["finalizada", "Por registrar atención", "#9aa3ad"],
+  ["atendida", "Atendidas", "#1f7a4d"],
+  ["no_asistio", "No asistió", "#a33a2b"],
+  ["cancelada", "Canceladas", "#c85a4a"],
+  ["reprogramada", "Reprogramadas", "#9aa3ad"],
+];

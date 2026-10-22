@@ -659,6 +659,42 @@
   font-size: 0.75rem;
 }
 
+.celda-persona__iniciales--alerta {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+}
+
+/* Celda de dos líneas: el dato principal y debajo uno secundario */
+.celda-doble {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-weight: 500;
+}
+
+/* Fechas y "Enviado 22 oct": en una sola línea */
+.celda-doble--fija {
+  white-space: nowrap;
+}
+
+.celda-doble__dato {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.celda-doble__aviso {
+  color: var(--color-warning-ink);
+  font-weight: 600;
+}
+
+.tabla-vacia {
+  margin: 0;
+  padding: 28px 16px;
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
 .etiqueta-actual {
   display: inline-block;
   margin-top: 4px;
@@ -755,7 +791,7 @@
 
 .acciones-tabla {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
 }
@@ -804,6 +840,28 @@
 .filtros-admin .field select {
   min-height: 40px;
   height: 40px;
+}
+
+/* Barra de búsqueda de Gestión de citas: el buscador más ancho y el botón al final */
+.filtros-admin--busqueda {
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(140px, 1fr)) auto;
+}
+
+.campo-con-icono {
+  position: relative;
+}
+
+.campo-con-icono > svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--color-ink-soft);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.admin .field .campo-con-icono input {
+  padding-left: 36px;
 }
 
 /* El periodo del Dashboard y Reportes, compacto y a la derecha del título */
@@ -859,6 +917,13 @@
   color: #fff;
 }
 
+.chip-estado__punto {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
 .chip-estado__conteo {
   padding: 0 7px;
   border-radius: var(--radius-pill);
@@ -870,6 +935,22 @@
   background: #2a3038;
 }
 
+/* Chips a la izquierda y un dato de alerta a la derecha ("3 con riesgo alto") */
+.barra-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.barra-chips__alerta {
+  color: var(--color-error);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .formulario-admin {
   display: grid;
   gap: 12px;
@@ -877,13 +958,25 @@
 
 /* --- Avisos --- */
 .info-admin {
-  padding: 12px 16px;
+  padding: 12px 14px;
   border: 1px solid #c8dcf3;
   border-radius: 10px;
   background: #f1f7fd;
   color: var(--color-navy);
   font-size: 0.8125rem;
   line-height: 1.5;
+}
+
+.info-admin--icono {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.info-admin--icono > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-primary);
 }
 
 .admin .alert {
@@ -921,6 +1014,113 @@
 }
 
 /* --- Detalle de una cita / revisión --- */
+.admin-volver {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-volver:hover {
+  text-decoration: underline;
+}
+
+.admin-comprobante {
+  color: var(--color-ink-soft);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.8125rem;
+}
+
+/* Filas de datos ("Documento · CC 1010") */
+.admin .summary-row {
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--admin-separador);
+  border-bottom: 0;
+  font-size: 0.8125rem;
+}
+
+.admin .summary-row__label {
+  color: var(--color-ink-soft);
+}
+
+.admin .summary-row__value {
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Trazabilidad: quién hizo qué y cuándo, del más antiguo al más reciente */
+.linea-tiempo {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linea-tiempo li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 0 14px 22px;
+  font-size: 0.8125rem;
+}
+
+.linea-tiempo li::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9aa3ad;
+}
+
+.linea-tiempo li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: var(--admin-borde);
+}
+
+.linea-tiempo li:last-child::before {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.linea-tiempo__fecha {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.riesgo-card__subtitulo {
+  margin: 0 0 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.registrar-llamada__telefono {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.875rem;
+}
+
+/* Dos campos lado a lado (p. ej. resultado y nota de la llamada) */
+.campos-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
+}
 .admin-detalle__encabezado {
   display: flex;
   flex-wrap: wrap;
@@ -1046,8 +1246,23 @@
   font-size: 1.125rem;
 }
 
+.indicador-riesgo__nivel {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.indicador-riesgo--grande .indicador-riesgo__nivel {
+  font-size: 0.9375rem;
+}
+
 .lista-espera-admin__cifras {
   margin: 0;
+}
+
+@media (max-width: 1280px) {
+  .filtros-admin--busqueda {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
 }
 
 /* --- Pantallas angostas: el menú arriba, en una franja --- */

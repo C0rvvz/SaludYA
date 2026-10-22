@@ -15,7 +15,6 @@ import { colorAvatar, iniciales } from "../src/utils/avatar";
 import { CALIFICACIONES, ESTADO_CORTO, ESTADOS_ACTIVOS, enlaceComoLlegar, estrellas, horaDe } from "../src/utils/citas";
 import {
   capitalizar,
-  formatearDiaChip,
   formatearDuracion,
   formatearFecha,
   formatearFechaHora,
@@ -68,7 +67,6 @@ describe("formato", () => {
   it("fechas en español de Colombia", () => {
     expect(formatearFechaLarga("2026-09-29")).toBe("Martes, 29 de septiembre");
     expect(formatearFecha("2026-09-29")).toMatch(/^Mar/);
-    expect(formatearDiaChip("2026-09-29")).toEqual({ dia: "MAR", numero: 29 });
     expect(formatearMesCorto("2026-09-29")).toMatch(/^SEPT?$/);
     expect(plano(formatearFechaHora("2026-09-28T15:40:00"))).toContain("3:40 p. m.");
   });
