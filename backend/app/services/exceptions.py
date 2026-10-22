@@ -121,3 +121,11 @@ class ListaEsperaInvalidaError(Exception):
 
 class SolicitudInvalidaError(Exception):
     """Solicitud de cita (carta de petición) que no se puede radicar o decidir."""
+
+
+class SesionCerradaError(Exception):
+    """La sesión del token ya no sirve: se cerró (otra sesión, inactividad, salió) o no existe."""
+
+
+class DemasiadosIntentosError(Exception):
+    """Demasiadas peticiones de inicio de sesión desde la misma conexión en poco tiempo."""

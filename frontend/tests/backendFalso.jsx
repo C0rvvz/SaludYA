@@ -42,6 +42,8 @@ export function backendFalso(rutas = {}) {
     "GET /auth/paciente/me": PACIENTE,
     "GET /admin/auth/me": PERSONAL,
     "GET /chat": [],
+    "POST /auth/paciente/salir": undefined, // 204, sin cuerpo
+    "POST /admin/auth/salir": undefined,
     ...rutas,
   };
 
@@ -89,8 +91,8 @@ export function backendFalso(rutas = {}) {
 /** Abre la app en `ruta`, con la sesión del paciente y/o del personal si se pide. */
 export function abrir(ruta, { paciente = false, personal = false } = {}) {
   cleanup(); // si la prueba ya había abierto la app, se cierra primero
-  if (paciente) localStorage.setItem(TOKEN_PACIENTE, "token-paciente");
-  if (personal) localStorage.setItem(TOKEN_PERSONAL, "token-personal");
+  if (paciente) sessionStorage.setItem(TOKEN_PACIENTE, "token-paciente");
+  if (personal) sessionStorage.setItem(TOKEN_PERSONAL, "token-personal");
   window.history.pushState({}, "", ruta);
   const usuario = userEvent.setup();
   render(<App />);

@@ -24,8 +24,8 @@ let fetchFalso;
 beforeEach(() => {
   fetchFalso = vi.fn(() => Promise.resolve(respuesta(200, { ok: true })));
   vi.stubGlobal("fetch", fetchFalso);
-  localStorage.setItem(TOKEN_PACIENTE, "token-paciente");
-  localStorage.setItem(TOKEN_PERSONAL, "token-personal");
+  sessionStorage.setItem(TOKEN_PACIENTE, "token-paciente");
+  sessionStorage.setItem(TOKEN_PERSONAL, "token-personal");
 });
 
 describe("apiFetch", () => {
@@ -42,7 +42,7 @@ describe("apiFetch", () => {
     await apiFetch("/q", { auth: "personal" });
     expect(fetchFalso.mock.calls[0][1].headers.Authorization).toBe("Bearer token-paciente");
     expect(fetchFalso.mock.calls[1][1].headers.Authorization).toBe("Bearer token-personal");
-    localStorage.clear();
+    sessionStorage.clear();
     await apiFetch("/r", { auth: true });
     expect(fetchFalso.mock.calls[2][1].headers.Authorization).toBeUndefined();
   });

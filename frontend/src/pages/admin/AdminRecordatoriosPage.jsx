@@ -8,8 +8,9 @@ import {
   programarRecordatorio,
   reintentarRecordatorio,
 } from "../../api/admin";
+import FechaHora from "../../components/FechaHora";
 import { CANALES } from "../../utils/citas";
-import { formatearFecha, formatearFechaHora, formatearHora } from "../../utils/formato";
+import { formatearFecha, formatearFechaHora, formatearHora, ocultarEnlaces } from "../../utils/formato";
 
 /**
  * Centro de recordatorios — HU-67: en un solo apartado, la lista de
@@ -256,8 +257,9 @@ export default function AdminRecordatoriosPage() {
     <>
       <h1 className="admin-titulo">Centro de recordatorios</h1>
       <p className="admin-subtitulo">
-        Recordatorios de cada paciente y programación de mensajes y llamadas. Leído y entregado solo se sabrán
-        con la integración real de WhatsApp.
+        Aquí se avisa a los pacientes de sus citas: vea a quién se le envió el último recordatorio y programe un
+        mensaje o una llamada para una fecha y hora. Si el mensaje fue leído o entregado solo se sabrá con WhatsApp
+        real conectado.
       </p>
 
       {aviso && <div className="alert alert--success">{aviso}</div>}
@@ -312,13 +314,15 @@ export default function AdminRecordatoriosPage() {
                 </td>
                 <td>{p.canal_preferido ? CANALES[p.canal_preferido] : "—"}</td>
                 <td>
-                  {p.ultimo_envio_en ? formatearFechaHora(p.ultimo_envio_en) : "—"}
+                  <FechaHora valor={p.ultimo_envio_en} />
                   {p.ultimo_envio && <span className="texto-suave">{p.ultimo_envio}</span>}
                 </td>
                 <td>
                   <Insignia estados={ESTADO_ENVIO} estado={p.estado} />
                 </td>
-                <td>{p.proximo_programado_en ? formatearFechaHora(p.proximo_programado_en) : "—"}</td>
+                <td>
+                  <FechaHora valor={p.proximo_programado_en} />
+                </td>
                 <td>
                   <button className="btn btn--outline btn--compacto" onClick={() => abrir(p)}>
                     Programar
@@ -348,10 +352,12 @@ export default function AdminRecordatoriosPage() {
           <tbody>
             {programados.map((r) => (
               <tr key={r.id}>
-                <td>{formatearFechaHora(r.programado_para)}</td>
+                <td>
+                  <FechaHora valor={r.programado_para} />
+                </td>
                 <td>{r.paciente_nombre}</td>
                 <td>{r.canal === "llamada" ? "Llamada" : `Mensaje por ${CANALES[r.canal]}`}</td>
-                <td className="celda-texto">{r.texto}</td>
+                <td className="celda-texto">{ocultarEnlaces(r.texto)}</td>
                 <td>
                   <Insignia estados={ESTADO_PROGRAMADO} estado={r.estado} />
                   {r.estado === "pendiente" && r.intentos > 0 && (

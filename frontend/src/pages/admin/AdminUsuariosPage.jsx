@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { actualizarUsuario, crearUsuario, listarUsuarios } from "../../api/admin";
+import FechaHora from "../../components/FechaHora";
 import { usePersonal } from "../../context/personal";
-import { formatearFechaHora } from "../../utils/formato";
 
 /**
  * Cuentas del personal (solo administradores). Las cuentas no se borran:
@@ -15,7 +15,40 @@ const ROLES = [
   ["coordinador_medico", "Coordinador médico"],
 ];
 
+const NOMBRE_ROL = Object.fromEntries(ROLES);
+
 const NUEVO = { nombre: "", correo: "", rol: "agendamiento", password: "" };
+
+/**
+ * Cambiar el rol o desactivar una cuenta cambia lo que esa persona puede
+ * hacer de inmediato: antes se pregunta, con el nombre y el correo, para
+ * que un clic por error no le quite o le dé permisos a nadie.
+ */
+function confirmacionPara(usuario, cambios) {
+  const quien = `${usuario.nombre} (${usuario.correo})`;
+  if ("rol" in cambios) {
+    return {
+      pregunta: `¿Cambiar el rol de ${quien} de ${NOMBRE_ROL[usuario.rol]} a ${NOMBRE_ROL[cambios.rol]}?`,
+      detalle: "Sus permisos cambian de inmediato.",
+      boton: "Sí, cambiar el rol",
+      exito: `Rol de ${usuario.nombre} actualizado.`,
+    };
+  }
+  return cambios.activo
+    ? {
+        pregunta: `¿Activar la cuenta de ${quien}?`,
+        detalle: "Podrá volver a ingresar con su contraseña.",
+        boton: "Sí, activar",
+        exito: `Cuenta de ${usuario.nombre} activada.`,
+      }
+    : {
+        pregunta: `¿Desactivar la cuenta de ${quien}?`,
+        detalle: "Perderá el acceso de inmediato. La cuenta no se borra: la auditoría conserva lo que hizo.",
+        boton: "Sí, desactivar",
+        exito: `Cuenta de ${usuario.nombre} desactivada.`,
+        peligro: true,
+      };
+}
 
 export default function AdminUsuariosPage() {
   const { personal: yo } = usePersonal();
@@ -25,6 +58,7 @@ export default function AdminUsuariosPage() {
   const [ocupado, setOcupado] = useState(false);
   const [claveDe, setClaveDe] = useState(null); // id del usuario al que se le cambia la contraseña
   const [clave, setClave] = useState("");
+  const [porConfirmar, setPorConfirmar] = useState(null); // { usuario, cambios, pregunta, ... }
 
   const cargar = useCallback(
     () =>
@@ -59,6 +93,17 @@ export default function AdminUsuariosPage() {
     if (await ejecutar(() => crearUsuario(nuevo), `Cuenta creada para ${nuevo.nombre}.`)) setNuevo(NUEVO);
   }
 
+  function pedirConfirmacion(usuario, cambios) {
+    setAviso(null);
+    setPorConfirmar({ usuario, cambios, ...confirmacionPara(usuario, cambios) });
+  }
+
+  async function confirmar() {
+    const { usuario, cambios, exito } = porConfirmar;
+    setPorConfirmar(null);
+    await ejecutar(() => actualizarUsuario(usuario.id, cambios), exito);
+  }
+
   async function cambiarClave(usuario) {
     if (await ejecutar(() => actualizarUsuario(usuario.id, { password: clave }), `Contraseña de ${usuario.nombre} actualizada.`)) {
       setClaveDe(null);
@@ -74,6 +119,32 @@ export default function AdminUsuariosPage() {
       </p>
 
       {aviso && <div className={`alert alert--${aviso.tipo}`}>{aviso.texto}</div>}
+
+      {porConfirmar && (
+        <div
+          className={`panel-admin panel-admin--confirmar ${porConfirmar.peligro ? "panel-admin--peligro" : ""}`}
+          role="alertdialog"
+          aria-labelledby="confirmar-cuenta"
+        >
+          <p id="confirmar-cuenta">
+            <strong>{porConfirmar.pregunta}</strong> {porConfirmar.detalle}
+          </p>
+          <div className="acciones-admin">
+            <button
+              className={`btn ${porConfirmar.peligro ? "btn--peligro" : "btn--primary"}`}
+              disabled={ocupado}
+              onClick={confirmar}
+              // El foco salta aquí: quien cambió el rol ve la pregunta aunque esté más abajo en la tabla.
+              autoFocus
+            >
+              {porConfirmar.boton}
+            </button>
+            <button className="btn btn--outline" onClick={() => setPorConfirmar(null)}>
+              No, volver
+            </button>
+          </div>
+        </div>
+      )}
 
       <form className="filters-card filtros-admin" onSubmit={crear}>
         <div className="field">
@@ -140,7 +211,7 @@ export default function AdminUsuariosPage() {
                     aria-label={`Rol de ${u.nombre}`}
                     value={u.rol}
                     disabled={ocupado || u.id === yo.id}
-                    onChange={(e) => ejecutar(() => actualizarUsuario(u.id, { rol: e.target.value }), `Rol de ${u.nombre} actualizado.`)}
+                    onChange={(e) => pedirConfirmacion(u, { rol: e.target.value })}
                   >
                     {ROLES.map(([valor, texto]) => (
                       <option key={valor} value={valor}>
@@ -154,19 +225,14 @@ export default function AdminUsuariosPage() {
                     {u.activo ? "Activa" : "Desactivada"}
                   </span>
                 </td>
-                <td>{u.ultimo_acceso_en ? formatearFechaHora(u.ultimo_acceso_en) : "Nunca"}</td>
+                <td>{u.ultimo_acceso_en ? <FechaHora valor={u.ultimo_acceso_en} /> : "Nunca"}</td>
                 <td>
                   <div className="acciones-tabla">
                     {u.id !== yo.id && (
                       <button
                         className={`btn btn--compacto ${u.activo ? "btn--peligro-outline" : "btn--outline"}`}
                         disabled={ocupado}
-                        onClick={() =>
-                          ejecutar(
-                            () => actualizarUsuario(u.id, { activo: !u.activo }),
-                            `Cuenta de ${u.nombre} ${u.activo ? "desactivada" : "activada"}.`
-                          )
-                        }
+                        onClick={() => pedirConfirmacion(u, { activo: !u.activo })}
                       >
                         {u.activo ? "Desactivar" : "Activar"}
                       </button>

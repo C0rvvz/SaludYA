@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import IndicadorRiesgo from "../../components/admin/IndicadorRiesgo";
+import TablaHistorial from "../../components/admin/TablaHistorial";
 import { EstadoBadge, Fila } from "../../components/citas/ElementosCita";
 import SelectorNuevoHorario from "../../components/citas/SelectorNuevoHorario";
 import {
@@ -14,7 +15,7 @@ import {
   reprogramarCitaAdmin,
 } from "../../api/admin";
 import { CANALES } from "../../utils/citas";
-import { capitalizar, formatearFecha, formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
+import { capitalizar, formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
 
 /**
  * Detalle de una cita para el personal:
@@ -219,20 +220,11 @@ export default function AdminCitaDetallePage() {
                 <strong>{cita.resumen_asistencia.reprogramadas}</strong> reprogramadas
               </span>
             </div>
-            {cita.historial_asistencia.length === 0 ? (
-              <p className="texto-suave">Es la única cita de este paciente.</p>
-            ) : (
-              <ul className="historial-admin">
-                {cita.historial_asistencia.slice(0, 10).map((h) => (
-                  <li key={h.id}>
-                    <Link to={`/admin/citas/${h.id}`}>
-                      {formatearFecha(h.fecha)} · {h.especialidad}
-                    </Link>
-                    <EstadoBadge cita={h} />
-                  </li>
-                ))}
-              </ul>
-            )}
+            <TablaHistorial
+              citas={cita.historial_asistencia}
+              actualId={cita.id}
+              vacio="Es la única cita de este paciente."
+            />
           </section>
 
           <section className="card">

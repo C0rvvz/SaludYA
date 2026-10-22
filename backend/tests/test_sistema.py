@@ -117,8 +117,10 @@ def test_contrasenas_y_tokens():
 
 def test_sesion_vencida_y_token_del_tipo_equivocado(cliente, fabrica):
     paciente = fabrica.paciente()
+    ahora = datetime.now(timezone.utc)
     vencido = jwt.encode(
-        {"sub": str(paciente.id), "tipo": "paciente", "exp": datetime.now(timezone.utc) - timedelta(minutes=1)},
+        {"iss": security.EMISOR, "sub": str(paciente.id), "sid": str(uuid.uuid4()), "tipo": "paciente",
+         "iat": ahora - timedelta(hours=2), "exp": ahora - timedelta(minutes=1)},
         settings.jwt_secret, algorithm="HS256",
     )
     r = cliente.get("/citas", headers={"Authorization": f"Bearer {vencido}"})

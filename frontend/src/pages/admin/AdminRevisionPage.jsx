@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { aprobarSolicitud, enviarSolicitudEps, negarSolicitud, obtenerRevisionClinica } from "../../api/admin";
 import { buscarDisponibilidad } from "../../api/catalogo";
-import { EstadoBadge, Fila } from "../../components/citas/ElementosCita";
+import TablaHistorial from "../../components/admin/TablaHistorial";
+import { Fila } from "../../components/citas/ElementosCita";
 import { usePersonal } from "../../context/personal";
 import { CANALES } from "../../utils/citas";
 import { capitalizar, formatearFecha, formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
@@ -160,7 +161,7 @@ export default function AdminRevisionPage() {
   return (
     <>
       <Link to="/admin/solicitudes" className="texto-suave">
-        ← Volver a las solicitudes
+        ← Volver a cartas y peticiones
       </Link>
 
       <div className="admin-detalle__encabezado">
@@ -293,20 +294,7 @@ export default function AdminRevisionPage() {
                 <strong>{revision.resumen_asistencia.canceladas}</strong> canceladas
               </span>
             </div>
-            {revision.historial.length === 0 ? (
-              <p className="texto-suave">No tiene citas registradas.</p>
-            ) : (
-              <ul className="historial-admin">
-                {revision.historial.slice(0, 10).map((h) => (
-                  <li key={h.id}>
-                    <Link to={`/admin/citas/${h.id}`}>
-                      {formatearFecha(h.fecha)} · {h.especialidad}
-                    </Link>
-                    <EstadoBadge cita={h} />
-                  </li>
-                ))}
-              </ul>
-            )}
+            <TablaHistorial citas={revision.historial} vacio="No tiene citas registradas." />
           </section>
 
           <section className="card">

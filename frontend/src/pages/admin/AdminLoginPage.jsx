@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import AuthShell from "../../components/AuthShell";
 import { iniciarSesionPersonal } from "../../api/admin";
 import { usePersonal } from "../../context/personal";
+import { propsCampoProtegido } from "../../utils/campoProtegido";
+import { borrarMotivoCierre, leerMotivoCierre } from "../../utils/sesion";
 
 /**
  * Inicio de sesión del personal de la EPS / IPS.
@@ -18,6 +20,14 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // Por qué se cerró la sesión anterior (inactividad, otra pestaña...), si fue así.
+  const [motivoCierre] = useState(() => leerMotivoCierre("personal"));
+  const [avisoCampo, setAvisoCampo] = useState("");
+  const protegido = propsCampoProtegido(setAvisoCampo);
+
+  useEffect(() => {
+    borrarMotivoCierre("personal");
+  }, []);
 
   if (personal) return <Navigate to="/admin/citas" replace />;
 
@@ -38,7 +48,9 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <AuthShell>
+    <AuthShell protegida>
+      {motivoCierre && <div className="alert alert--info">{motivoCierre}</div>}
+      {avisoCampo && <div className="alert alert--error">{avisoCampo}</div>}
       <div className="auth-card__header">
         <p className="auth-card__eyebrow">Acceso para personal</p>
         <h1>Ingreso del personal de la EPS o IPS</h1>
@@ -52,8 +64,11 @@ export default function AdminLoginPage() {
           <label htmlFor="correo">Correo institucional</label>
           <input
             id="correo"
-            type="email"
-            autoComplete="username"
+            // "text" y no "email": en los campos de correo el navegador no deja
+            // anular la selección de texto (RNF-16).
+            type="text"
+            inputMode="email"
+            {...protegido}
             placeholder="nombre@institucion.co"
             value={correo}
             onChange={(e) => setCorreo(e.target.value)}
@@ -65,7 +80,7 @@ export default function AdminLoginPage() {
           <input
             id="password"
             type="password"
-            autoComplete="current-password"
+            {...protegido}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

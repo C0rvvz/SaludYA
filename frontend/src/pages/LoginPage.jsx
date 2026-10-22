@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
+import CelularCodigo from "../components/CelularCodigo";
+import CodigoCasillas from "../components/CodigoCasillas";
+import { Chevron } from "../components/Iconos";
 import { identificarPaciente, enviarOtp, reenviarOtp, validarOtp } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { validarNumeroDocumento, validarCodigoOtp } from "../utils/validaciones";
+import { propsCampoProtegido } from "../utils/campoProtegido";
+import { borrarMotivoCierre, leerMotivoCierre } from "../utils/sesion";
 
 const SEGUNDOS_ENFRIAMIENTO = 60; // igual a OTP_REENVIO_SEGUNDOS en el backend
 
@@ -15,6 +20,15 @@ const TIPOS_DOCUMENTO = [
   { value: "pasaporte", label: "Pasaporte" },
 ];
 
+// 42 -> "0:42"
+const reloj = (segundos) => `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
+
+/**
+ * Ingreso del paciente (HU-01 a HU-04), sistema 2a: solo con el documento
+ * y el código de 6 dígitos que llega por WhatsApp, sin contraseñas. En
+ * computador, a la izquierda, un celular de muestra donde aparece el
+ * código en el modo demostración.
+ */
 export default function LoginPage() {
   const navigate = useNavigate();
   const { iniciarSesion } = useAuth();
@@ -24,7 +38,10 @@ export default function LoginPage() {
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [codigo, setCodigo] = useState("");
   const [telefonoEnmascarado, setTelefonoEnmascarado] = useState("");
-  const [nombrePaciente, setNombrePaciente] = useState("");
+  // Por qué se cerró la sesión anterior (inactividad, otra pestaña...), si fue así.
+  const [motivoCierre] = useState(() => leerMotivoCierre("paciente"));
+  const [avisoCampo, setAvisoCampo] = useState("");
+  const protegido = propsCampoProtegido(setAvisoCampo);
   // Modo demostración: el backend solo lo envía con WhatsApp simulado y en desarrollo.
   const [codigoDemo, setCodigoDemo] = useState(null);
 
@@ -38,6 +55,7 @@ export default function LoginPage() {
   const intervalRef = useRef(null);
 
   useEffect(() => {
+    borrarMotivoCierre("paciente");
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -67,8 +85,7 @@ export default function LoginPage() {
     setCargando(true);
     try {
       // HU-01: verificar que la cédula esté registrada
-      const identificacion = await identificarPaciente(numeroDocumento);
-      setNombrePaciente(identificacion.nombre);
+      await identificarPaciente(numeroDocumento);
 
       // HU-02: generar y enviar el código automáticamente
       const envio = await enviarOtp(numeroDocumento);
@@ -123,17 +140,40 @@ export default function LoginPage() {
     }
   }
 
+  function volverAlDocumento() {
+    setPaso("cedula");
+    setCodigo("");
+    setError("");
+    setErrorCodigo("");
+  }
+
+  const pie = (
+    <>
+      <p className="auth-tarjeta-pie">
+        ¿No tiene cuenta? <Link to="/registrarse">Regístrese</Link>
+      </p>
+      <Link to="/admin/ingresar" className="auth-acceso-personal">
+        <span className="auth-acceso-personal__punto" aria-hidden="true" />
+        Acceso para personal de la EPS o IPS
+      </Link>
+    </>
+  );
+
   return (
-    <AuthShell>
+    <AuthShell
+      protegida
+      ancho="angosto"
+      lado={<CelularCodigo codigoDemo={paso === "otp" ? codigoDemo : null} telefono={paso === "otp" ? telefonoEnmascarado : null} />}
+      pie={paso === "cedula" ? pie : null}
+    >
+      {motivoCierre && <div className="alert alert--info">{motivoCierre}</div>}
+      {avisoCampo && <div className="alert alert--error">{avisoCampo}</div>}
 
       {paso === "cedula" && (
         <>
           <div className="auth-card__header">
-            <p className="auth-card__eyebrow">Iniciar sesión</p>
-            <h1>Ingrese su número de documento</h1>
-            <p className="auth-card__lead">
-              Le enviaremos un código de verificación por WhatsApp.
-            </p>
+            <h1 className="sr-only">Ingrese su número de documento</h1>
+            <p className="auth-card__lead">Entre con su documento. Sin contraseñas.</p>
           </div>
 
           {noRegistrado && (
@@ -147,11 +187,7 @@ export default function LoginPage() {
           <form onSubmit={manejarEnvioCedula} noValidate>
             <div className="field">
               <label htmlFor="tipo_documento">Tipo de documento</label>
-              <select
-                id="tipo_documento"
-                value={tipoDocumento}
-                onChange={(e) => setTipoDocumento(e.target.value)}
-              >
+              <select id="tipo_documento" value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value)}>
                 {TIPOS_DOCUMENTO.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -171,7 +207,7 @@ export default function LoginPage() {
                 inputMode={tipoDocumento === "pasaporte" ? "text" : "numeric"}
                 className={errorDocumento ? "has-error" : ""}
                 aria-invalid={Boolean(errorDocumento)}
-                autoComplete="off"
+                {...protegido}
                 value={numeroDocumento}
                 onChange={(e) => {
                   setNumeroDocumento(e.target.value);
@@ -183,49 +219,54 @@ export default function LoginPage() {
             </div>
 
             <button className="btn btn--primary btn--block" type="submit" disabled={cargando}>
-              {cargando ? "Verificando..." : "Continuar"}
+              {cargando ? "Enviando el código..." : "Enviar código"}
             </button>
           </form>
+
+          <Link to="/#ayuda" className="auth-ayuda">
+            ¿Problemas para entrar?
+          </Link>
         </>
       )}
 
       {paso === "otp" && (
         <>
-          <div className="auth-card__header">
-            <p className="auth-card__eyebrow">Iniciar sesión</p>
-            <h1>Ingrese el código</h1>
+          <button type="button" className="btn-volver auth-card__atras" onClick={volverAlDocumento}>
+            <span className="btn__circulo">
+              <Chevron hacia="izquierda" />
+            </span>
+            Cambiar el documento
+          </button>
+
+          <div className="auth-card__header auth-card__header--izquierda">
+            <h1>Escriba el código</h1>
             <p className="auth-card__lead">
-              Hola {nombrePaciente}, le enviamos un código de 6 dígitos a su
-              WhatsApp terminado en <strong>{telefonoEnmascarado?.slice(-4)}</strong>.
+              Lo enviamos al WhatsApp terminado en <strong>{telefonoEnmascarado?.slice(-4)}</strong>.
             </p>
           </div>
 
           {error && <div className="alert alert--error">{error}</div>}
 
+          {/* En celular no hay celular de muestra: el código de demostración va aquí. */}
           {codigoDemo && (
-            <output className="alert alert--demo">
-              <strong>Modo demostración:</strong> WhatsApp no está conectado, así que mostramos
-              aquí el código que le habría llegado: <strong className="codigo-demo">{codigoDemo}</strong>
+            <output className="alert alert--demo auth-demo-celular">
+              <strong>Modo demostración:</strong> WhatsApp no está conectado, así que mostramos aquí el código que le
+              habría llegado: <strong className="codigo-demo">{codigoDemo}</strong>
             </output>
           )}
 
           <form onSubmit={manejarValidacion} noValidate>
             <div className="field">
               <label htmlFor="codigo">Código de verificación</label>
-              <input
+              <CodigoCasillas
                 id="codigo"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                className={errorCodigo ? "has-error" : ""}
-                aria-invalid={Boolean(errorCodigo)}
-                autoComplete="one-time-code"
-                value={codigo}
-                onChange={(e) => {
-                  setCodigo(e.target.value.replace(/\D/g, ""));
+                valor={codigo}
+                error={errorCodigo}
+                props={protegido}
+                onCambio={(valor) => {
+                  setCodigo(valor);
                   if (errorCodigo) setErrorCodigo("");
                 }}
-                placeholder="000000"
               />
               {errorCodigo ? (
                 <p className="field__error">{errorCodigo}</p>
@@ -234,22 +275,23 @@ export default function LoginPage() {
               )}
             </div>
 
+            <p className="auth-reenvio">
+              ¿No le llegó?{" "}
+              {segundosRestantes > 0 ? (
+                <>
+                  Reenviar en <strong>{reloj(segundosRestantes)}</strong>
+                </>
+              ) : (
+                <button type="button" className="btn btn--link" onClick={manejarReenvio} disabled={cargando}>
+                  Reenviar código
+                </button>
+              )}
+            </p>
+
             <button className="btn btn--primary btn--block" type="submit" disabled={cargando}>
-              {cargando ? "Validando..." : "Confirmar código"}
+              {cargando ? "Entrando..." : "Entrar"}
             </button>
           </form>
-
-          <button
-            type="button"
-            className="btn btn--link"
-            onClick={manejarReenvio}
-            disabled={segundosRestantes > 0 || cargando}
-            style={{ marginTop: "1rem" }}
-          >
-            {segundosRestantes > 0
-              ? `Reenviar código (espere ${segundosRestantes}s)`
-              : "Reenviar código"}
-          </button>
         </>
       )}
     </AuthShell>

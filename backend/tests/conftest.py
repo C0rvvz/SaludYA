@@ -37,10 +37,11 @@ from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from app.core import limite_intentos  # noqa: E402
 from app.core.database import engine, get_db  # noqa: E402
-from app.core.security import TIPO_PERSONAL, crear_access_token, hash_password  # noqa: E402
+from app.core.security import TIPO_PACIENTE, TIPO_PERSONAL, crear_access_token, hash_password  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Cita, Disponibilidad, Eps, Especialista, Paciente, Personal  # noqa: E402
+from app.models import Cita, Disponibilidad, Eps, Especialista, Paciente, Personal, Sesion  # noqa: E402
 from app.models.cita import CanalContacto, EstadoCita  # noqa: E402
 from app.models.disponibilidad import EstadoDisponibilidad  # noqa: E402
 from app.models.especialista import Modalidad  # noqa: E402
@@ -81,20 +82,35 @@ def base_de_pruebas():
         servidor.dispose()
 
 
+# La sesión de base de datos de la prueba en curso: encabezado() la usa para
+# abrir la sesión del servidor que exige cada token.
+_db_de_la_prueba: Session | None = None
+
+
 @pytest.fixture
 def db():
     """Sesión dentro de una transacción que se deshace al terminar la prueba."""
+    global _db_de_la_prueba
     conexion = engine.connect()
     transaccion = conexion.begin()
     # Los commit y rollback de los servicios actúan sobre un SAVEPOINT,
     # nunca sobre la transacción de afuera.
     sesion = Session(bind=conexion, join_transaction_mode="create_savepoint", autoflush=False)
+    _db_de_la_prueba = sesion
     try:
         yield sesion
     finally:
+        _db_de_la_prueba = None
         sesion.close()
         transaccion.rollback()
         conexion.close()
+
+
+@pytest.fixture(autouse=True)
+def _limites_de_intentos_limpios():
+    """Los límites de intentos por IP viven en memoria: cada prueba empieza de cero."""
+    for limite in limite_intentos.TODOS:
+        limite.reiniciar()
 
 
 @pytest.fixture
@@ -108,11 +124,19 @@ def cliente(db):
 
 
 def encabezado(sujeto) -> dict:
-    """Authorization con un JWT válido para un paciente o para el personal."""
-    if isinstance(sujeto, Personal):
-        token, _ = crear_access_token(sujeto.id, rol=sujeto.rol.value, tipo=TIPO_PERSONAL)
-    else:
-        token, _ = crear_access_token(sujeto.id)
+    """
+    Authorization con un JWT válido, y su sesión del servidor abierta, para
+    un paciente o para el personal. A propósito NO cierra las otras sesiones
+    de esa persona (como sí lo hace iniciar sesión): así una prueba puede
+    pedir varios encabezados para la misma persona. La sesión única se
+    prueba con los endpoints de ingreso (test_seguridad.py).
+    """
+    personal = isinstance(sujeto, Personal)
+    tipo = TIPO_PERSONAL if personal else TIPO_PACIENTE
+    sesion = Sesion(tipo=tipo, sujeto_id=sujeto.id)
+    _db_de_la_prueba.add(sesion)
+    _db_de_la_prueba.commit()
+    token, _ = crear_access_token(sujeto.id, sesion.id, rol=sujeto.rol.value if personal else "paciente", tipo=tipo)
     return {"Authorization": f"Bearer {token}"}
 
 

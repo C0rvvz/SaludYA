@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
+import EliAvatar from "../components/EliAvatar";
+import { Chevron } from "../components/Iconos";
 import ModalTratamientoDatos from "../components/ModalTratamientoDatos";
 import { registrarPaciente } from "../api/pacientes";
 import { listarEps } from "../api/eps";
@@ -26,6 +28,64 @@ const ERRORES_CAMPO_VACIOS = {
   eps_id: "",
 };
 
+// Lo que dice Eli en cada paso (a la izquierda, en computador).
+const MENSAJES_ELI = {
+  1: [
+    <>
+      ¡Hola! Soy <strong>Eli</strong>. Le acompaño a crear su cuenta.
+    </>,
+    <>
+      Digite sus datos y el número de celular que tiene WhatsApp. Ahí le llegará un código para entrar,{" "}
+      <strong>sin contraseñas</strong>.
+    </>,
+  ],
+  2: [
+    <>¡Muy bien, ya casi terminamos!</>,
+    <>
+      Elija su <strong>EPS</strong> y acepte el uso de sus datos para crear la cuenta.
+    </>,
+  ],
+};
+
+function EliRegistro({ paso }) {
+  return (
+    <div className="eli-registro">
+      <div className="eli-registro__quien">
+        <EliAvatar tamano={150} grande />
+        <div>
+          <p className="eli-registro__nombre">Eli</p>
+          <p className="eli-registro__rol">Su guía de SaludYA</p>
+        </div>
+      </div>
+      <div className="eli-registro__burbujas">
+        {MENSAJES_ELI[paso].map((mensaje, i) => (
+          <div key={`${paso}-${i}`} className={`flota ${i ? "flota--2" : ""}`}>
+            <p className="burbuja">{mensaje}</p>
+          </div>
+        ))}
+      </div>
+      <ol className="pasos-registro">
+        {["Sus datos", "EPS y autorización"].map((nombre, i) => {
+          const numero = i + 1;
+          const estado = numero < paso ? "is-hecho" : numero === paso ? "is-actual" : "";
+          return (
+            <li key={nombre} className={`pasos-registro__paso ${estado}`} aria-current={numero === paso ? "step" : undefined}>
+              <span className="pasos-registro__numero" aria-hidden="true">
+                {numero < paso ? "✓" : numero}
+              </span>
+              {nombre}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * Registro del paciente (HU-05 a HU-08), sistema 2a: dos pasos y la
+ * confirmación. En computador, Eli acompaña a la izquierda.
+ */
 export default function RegistroPage() {
   const navigate = useNavigate();
 
@@ -52,9 +112,7 @@ export default function RegistroPage() {
     listarEps()
       .then(setEpsDisponibles)
       .catch((err) =>
-        setErrorEps(
-          err?.message || "No fue posible cargar el listado de EPS. Intenta recargar la página."
-        )
+        setErrorEps(err?.message || "No fue posible cargar el listado de EPS. Intenta recargar la página.")
       );
   }, []);
 
@@ -113,59 +171,64 @@ export default function RegistroPage() {
     }
   }
 
+  const pie =
+    paso < 3 ? (
+      <p className="auth-tarjeta-pie">
+        ¿Ya tiene cuenta? <Link to="/iniciar-sesion">Inicie sesión</Link>
+      </p>
+    ) : null;
+
   return (
-    <AuthShell>
+    <AuthShell lado={paso < 3 ? <EliRegistro paso={paso} /> : null} pie={pie}>
       {paso < 3 && (
-        <div className="steps">
-          <div className={`steps__item ${paso >= 1 ? "is-active" : ""}`} />
-          <div className={`steps__item ${paso >= 2 ? "is-active" : ""}`} />
-        </div>
+        <>
+          <p className="auth-card__lead auth-card__lead--centro">
+            {paso === 1 ? "Cree su cuenta en dos pasos." : "Su EPS y autorización"}
+          </p>
+          <div className="steps" aria-label={`Paso ${paso} de 2`}>
+            <div className={`steps__item ${paso >= 1 ? "is-active" : ""}`} />
+            <div className={`steps__item ${paso >= 2 ? "is-active" : ""}`} />
+          </div>
+        </>
       )}
 
       {error && <div className="alert alert--error">{error}</div>}
 
       {paso === 1 && (
         <>
-          <div className="auth-card__header">
-            <p className="auth-card__eyebrow">Crear cuenta</p>
-            <h1>Indique sus datos personales</h1>
-            <p className="auth-card__lead">Estos datos quedarán asociados a su cuenta.</p>
-          </div>
-
+          <h1 className="sr-only">Indique sus datos personales</h1>
           <form onSubmit={irAPaso2} noValidate>
-            <div className="field">
-              <label htmlFor="tipo_documento">Tipo de documento</label>
-              <select
-                id="tipo_documento"
-                value={form.tipo_documento}
-                onChange={(e) => actualizarCampo("tipo_documento", e.target.value)}
-              >
-                {TIPOS_DOCUMENTO.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="campos-dobles">
+              <div className="field">
+                <label htmlFor="tipo_documento">Tipo de documento</label>
+                <select
+                  id="tipo_documento"
+                  value={form.tipo_documento}
+                  onChange={(e) => actualizarCampo("tipo_documento", e.target.value)}
+                >
+                  {TIPOS_DOCUMENTO.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="field">
-              <label htmlFor="numero_documento">Número de documento</label>
-              <input
-                id="numero_documento"
-                type="text"
-                // Único caso con letras: el pasaporte (p. ej. AV123456).
-                // Los demás tipos de documento son siempre numéricos, así
-                // que ahí sí mostramos el teclado numérico en celular.
-                inputMode={form.tipo_documento === "pasaporte" ? "text" : "numeric"}
-                className={erroresCampo.numero_documento ? "has-error" : ""}
-                aria-invalid={Boolean(erroresCampo.numero_documento)}
-                value={form.numero_documento}
-                onChange={(e) => actualizarCampo("numero_documento", e.target.value)}
-                placeholder={form.tipo_documento === "pasaporte" ? "Ej. AV123456" : "Ej. 1038456210"}
-              />
-              {erroresCampo.numero_documento && (
-                <p className="field__error">{erroresCampo.numero_documento}</p>
-              )}
+              <div className="field">
+                <label htmlFor="numero_documento">Número de documento</label>
+                <input
+                  id="numero_documento"
+                  type="text"
+                  // Único caso con letras: el pasaporte (p. ej. AV123456).
+                  inputMode={form.tipo_documento === "pasaporte" ? "text" : "numeric"}
+                  className={erroresCampo.numero_documento ? "has-error" : ""}
+                  aria-invalid={Boolean(erroresCampo.numero_documento)}
+                  value={form.numero_documento}
+                  onChange={(e) => actualizarCampo("numero_documento", e.target.value)}
+                  placeholder={form.tipo_documento === "pasaporte" ? "Ej. AV123456" : "Ej. 1038456210"}
+                />
+                {erroresCampo.numero_documento && <p className="field__error">{erroresCampo.numero_documento}</p>}
+              </div>
             </div>
 
             <div className="field">
@@ -173,6 +236,7 @@ export default function RegistroPage() {
               <input
                 id="nombre"
                 type="text"
+                autoComplete="name"
                 className={erroresCampo.nombre ? "has-error" : ""}
                 aria-invalid={Boolean(erroresCampo.nombre)}
                 value={form.nombre}
@@ -187,18 +251,17 @@ export default function RegistroPage() {
                 id="telefono_whatsapp"
                 type="tel"
                 inputMode="numeric"
+                autoComplete="tel-national"
                 className={erroresCampo.telefono_whatsapp ? "has-error" : ""}
                 aria-invalid={Boolean(erroresCampo.telefono_whatsapp)}
                 value={form.telefono_whatsapp}
                 onChange={(e) => actualizarCampo("telefono_whatsapp", e.target.value)}
-                placeholder="3001234567"
+                placeholder="300 123 4567"
               />
               {erroresCampo.telefono_whatsapp ? (
                 <p className="field__error">{erroresCampo.telefono_whatsapp}</p>
               ) : (
-                <p className="field__hint">
-                  A este número se enviará el código para iniciar sesión.
-                </p>
+                <p className="field__hint">A este WhatsApp le enviaremos el código para entrar.</p>
               )}
             </div>
 
@@ -207,6 +270,7 @@ export default function RegistroPage() {
               <input
                 id="correo"
                 type="email"
+                autoComplete="email"
                 className={erroresCampo.correo ? "has-error" : ""}
                 aria-invalid={Boolean(erroresCampo.correo)}
                 value={form.correo}
@@ -224,12 +288,7 @@ export default function RegistroPage() {
 
       {paso === 2 && (
         <>
-          <div className="auth-card__header">
-            <p className="auth-card__eyebrow">Crear cuenta</p>
-            <h1>Su EPS y autorización</h1>
-            <p className="auth-card__lead">Último paso antes de crear su cuenta.</p>
-          </div>
-
+          <h1 className="sr-only">Su EPS y autorización</h1>
           <form onSubmit={enviarRegistro} noValidate>
             <div className="field">
               <label htmlFor="eps_id">Su EPS</label>
@@ -262,11 +321,7 @@ export default function RegistroPage() {
               />
               <label htmlFor="acepto_tratamiento_datos">
                 He leído y acepto el{" "}
-                <button
-                  type="button"
-                  className="link-inline"
-                  onClick={() => setModalTratamientoAbierto(true)}
-                >
+                <button type="button" className="link-inline" onClick={() => setModalTratamientoAbierto(true)}>
                   tratamiento de mis datos personales
                 </button>{" "}
                 por parte de SaludYA.
@@ -274,7 +329,7 @@ export default function RegistroPage() {
             </div>
             {!form.acepto_tratamiento_datos && (
               <p className="field__hint" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
-                Debes aceptarlo para poder crear la cuenta.
+                Debe aceptarlo para poder crear la cuenta.
               </p>
             )}
 
@@ -285,26 +340,27 @@ export default function RegistroPage() {
             >
               {cargando ? "Creando cuenta..." : "Crear mi cuenta"}
             </button>
-            <button
-              type="button"
-              className="btn btn--link"
-              onClick={() => setPaso(1)}
-              style={{ marginTop: "1rem" }}
-            >
-              ← Volver
-            </button>
+            <div className="auth-card__centro">
+              <button type="button" className="btn-volver" onClick={() => setPaso(1)}>
+                <span className="btn__circulo">
+                  <Chevron hacia="izquierda" />
+                </span>
+                Volver al paso anterior
+              </button>
+            </div>
           </form>
         </>
       )}
 
       {paso === 3 && resultado && (
-        <>
-          <div className="auth-card__header">
-            <h1>¡Registro exitoso, {form.nombre.split(" ")[0]}!</h1>
-            <p className="auth-card__lead">{resultado.mensaje}</p>
-          </div>
+        <div className="registro-exito">
+          <span className="registro-exito__check" aria-hidden="true">
+            ✓
+          </span>
+          <h1>¡Registro exitoso, {form.nombre.split(" ")[0]}!</h1>
+          <p className="auth-card__lead">{resultado.mensaje}</p>
 
-          <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <div className="registro-exito__datos">
             <div className="summary-row">
               <span className="summary-row__label">Documento</span>
               <span className="summary-row__value">{resultado.numero_documento}</span>
@@ -328,18 +384,10 @@ export default function RegistroPage() {
           <button className="btn btn--primary btn--block" onClick={() => navigate("/iniciar-sesion")}>
             Iniciar sesión
           </button>
-        </>
+        </div>
       )}
 
-      {paso < 3 && (
-        <p style={{ marginTop: "1.5rem", fontSize: "var(--text-sm)", textAlign: "center" }}>
-          ¿Ya tiene una cuenta? <Link to="/iniciar-sesion">Inicie sesión</Link>
-        </p>
-      )}
-
-      {modalTratamientoAbierto && (
-        <ModalTratamientoDatos onClose={() => setModalTratamientoAbierto(false)} />
-      )}
+      {modalTratamientoAbierto && <ModalTratamientoDatos onClose={() => setModalTratamientoAbierto(false)} />}
     </AuthShell>
   );
 }

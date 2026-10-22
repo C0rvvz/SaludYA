@@ -9,7 +9,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      # Solo desde este equipo: así nadie en la misma red (p. ej. el WiFi de
+      # la universidad) puede intentar conectarse a la base de datos.
+      - "127.0.0.1:5432:5432"
     volumes:
       - saludya_pgdata:/var/lib/postgresql/data
     healthcheck:

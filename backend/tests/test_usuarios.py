@@ -46,7 +46,7 @@ def test_cuenta_inactiva_no_inicia_sesion(cliente, fabrica, db):
 
 def test_crear_y_editar_usuarios(cliente, fabrica):
     admin = fabrica.personal()
-    nuevo = {"nombre": "Laura Call", "correo": "laura@saludya.co", "rol": "call_center", "password": "una-clave-larga"}
+    nuevo = {"nombre": "Laura Call", "correo": "laura@saludya.co", "rol": "call_center", "password": "una-clave-larga-2026"}
     r = cliente.post("/admin/usuarios", headers=encabezado(admin), json=nuevo)
     assert r.status_code == 201, r.text
     assert "gestionar_citas" in r.json()["permisos"]
@@ -57,10 +57,10 @@ def test_crear_y_editar_usuarios(cliente, fabrica):
 
     r = cliente.patch(
         f"/admin/usuarios/{r.json()['id']}", headers=encabezado(admin),
-        json={"nombre": "Laura Coordinadora", "rol": "coordinador_medico", "password": "otra-clave-larga"},
+        json={"nombre": "Laura Coordinadora", "rol": "coordinador_medico", "password": "otra-clave-larga-2026"},
     )
     assert r.json()["rol"] == "coordinador_medico"
-    assert _login(cliente, "laura@saludya.co", "otra-clave-larga").status_code == 200
+    assert _login(cliente, "laura@saludya.co", "otra-clave-larga-2026").status_code == 200
 
     lista = cliente.get("/admin/usuarios", headers=encabezado(admin)).json()
     assert "laura@saludya.co" in [u["correo"] for u in lista]

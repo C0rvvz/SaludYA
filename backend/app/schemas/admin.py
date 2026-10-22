@@ -47,7 +47,7 @@ class CrearPersonalRequest(BaseModel):
     nombre: str = Field(min_length=1, max_length=150)
     correo: EmailStr
     rol: RolPersonal
-    password: str = Field(min_length=10, max_length=200)
+    password: str = Field(min_length=12, max_length=128)
 
 
 class ActualizarPersonalRequest(BaseModel):
@@ -56,7 +56,7 @@ class ActualizarPersonalRequest(BaseModel):
     nombre: str | None = Field(default=None, min_length=1, max_length=150)
     rol: RolPersonal | None = None
     activo: bool | None = None
-    password: str | None = Field(default=None, min_length=10, max_length=200)
+    password: str | None = Field(default=None, min_length=12, max_length=128)
 
 
 # --- Gestión de citas (HU-34 a HU-43) ---
@@ -114,6 +114,9 @@ class CitaHistorialOut(BaseModel):
     id: uuid.UUID
     numero_comprobante: str | None
     especialidad: str
+    # Con el médico y la sede, dos citas del mismo día se distinguen a simple vista.
+    especialista: str
+    sede: str
     fecha: date
     hora: time
     estado_visible: EstadoVisible

@@ -9,6 +9,7 @@ window.scrollTo = () => {};
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear(); // ahí viven los tokens (utils/sesion.js)
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

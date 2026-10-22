@@ -67,8 +67,14 @@ function detalle(cambios = {}) {
     },
     motivo_cancelacion: null,
     historial_estado: [],
+    // Todas las citas del paciente, incluida la que se está viendo (ca-1).
     historial_asistencia: [
-      { id: "ca-0", fecha: "2026-09-01", especialidad: "Cardiología", estado_visible: "no_asistio", estado_texto: "No asistió" },
+      { id: "ca-1", fecha: "2026-10-20", hora: "08:00:00", especialidad: "Cardiología", especialista: "Dr. Carlos Ramírez",
+        sede: "Sede Poblado", estado_visible: "pendiente_confirmar", estado_texto: "Pendiente de confirmar asistencia" },
+      { id: "ca-0", fecha: "2026-09-01", hora: "10:00:00", especialidad: "Cardiología", especialista: "Dr. Carlos Ramírez",
+        sede: "Sede Poblado", estado_visible: "no_asistio", estado_texto: "No asistió" },
+      { id: "ca-5", fecha: "2026-09-01", hora: "15:00:00", especialidad: "Dermatología", especialista: "Dra. Ana Gómez",
+        sede: "Sede Laureles", estado_visible: "cancelada", estado_texto: "Cancelada" },
     ],
     resumen_asistencia: { atendidas: 1, no_asistio: 2, canceladas: 0, reprogramadas: 0 },
     recordatorios: [REGISTRO],
@@ -102,7 +108,7 @@ describe("Ingreso del personal", () => {
     await usuario.type(screen.getByLabelText("Contraseña"), "clave-correcta");
     await usuario.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByRole("heading", { name: "Gestión de citas" })).toBeInTheDocument();
-    expect(localStorage.getItem(TOKEN_PERSONAL)).toBe("tk-personal");
+    expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBe("tk-personal");
 
     const menu = screen.getByRole("navigation", { name: "Secciones de administración" });
     expect(within(menu).queryByText("Reportes")).not.toBeInTheDocument();
@@ -115,7 +121,7 @@ describe("Ingreso del personal", () => {
 
     await usuario.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     expect(await screen.findByRole("heading", { name: "Ingreso del personal de la EPS o IPS" })).toBeInTheDocument();
-    expect(localStorage.getItem(TOKEN_PERSONAL)).toBeNull();
+    expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBeNull();
   });
 
   it("con sesión activa, el ingreso redirige; sin permiso, la sección se bloquea", async () => {
@@ -139,7 +145,7 @@ describe("Ingreso del personal", () => {
     backendFalso({ "GET /admin/auth/me": error(401, "Su cuenta no está activa.") });
     abrir("/admin", { personal: true });
     expect(await screen.findByRole("heading", { name: "Ingreso del personal de la EPS o IPS" })).toBeInTheDocument();
-    expect(localStorage.getItem(TOKEN_PERSONAL)).toBeNull();
+    expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBeNull();
   });
 });
 
@@ -202,7 +208,13 @@ describe("Detalle de una cita para el personal", () => {
     expect(screen.getAllByText("Pendiente → Confirmada")).toHaveLength(2);
     expect(screen.getAllByText("“Sin señal”")).toHaveLength(2);
     expect(screen.getByText("No se han registrado llamadas.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Cardiología/ })).toHaveAttribute("href", "/admin/citas/ca-0");
+    // Historial: una fila por cita, con hora, médico y sede; la actual marcada y sin enlace.
+    const historial = screen.getByRole("table", { name: /Citas del paciente/ });
+    expect(within(historial).getAllByRole("row")).toHaveLength(4); // encabezado + 3 citas
+    expect(within(historial).getByText("Esta cita")).toBeInTheDocument();
+    expect(within(historial).getByRole("link", { name: "Cardiología" })).toHaveAttribute("href", "/admin/citas/ca-0");
+    expect(within(historial).getByRole("link", { name: "Dermatología" })).toHaveAttribute("href", "/admin/citas/ca-5");
+    expect(within(historial).getByText("Dra. Ana Gómez · Sede Laureles")).toBeInTheDocument();
   });
 
   it("confirmar, enviar recordatorio, llamar, cancelar y registrar la atención", async () => {
@@ -321,7 +333,7 @@ describe("Detalle de una cita para el personal", () => {
   it("recordatorio antiguo, única cita y cita inexistente", async () => {
     backendFalso({
       "GET /admin/citas/:id": detalle({
-        recordatorios: [], auditoria: [], historial_asistencia: [], riesgo: null,
+        recordatorios: [], auditoria: [], historial_asistencia: [detalle().historial_asistencia[0]], riesgo: null,
         recordatorio_enviado_en: "2026-09-30T08:00:00-05:00",
         paciente: { ...detalle().paciente, correo: "mario@correo.co", eps: null, tipo_documento: "otro" },
       }),

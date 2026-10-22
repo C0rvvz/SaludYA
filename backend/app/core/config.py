@@ -11,6 +11,7 @@ aquí mismo cuando lleguemos a las partes que las necesiten — no se
 agregan antes para no dejar configuración "muerta" sin usar.
 """
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +46,11 @@ class Settings(BaseSettings):
     # paciente. Cambiable con JWT_EXPIRE_MINUTES sin tocar código.
     jwt_secret: str
     jwt_expire_minutes: int = 60
+
+    # --- Sesiones (RNF-17 sesión única, RNF-24 inactividad) ---
+    # La sesión se cierra tras estos minutos sin ninguna actividad; el JWT
+    # además deja de servir a los jwt_expire_minutes aunque haya actividad.
+    sesion_inactividad_minutos: float = 2
 
     # --- Tareas en segundo plano (recordatorios HU-22, cierre de citas HU-25) ---
     tareas_periodicas_activas: bool = True
@@ -118,6 +124,18 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def es_desarrollo(self) -> bool:
+        return self.app_env == "development"
+
+    @model_validator(mode="after")
+    def _llave_jwt_robusta(self) -> "Settings":
+        # Con una llave corta se pueden adivinar (y falsificar) los tokens a
+        # fuerza bruta. Fuera de desarrollo, la API no arranca con una débil.
+        if not self.es_desarrollo and len(self.jwt_secret) < 32:
+            raise ValueError("JWT_SECRET debe tener al menos 32 caracteres fuera de desarrollo.")
+        return self
 
 
 settings = Settings()

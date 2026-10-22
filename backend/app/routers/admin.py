@@ -6,6 +6,7 @@ permiso de su rol (core/permisos.py); cada acción queda en la auditoría.
 
 Cuentas
   POST  /admin/auth/login                 inicio de sesión del personal
+  POST  /admin/auth/salir                 cierra la sesión en el servidor
   GET   /admin/auth/me
   GET   /admin/usuarios                   (administrador)
   POST  /admin/usuarios                   (administrador)
@@ -56,12 +57,14 @@ import uuid
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core import limite_intentos
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_current_personal, requiere
+from app.core.dependencies import get_current_personal, requiere, sesion_del_personal
+from app.core.limite_intentos import ip_de, limitar
 from app.core.permisos import NOMBRE_ROL, PERMISOS_POR_ROL, Permiso
 from app.core.security import TIPO_PERSONAL, crear_access_token
 from app.models.auditoria import RegistroAuditoria
@@ -69,6 +72,7 @@ from app.models.cita import Cita, EstadoCita
 from app.models.observacion import Observacion
 from app.models.paciente import Paciente
 from app.models.personal import Personal
+from app.models.sesion import Sesion
 from app.repositories import (
     auditoria_repository,
     cita_repository,
@@ -130,6 +134,7 @@ from app.services import (
     recordatorios_service,
     reportes_service,
     riesgo_service,
+    sesion_service,
     solicitudes_service,
 )
 from app.services.auditoria_service import Actor
@@ -271,6 +276,8 @@ def _historial_out(c: Cita) -> CitaHistorialOut:
         id=c.id,
         numero_comprobante=c.numero_comprobante,
         especialidad=c.disponibilidad.especialista.especialidad.nombre,
+        especialista=c.disponibilidad.especialista.nombre,
+        sede=c.disponibilidad.sede.nombre,
         fecha=c.disponibilidad.fecha,
         hora=c.disponibilidad.hora,
         estado_visible=citas_service.estado_visible(c),
@@ -296,14 +303,14 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
     paciente = cita.paciente
     auditoria = [_registro_out(r) for r in auditoria_repository.listar(db, cita_id=cita.id)]
 
-    anteriores = [c for c in reversed(historial) if c.id != cita.id]
-
     return CitaAdminDetalleOut(
         **_campos_cita(cita, personal, historial),
         paciente=_paciente_detalle(paciente),
         motivo_cancelacion=cita.motivo_cancelacion,
         historial_estado=citas_service.historial_de_estado(cita),
-        historial_asistencia=[_historial_out(c) for c in anteriores],
+        # Todas las citas del paciente, incluida esta (la pantalla la marca):
+        # así la lista no cambia al pasar de una cita a otra.
+        historial_asistencia=[_historial_out(c) for c in reversed(historial)],
         resumen_asistencia=_resumen_asistencia(historial),
         recordatorios=[r for r in auditoria if r.accion in ("recordatorio", "recordatorio_fallido")],
         contactos=[r for r in auditoria if r.accion == "contacto"],
@@ -317,8 +324,12 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
 # --- Cuentas del personal ---
 
 
-@router.post("/auth/login", response_model=LoginPersonalResponse)
-def iniciar_sesion(datos: LoginPersonalRequest, db: Session = Depends(get_db)):
+@router.post(
+    "/auth/login",
+    response_model=LoginPersonalResponse,
+    dependencies=[Depends(limitar(limite_intentos.INGRESO_PERSONAL))],
+)
+def iniciar_sesion(datos: LoginPersonalRequest, request: Request, db: Session = Depends(get_db)):
     try:
         personal = personal_service.autenticar(db, datos.correo, datos.password)
     except CredencialesInvalidasError as e:
@@ -326,7 +337,11 @@ def iniciar_sesion(datos: LoginPersonalRequest, db: Session = Depends(get_db)):
     except CuentaBloqueadaError as e:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
-    token, _ = crear_access_token(personal.id, rol=personal.rol.value, tipo=TIPO_PERSONAL)
+    # RNF-17: la sesión nueva cierra cualquier otra abierta de esta cuenta.
+    sesion = sesion_service.abrir(
+        db, TIPO_PERSONAL, personal.id, ip_de(request), request.headers.get("user-agent")
+    )
+    token, _ = crear_access_token(personal.id, sesion.id, rol=personal.rol.value, tipo=TIPO_PERSONAL)
     return LoginPersonalResponse(
         access_token=token,
         expira_en_minutos=settings.jwt_expire_minutes,
@@ -334,8 +349,15 @@ def iniciar_sesion(datos: LoginPersonalRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/auth/salir", status_code=status.HTTP_204_NO_CONTENT)
+def salir(sesion: Sesion = Depends(sesion_del_personal), db: Session = Depends(get_db)):
+    """Cierra la sesión en el servidor: el token deja de servir aunque alguien lo haya copiado."""
+    sesion_service.cerrar(db, sesion.id)
+
+
 @router.get("/auth/me", response_model=PersonalOut)
 def personal_actual(personal: Personal = Depends(get_current_personal)):
+    """También mantiene la sesión activa mientras hay actividad en la página (RNF-24)."""
     return _personal_out(personal)
 
 

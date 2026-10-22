@@ -19,7 +19,10 @@ def test_detalle_con_historial_riesgo_y_acciones_segun_el_rol(cliente, fabrica):
     r = cliente.get(f"/admin/citas/{cita.id}", headers=encabezado(agendamiento))
     assert r.status_code == 200, r.text
     detalle = r.json()
-    assert len(detalle["historial_asistencia"]) == 2  # HU-35, criterio 1
+    historial = detalle["historial_asistencia"]  # HU-35, criterio 1
+    assert len(historial) == 3  # las 2 anteriores y esta misma, que la pantalla marca
+    assert str(cita.id) in {h["id"] for h in historial}
+    assert all(h["especialista"] and h["sede"] for h in historial)
     assert detalle["resumen_asistencia"]["no_asistio"] == 2  # HU-35, criterio 3
     assert detalle["riesgo"] is not None  # HU-46: riesgo por sus inasistencias
     acciones = detalle["acciones"]  # HU-43, criterio 2

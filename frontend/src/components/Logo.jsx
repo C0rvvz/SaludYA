@@ -1,10 +1,19 @@
-export default function Logo({ size = "md" }) {
-  const dims = size === "sm" ? 30 : 36;
+import { Link } from "react-router-dom";
 
-  return (
-    <span className={`logo logo--${size}`}>
+/**
+ * Logo de SaludYA. Con `to`, es un enlace al inicio de quien lo ve (como
+ * en la mayoría de páginas web): la búsqueda de citas para el paciente y
+ * la gestión de citas para el personal.
+ */
+const MEDIDAS = { sm: 30, md: 36, lg: 44 };
+
+export default function Logo({ size = "md", to }) {
+  const dims = MEDIDAS[size] ?? MEDIDAS.md;
+
+  const contenido = (
+    <>
       <span className="logo__mark" style={{ width: dims, height: dims }}>
-        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none">
+        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none" aria-hidden="true">
           <path
             d="M2 12h4l2-7 4 14 2-7h8"
             stroke="white"
@@ -17,6 +26,15 @@ export default function Logo({ size = "md" }) {
       <span className="logo__text">
         Salud<span className="logo__accent">YA</span>
       </span>
-    </span>
+    </>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className={`logo logo--${size}`} aria-label="SaludYA, ir al inicio">
+        {contenido}
+      </Link>
+    );
+  }
+  return <span className={`logo logo--${size}`}>{contenido}</span>;
 }

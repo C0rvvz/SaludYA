@@ -1,154 +1,234 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { buscarDisponibilidad, listarSedes } from "../api/catalogo";
+import CarruselCupos from "../components/inicio/CarruselCupos";
 import Logo from "../components/Logo";
-import { buscarDisponibilidad } from "../api/catalogo";
-import { formatearFecha, formatearHora, capitalizar } from "../utils/formato";
+import { useAuth } from "../context/AuthContext";
+import { FOTO_INICIO, proximosCupos } from "../utils/inicio";
+import "../styles/inicio.css";
+
+/**
+ * Home público (rediseño 2a, "Casa de hormigón": gris frío, azul marino y
+ * formas suaves). Pensado para adultos mayores: letra grande, botones de al
+ * menos 44 px y pocas opciones. Los "próximos cupos" son horarios reales de
+ * la API. "Sedes" y "Ayuda" del menú llevan a sus secciones al final.
+ */
+
+const BURBUJAS = [
+  { etiqueta: "Aa · Lectura", titulo: "Letra grande", texto: "Cada pantalla se lee sin esfuerzo, sin importar la edad." },
+  { etiqueta: "WhatsApp", titulo: "Sin contraseñas", texto: "Su cédula y un código por WhatsApp. Nada que anotar.", oscura: true },
+  { etiqueta: "Paso a paso", titulo: "Un paso a la vez", texto: "Una sola pregunta por pantalla, sin prisa." },
+];
 
 const PASOS = [
+  { numero: "01", titulo: "Regístrese", texto: "Documento, WhatsApp y EPS. Nada más." },
+  { numero: "02", titulo: "Reciba su código", texto: "Llega a su WhatsApp. Sin contraseñas." },
+  { numero: "03", titulo: "Elija especialista", texto: "Una pregunta a la vez: especialidad, día, hora." },
+  { numero: "04", titulo: "Listo", texto: "Comprobante inmediato y recordatorio." },
+];
+
+const PREGUNTAS = [
   {
-    numero: 1,
-    titulo: "Regístrese en segundos",
-    texto: "Su documento, su WhatsApp y su EPS, nada más.",
+    pregunta: "¿Necesito una contraseña?",
+    respuesta:
+      "No. Ingresa con su número de documento y un código de 6 dígitos que le llega por WhatsApp. El código vence a los 5 minutos.",
   },
   {
-    numero: 2,
-    titulo: "Verifique su identidad",
-    texto: "Recibirá un código por WhatsApp. Sin contraseñas que memorizar.",
+    pregunta: "¿Cómo cambio o cancelo una cita?",
+    respuesta:
+      "En “Mis citas”, toque la cita y elija “Reprogramar” o “Cancelar”. Así el horario queda libre para otra persona.",
   },
   {
-    numero: 3,
-    titulo: "Busque su especialista",
-    texto: "Filtre por especialidad, sede, modalidad y horario disponible.",
+    pregunta: "¿Y si ningún horario me sirve?",
+    respuesta:
+      "Puede pedir que le avisemos cuando se libere un cupo, o escribir una carta pidiendo una cita en otra fecha.",
   },
   {
-    numero: 4,
-    titulo: "Confirme y listo",
-    texto: "Su cita queda registrada de inmediato, con comprobante incluido.",
+    pregunta: "¿Por qué se cerró mi sesión?",
+    respuesta:
+      "Por su seguridad, la sesión se cierra después de 2 minutos sin actividad o si ingresa desde otro equipo. Solo vuelva a ingresar.",
   },
 ];
 
-const ACCESIBILIDAD = [
-  {
-    icono: "Aa",
-    titulo: "Textos grandes y claros",
-    texto: "Cada pantalla está diseñada para leerse sin esfuerzo, sin importar la edad.",
-  },
-  {
-    icono: "🔒",
-    titulo: "Sin contraseñas que recordar",
-    texto: "El acceso se realiza con su documento y un código enviado por WhatsApp, sin nada que anotar ni olvidar.",
-  },
-  {
-    icono: "①",
-    titulo: "Un paso a la vez",
-    texto: "Cada formulario avanza de forma gradual, sin presentar toda la información a la vez.",
-  },
-];
+function FlechaDerecha() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path d="M5 12h13M13 6.5 18.5 12 13 17.5" stroke="#0e1f39" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function HomePage() {
-  // Franja de disponibilidad REAL, sacada en vivo del backend -- no
-  // es un dato inventado para el mockup. Este endpoint es público
-  // (no requiere sesión), así que se puede mostrar desde el Home.
-  const [ejemplo, setEjemplo] = useState(null);
+  const { estaAutenticado } = useAuth();
+  const { hash } = useLocation();
+  const [cupos, setCupos] = useState(null); // null mientras carga
+  const [sedes, setSedes] = useState([]);
 
+  // Desde otra página (p. ej. "¿Problemas para entrar?" lleva a /#ayuda): ir a esa sección.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+
+  // Estos endpoints son públicos (no requieren sesión).
   useEffect(() => {
     buscarDisponibilidad({})
-      .then((resultados) => setEjemplo(resultados[0] ?? null))
-      .catch(() => setEjemplo(null));
+      .then((franjas) => setCupos(proximosCupos(franjas)))
+      .catch(() => setCupos([]));
+    listarSedes()
+      .then(setSedes)
+      .catch(() => setSedes([]));
   }, []);
 
+  // Con sesión, agendar lleva directo a la búsqueda de citas.
+  const agendar = estaAutenticado ? "/panel" : "/registrarse";
+
   return (
-    <div>
-      <header className="site-header">
-        <div>
-          <Logo />
-          <p className="site-header__tagline">
-            Agende, confirme y dé seguimiento a sus citas médicas sin filas ni
-            llamadas.
-          </p>
+    <div className="inicio">
+      <header className="inicio-cabecera">
+        <div className="inicio-contenedor inicio-cabecera__fila">
+          <Logo to="/" />
+          <nav className="inicio-menu" aria-label="Secciones">
+            <a href="#como-funciona">Cómo funciona</a>
+            <a href="#sedes">Sedes</a>
+            <a href="#ayuda">Ayuda</a>
+          </nav>
+          <div className="inicio-cabecera__acciones">
+            <Link to="/iniciar-sesion" className="inicio-boton inicio-boton--borde" style={{ "--retraso": "1.2s" }}>
+              Iniciar sesión
+            </Link>
+            <Link to={agendar} className="inicio-boton inicio-boton--oscuro">
+              Agendar cita
+            </Link>
+          </div>
         </div>
-        <nav className="site-header__nav">
-          <Link to="/iniciar-sesion" className="btn btn--outline">
-            Iniciar sesión
-          </Link>
-          <Link to="/registrarse" className="btn btn--primary">
-            Registrarse
-          </Link>
-        </nav>
       </header>
 
-      <section className="hero">
-        <div>
-          <span className="hero__eyebrow">✨ Su cita médica, sin complicaciones</span>
-          <h1>Su cita médica, sin filas ni esperas prolongadas</h1>
-          <p className="hero__lead">
-            Busque especialista, elija sede y horario, y confirme. Todo desde
-            su celular, con el código de acceso enviado directamente a su
-            WhatsApp.
-          </p>
-        </div>
-
-        {ejemplo && (
-          <div className="appointment-preview">
-            <div className="appointment-preview__top">
-              <span className="appointment-preview__title">
-                {ejemplo.especialista.especialidad.nombre} · {ejemplo.especialista.nombre}
-              </span>
-              <span className="badge badge--success">Disponible</span>
+      <main>
+        <section className="inicio-contenedor inicio-hero">
+          <div className="inicio-hero__texto">
+            <span className="inicio-ceja">EPS, IPS y médicos particulares · Todo en un solo lugar</span>
+            <h1>Su cita médica, sin filas ni llamadas.</h1>
+            <p className="inicio-hero__lead">
+              Elija especialista, sede y horario. Le confirmamos todo por WhatsApp, con un código: sin contraseñas.
+            </p>
+            <div className="inicio-hero__acciones">
+              <Link to={agendar} className="inicio-boton inicio-boton--oscuro inicio-boton--grande" style={{ "--retraso": "2.4s" }}>
+                Agendar una cita
+                <span className="inicio-boton__flecha">
+                  <FlechaDerecha />
+                </span>
+              </Link>
+              <Link
+                to="/iniciar-sesion"
+                className="inicio-boton inicio-boton--borde inicio-boton--grande"
+                style={{ "--retraso": "3.2s" }}
+              >
+                Ya tengo cuenta
+              </Link>
             </div>
-            <div className="appointment-preview__row">
-              <span>
-                {formatearFecha(ejemplo.fecha)} · {formatearHora(ejemplo.hora)}
-              </span>
-              <span>{ejemplo.sede.nombre}</span>
-            </div>
-            <div className="appointment-preview__reminder">
-              <span>Modalidad</span>
-              <span>{capitalizar(ejemplo.modalidad)}</span>
-            </div>
+            <p className="inicio-nota">
+              <span className="inicio-nota__punto" aria-hidden="true" />
+              Ingrese con su cédula y el código que llega a su WhatsApp
+            </p>
           </div>
-        )}
-      </section>
 
-      <section className="section">
-        <h2>Así de sencillo funciona</h2>
-        <p className="section__lead">
-          Cuatro pasos entre la búsqueda del especialista y la confirmación de
-          la cita.
-        </p>
-        <div className="grid-4">
-          {PASOS.map((paso) => (
-            <div className="info-card" key={paso.numero}>
-              <span className="info-card__number">{paso.numero}</span>
-              <h3>{paso.titulo}</h3>
-              <p>{paso.texto}</p>
-            </div>
-          ))}
+          <div className="inicio-hero__visual">
+            {cupos?.length ? (
+              <CarruselCupos cupos={cupos} />
+            ) : (
+              // Sin horarios (o sin conexión) no se anuncia ningún cupo: solo la foto.
+              <div className="inicio-carrusel">
+                <div className="inicio-carrusel__fotos">
+                  {cupos && <img src={FOTO_INICIO} alt="" className="is-activa" referrerPolicy="no-referrer" />}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="inicio-contenedor inicio-personas" aria-labelledby="titulo-personas">
+          <div className="inicio-personas__texto">
+            <h2 id="titulo-personas">Pensado para todas las personas</h2>
+            <p>Incluidas las que no usan aplicaciones con frecuencia.</p>
+          </div>
+          <ul className="inicio-burbujas">
+            {BURBUJAS.map((b) => (
+              <li key={b.titulo} className="inicio-burbujas__item">
+                <div className={`inicio-burbuja ${b.oscura ? "inicio-burbuja--oscura" : ""}`}>
+                  <span className="inicio-burbuja__etiqueta">{b.etiqueta}</span>
+                  <p className="inicio-burbuja__titulo">{b.titulo}</p>
+                  <p className="inicio-burbuja__texto">{b.texto}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section id="como-funciona" className="inicio-banda" aria-labelledby="titulo-pasos">
+          <div className="inicio-contenedor">
+            <h2 id="titulo-pasos">Así de sencillo</h2>
+            <ol className="inicio-pasos">
+              {PASOS.map((p) => (
+                <li key={p.numero} className="inicio-paso">
+                  <span className="inicio-paso__numero" aria-hidden="true">
+                    {p.numero}
+                  </span>
+                  <p className="inicio-paso__titulo">{p.titulo}</p>
+                  <p className="inicio-paso__texto">{p.texto}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section id="sedes" className="inicio-contenedor inicio-seccion" aria-labelledby="titulo-sedes">
+          <h2 id="titulo-sedes">Sedes</h2>
+          <p className="inicio-seccion__lead">Donde puede atenderse en persona. Muchas citas también son virtuales.</p>
+          {sedes.length > 0 ? (
+            <ul className="inicio-sedes">
+              {sedes.map((s) => (
+                <li key={s.id} className="inicio-sede">
+                  <span className="inicio-sede__nombre">{s.nombre}</span>
+                  <span className="inicio-sede__ciudad">{s.ciudad}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="inicio-seccion__lead">Las sedes se muestran al elegir la especialidad.</p>
+          )}
+        </section>
+
+        <section id="ayuda" className="inicio-contenedor inicio-seccion" aria-labelledby="titulo-ayuda">
+          <h2 id="titulo-ayuda">Ayuda</h2>
+          <div className="inicio-preguntas">
+            {PREGUNTAS.map((p) => (
+              <details key={p.pregunta} className="inicio-pregunta">
+                <summary>{p.pregunta}</summary>
+                <p>{p.respuesta}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer className="inicio-pie">
+        <div className="inicio-contenedor inicio-pie__fila">
+          <span className="inicio-pie__marca">
+            <span className="inicio-pie__logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none">
+                <path d="M2 12h4l2-7 4 14 2-7h8" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            © 2026 SaludYA · Proyecto universitario con datos ficticios
+          </span>
+          <Link to="/admin/ingresar" className="inicio-pie__personal">
+            <span className="inicio-pie__punto" aria-hidden="true" />
+            Acceso para personal de la EPS o IPS
+            <span className="inicio-pie__flecha" aria-hidden="true">
+              →
+            </span>
+          </Link>
         </div>
-      </section>
-
-      <section className="section">
-        <h2>Pensado para todas las personas</h2>
-        <p className="section__lead">
-          Incluidas las personas que no utilizan aplicaciones con frecuencia.
-        </p>
-        <div className="grid-3">
-          {ACCESIBILIDAD.map((item) => (
-            <div className="info-card" key={item.titulo}>
-              <span className="info-card__icon">{item.icono}</span>
-              <h3>{item.titulo}</h3>
-              <p>{item.texto}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <footer className="site-footer">
-        <span>SaludYA: proyecto universitario. Datos e instituciones ficticios con fines académicos.</span>
-        <Link to="/admin/ingresar" className="link-inline">
-          Acceso para personal de la EPS o IPS
-        </Link>
-        <span>© 2026 SaludYA</span>
       </footer>
     </div>
   );

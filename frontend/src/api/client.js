@@ -1,3 +1,5 @@
+import { avisarSesionCerrada, borrarToken, leerToken, marcarActividad } from "../utils/sesion";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 export class ApiError extends Error {
@@ -22,15 +24,9 @@ function extraerMensaje(payload) {
 
 // Sesiones separadas: la del paciente y la del personal (apartado de
 // administración) nunca se mezclan; el backend rechaza el token del otro lado.
-export const TOKEN_PACIENTE = "saludya_token";
-export const TOKEN_PERSONAL = "saludya_personal_token";
+// Dónde y cómo se guardan: utils/sesion.js.
+export { TOKEN_PACIENTE, TOKEN_PERSONAL } from "../utils/sesion";
 
-/**
- * Llama al backend. `auth: true` agrega el header Authorization con
- * el token del paciente (lo necesitan todos los endpoints protegidos a
- * partir de la Parte 6 del backend: /auth/paciente/me, /citas, etc.).
- * `auth: "personal"` usa el token del personal (/admin/...).
- */
 /** "/ruta?clave=valor&...", solo con los filtros que tienen valor. */
 export function conFiltros(path, filtros = {}) {
   const params = new URLSearchParams();
@@ -41,13 +37,22 @@ export function conFiltros(path, filtros = {}) {
   return query ? path + "?" + query : path;
 }
 
-export async function apiFetch(path, { method = "GET", body, auth } = {}) {
+/**
+ * Llama al backend. `auth: true` agrega el header Authorization con
+ * el token del paciente (lo necesitan todos los endpoints protegidos:
+ * /auth/paciente/me, /citas, etc.). `auth: "personal"` usa el token del
+ * personal (/admin/...). Si el servidor rechaza la sesión (401), se avisa
+ * para cerrarla en esta pestaña y mostrar el motivo al volver a ingresar.
+ *
+ * `token`: para cerrar sesión con un token que ya se quitó de la pestaña.
+ */
+export async function apiFetch(path, { method = "GET", body, auth, token: tokenExplicito } = {}) {
   const headers = { "Content-Type": "application/json" };
+  const tipo = auth === "personal" ? "personal" : "paciente";
+  const conSesion = Boolean(auth) && Boolean(leerToken(tipo));
 
-  if (auth) {
-    const token = localStorage.getItem(auth === "personal" ? TOKEN_PERSONAL : TOKEN_PACIENTE);
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
+  if (conSesion) headers.Authorization = `Bearer ${leerToken(tipo)}`;
+  else if (tokenExplicito) headers.Authorization = `Bearer ${tokenExplicito}`;
 
   let response;
   try {
@@ -81,8 +86,14 @@ export async function apiFetch(path, { method = "GET", body, auth } = {}) {
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, extraerMensaje(payload));
+    const mensaje = extraerMensaje(payload);
+    if (conSesion && response.status === 401) {
+      borrarToken(tipo);
+      avisarSesionCerrada(tipo, mensaje);
+    }
+    throw new ApiError(response.status, mensaje);
   }
 
+  if (conSesion) marcarActividad(tipo);
   return payload;
 }

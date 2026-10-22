@@ -2,16 +2,22 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { usePersonal } from "../../context/personal";
 import Logo from "../Logo";
 
-// Solo aparecen las secciones que el rol puede usar.
+// Solo aparecen las secciones que el rol puede usar. Cada una dice debajo,
+// en pocas palabras, para qué sirve: nadie tiene que entrar a adivinarlo.
 const SECCIONES = [
-  { to: "/admin/dashboard", texto: "Dashboard", permiso: "ver_reportes" },
-  { to: "/admin/reportes", texto: "Reportes", permiso: "ver_reportes" },
-  { to: "/admin/citas", texto: "Gestión de citas", permiso: "ver_citas" },
-  { to: "/admin/recordatorios", texto: "Centro de recordatorios", permiso: "gestionar_citas" },
-  { to: "/admin/lista-espera", texto: "Lista de espera", permiso: "ver_citas" },
-  { to: "/admin/solicitudes", texto: "Solicitudes", permiso: "ver_citas" },
-  { to: "/admin/auditoria", texto: "Auditoría", permiso: "ver_auditoria" },
-  { to: "/admin/usuarios", texto: "Usuarios", permiso: "gestionar_usuarios" },
+  { to: "/admin/dashboard", texto: "Dashboard", ayuda: "Cifras de hoy y del mes", permiso: "ver_reportes" },
+  { to: "/admin/reportes", texto: "Reportes", ayuda: "Indicadores por periodo", permiso: "ver_reportes" },
+  { to: "/admin/citas", texto: "Gestión de citas", ayuda: "Buscar y atender las citas", permiso: "ver_citas" },
+  {
+    to: "/admin/recordatorios",
+    texto: "Centro de recordatorios",
+    ayuda: "Avisos y llamadas a pacientes",
+    permiso: "gestionar_citas",
+  },
+  { to: "/admin/lista-espera", texto: "Lista de espera", ayuda: "Pacientes esperando un cupo", permiso: "ver_citas" },
+  { to: "/admin/solicitudes", texto: "Cartas y peticiones", ayuda: "Lo que piden por escrito", permiso: "ver_citas" },
+  { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Quién hizo qué y cuándo", permiso: "ver_auditoria" },
+  { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];
 
 /** Estructura del apartado de administración: menú lateral y contenido. */
@@ -27,7 +33,7 @@ export default function AdminLayout() {
   return (
     <div className="admin">
       <aside className="admin-sidebar">
-        <Logo />
+        <Logo to="/admin/citas" />
         <div className="admin-sidebar__usuario">
           <strong>{personal.nombre}</strong>
           <span className="admin-sidebar__rol">{personal.rol_texto}</span>
@@ -40,7 +46,8 @@ export default function AdminLayout() {
               to={s.to}
               className={({ isActive }) => `admin-nav__enlace ${isActive ? "is-active" : ""}`}
             >
-              {s.texto}
+              <span>{s.texto}</span>
+              <span className="admin-nav__ayuda">{s.ayuda}</span>
             </NavLink>
           ))}
         </nav>

@@ -60,6 +60,25 @@ export function formatearFechaHora(fechaHoraIso) {
   }).format(new Date(fechaHoraIso));
 }
 
+// La fecha y la hora de un evento por separado, para las tablas: "20 oct 2026" y "12:44 p. m."
+export function formatearSoloFecha(fechaHoraIso) {
+  return new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", year: "numeric" }).format(
+    new Date(fechaHoraIso)
+  );
+}
+
+export function formatearSoloHora(fechaHoraIso) {
+  return new Intl.DateTimeFormat("es-CO", { hour: "numeric", minute: "2-digit", hour12: true }).format(
+    new Date(fechaHoraIso)
+  );
+}
+
+// Los mensajes llevan enlaces con un token muy largo que no se lee y desborda
+// las tablas; en pantalla basta con saber que el mensaje trae un enlace.
+export function ocultarEnlaces(texto) {
+  return texto.replace(/https?:\/\/\S+/g, "[enlace]");
+}
+
 export function capitalizar(texto) {
   if (!texto) return texto;
   return texto.charAt(0).toUpperCase() + texto.slice(1);

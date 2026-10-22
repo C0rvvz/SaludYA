@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import AyudaApartado from "../components/AyudaApartado";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
 import { listarEspecialidades, listarEspecialistas } from "../api/catalogo";
 import {
@@ -15,7 +16,8 @@ import { formatearFechaHora, formatearFechaLarga, formatearHora } from "../utils
 /**
  * Lista de espera — HU-19 (posición), HU-31 (cupo liberado) y HU-32
  * (aceptarlo o rechazarlo). El paciente se une con sus preferencias y
- * aquí ve su lugar en la fila y el cupo que se le ofrece.
+ * aquí ve su lugar en la fila y el cupo que se le ofrece. En el menú se
+ * llama "Esperar un cupo": "lista de espera" no decía para qué servía.
  */
 
 const JORNADAS = [
@@ -281,8 +283,14 @@ export default function ListaEsperaPage() {
       <EncabezadoPaciente />
 
       <div className="section lista-espera">
-        <h1 style={{ fontSize: "var(--text-xl)" }}>Lista de espera</h1>
-        <p>Si no encuentra un horario que le sirva, le avisamos cuando se libere un cupo.</p>
+        <h1 style={{ fontSize: "var(--text-xl)" }}>Esperar un cupo</h1>
+        <AyudaApartado>
+          <ul>
+            <li>Si ningún horario le sirve, anótese aquí en la lista de espera de la especialidad que necesita.</li>
+            <li>Cuando otro paciente cancele una cita que le sirva, le avisamos por el medio que elija.</li>
+            <li>Le guardamos ese cupo un tiempo para que usted lo acepte o lo rechace. Si lo rechaza, sigue en la lista.</li>
+          </ul>
+        </AyudaApartado>
 
         {aviso && <div className="alert alert--success">{aviso}</div>}
         {error && <div className="alert alert--error">{error}</div>}

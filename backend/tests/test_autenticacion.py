@@ -32,7 +32,8 @@ def test_registro_e_ingreso_completo(cliente, fabrica, db):
 
     r = cliente.post("/auth/paciente/identificar", json={"numero_documento": "1098765432"})
     assert r.status_code == 200
-    assert r.json()["nombre"] == "Laura Gómez"
+    # Sin el nombre: si no, cualquiera vería el nombre de quien tenga ese documento.
+    assert "Laura" not in r.text
 
     r = cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": "1098765432"})
     assert r.status_code == 201
@@ -46,6 +47,7 @@ def test_registro_e_ingreso_completo(cliente, fabrica, db):
     r = cliente.get("/auth/paciente/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert r.json()["numero_documento"] == "1098765432"
+    assert r.json()["eps"] == fabrica.eps.nombre  # el encabezado muestra la EPS
 
 
 def test_codigo_incorrecto_no_da_acceso(cliente, fabrica, db):

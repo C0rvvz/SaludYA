@@ -5,25 +5,32 @@ HU-01: POST /auth/paciente/identificar
 HU-02: POST /auth/paciente/otp/enviar
 HU-03: POST /auth/paciente/otp/validar  (ahora emite el JWT)
 HU-04: POST /auth/paciente/otp/reenviar
+RNF-17: POST /auth/paciente/salir        cierra la sesión en el servidor
 
 En modo demostración (WhatsApp simulado y entorno de desarrollo),
 enviar y reenviar también devuelven el código en `codigo_demo`, para
 que la pantalla de ingreso lo muestre.
 
-Endpoint de prueba (no corresponde a ninguna HU por sí solo, sirve
-para verificar que el JWT funciona antes de construir la Parte 7):
-GET /auth/paciente/me
+Seguridad: cada conexión (IP) tiene un límite de intentos (ver
+core/limite_intentos.py) y el token pertenece a una sesión del servidor
+(RNF-17, RNF-24).
+
+GET /auth/paciente/me: datos del paciente de la sesión; el frontend
+también lo usa para mantener la sesión activa mientras hay actividad.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core import limite_intentos
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_current_paciente
-from app.core.security import crear_access_token
+from app.core.dependencies import get_current_paciente, sesion_del_paciente
+from app.core.limite_intentos import ip_de, limitar
+from app.core.security import TIPO_PACIENTE, crear_access_token
 from app.models.codigo_otp import CodigoOTP
 from app.models.paciente import Paciente
+from app.models.sesion import Sesion
 from app.schemas.auth import (
     EnviarOTPRequest,
     EnviarOTPResponse,
@@ -35,7 +42,7 @@ from app.schemas.auth import (
     ValidarOTPRequest,
     ValidarOTPResponse,
 )
-from app.services import auth_service
+from app.services import auth_service, sesion_service
 from app.services.exceptions import (
     OtpExpiradoError,
     OtpIncorrectoError,
@@ -46,6 +53,8 @@ from app.services.exceptions import (
 )
 
 router = APIRouter(prefix="/auth/paciente", tags=["Autenticación"])
+
+_LIMITE_INGRESO = Depends(limitar(limite_intentos.INGRESO_PACIENTE))
 
 
 def _codigo_demo(otp: CodigoOTP) -> str | None:
@@ -58,22 +67,26 @@ def _enmascarar_telefono(telefono: str) -> str:
     return f"******{telefono[-4:]}"
 
 
-@router.post("/identificar", response_model=IdentificarPacienteResponse)
+@router.post(
+    "/identificar",
+    response_model=IdentificarPacienteResponse,
+    # Más estricto: con muchos intentos se podría averiguar qué documentos están registrados.
+    dependencies=[Depends(limitar(limite_intentos.IDENTIFICAR_PACIENTE, limite_intentos.INGRESO_PACIENTE))],
+)
 def identificar_paciente(datos: IdentificarPacienteRequest, db: Session = Depends(get_db)):
     try:
-        paciente = auth_service.identificar_paciente(db, datos.numero_documento)
+        auth_service.identificar_paciente(db, datos.numero_documento)
     except PacienteNoRegistradoError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    return IdentificarPacienteResponse(
-        registrado=True,
-        nombre=paciente.nombre,
-        mensaje=f"Bienvenido de nuevo, {paciente.nombre}.",
-    )
+    return IdentificarPacienteResponse(registrado=True, mensaje="Documento registrado.")
 
 
 @router.post(
-    "/otp/enviar", response_model=EnviarOTPResponse, status_code=status.HTTP_201_CREATED
+    "/otp/enviar",
+    response_model=EnviarOTPResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[_LIMITE_INGRESO],
 )
 def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
     try:
@@ -92,8 +105,8 @@ def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/otp/validar", response_model=ValidarOTPResponse)
-def validar_otp(datos: ValidarOTPRequest, db: Session = Depends(get_db)):
+@router.post("/otp/validar", response_model=ValidarOTPResponse, dependencies=[_LIMITE_INGRESO])
+def validar_otp(datos: ValidarOTPRequest, request: Request, db: Session = Depends(get_db)):
     try:
         paciente = auth_service.validar_codigo(db, datos.numero_documento, datos.codigo)
     except PacienteNoRegistradoError as e:
@@ -108,7 +121,11 @@ def validar_otp(datos: ValidarOTPRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
     # --- HU-03, criterio 3: código correcto -> se emite el JWT que da acceso ---
-    token, _expira = crear_access_token(paciente.id, rol="paciente")
+    # RNF-17: la sesión nueva cierra cualquier otra abierta de este paciente.
+    sesion = sesion_service.abrir(
+        db, TIPO_PACIENTE, paciente.id, ip_de(request), request.headers.get("user-agent")
+    )
+    token, _expira = crear_access_token(paciente.id, sesion.id, rol="paciente")
 
     return ValidarOTPResponse(
         validado=True,
@@ -121,7 +138,10 @@ def validar_otp(datos: ValidarOTPRequest, db: Session = Depends(get_db)):
 
 
 @router.post(
-    "/otp/reenviar", response_model=ReenviarOTPResponse, status_code=status.HTTP_201_CREATED
+    "/otp/reenviar",
+    response_model=ReenviarOTPResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[_LIMITE_INGRESO],
 )
 def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
     try:
@@ -141,12 +161,18 @@ def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/salir", status_code=status.HTTP_204_NO_CONTENT)
+def salir(sesion: Sesion = Depends(sesion_del_paciente), db: Session = Depends(get_db)):
+    """Cierra la sesión en el servidor: el token deja de servir aunque alguien lo haya copiado."""
+    sesion_service.cerrar(db, sesion.id)
+
+
 @router.get("/me", response_model=MePacienteResponse)
 def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
     """
-    Endpoint de prueba: no corresponde a ninguna HU por sí solo. Sirve
-    para verificar que el JWT protege endpoints correctamente antes de
-    construir la Parte 7, que sí lo usará de verdad.
+    Datos del paciente de la sesión. Como toda petición con sesión, cuenta
+    como actividad (RNF-24): el frontend lo llama mientras la persona usa
+    la página aunque no cambie de pantalla.
     """
     return MePacienteResponse(
         id=paciente.id,
@@ -154,4 +180,5 @@ def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
         numero_documento=paciente.numero_documento,
         telefono_whatsapp=paciente.telefono_whatsapp,
         correo=paciente.correo,
+        eps=paciente.eps.nombre if paciente.eps else None,
     )

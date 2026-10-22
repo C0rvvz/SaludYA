@@ -101,7 +101,12 @@ describe("Agendar cita", () => {
     await usuario.type(await screen.findByLabelText("Fecha"), "2026-12-24");
     await usuario.click(screen.getByRole("button", { name: "Buscar" }));
     expect(await esperarTexto(/No se encontraron horarios/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Únase a la lista de espera" })).toHaveAttribute("href", "/lista-espera");
+    expect(screen.getByText("¿No encontró un horario que le sirva?")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Avisarme si se libera un cupo" })).toHaveAttribute("href", "/lista-espera");
+    expect(screen.getByRole("link", { name: "Pedir una cita en otra fecha" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal"
+    );
 
     await usuario.click(screen.getByRole("button", { name: "Limpiar" }));
     expect(screen.getByLabelText("Fecha")).toHaveValue("");
@@ -113,9 +118,14 @@ describe("Agendar cita", () => {
     abrir("/panel?especialidad=esp-1", { paciente: true });
     expect((await screen.findAllByRole("button", { name: "Ver disponibilidad" })).length).toBe(2);
     expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({ especialidad_id: "esp-1" });
-    expect(screen.getByRole("link", { name: "Únase a la lista de espera" })).toHaveAttribute(
+    expect(screen.getByText("¿Ninguno de estos horarios le sirve?")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Avisarme si se libera un cupo" })).toHaveAttribute(
       "href",
       "/lista-espera?especialidad=esp-1"
+    );
+    expect(screen.getByRole("link", { name: "Pedir una cita en otra fecha" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal&especialidad=esp-1"
     );
   });
 
@@ -135,10 +145,10 @@ describe("Agendar cita", () => {
   it("cerrar sesión", async () => {
     backendFalso(CATALOGO);
     const usuario = abrir("/panel", { paciente: true });
-    expect(await esperarTexto("Hola, Laura")).toBeInTheDocument();
+    expect(await screen.findByText("Laura Gómez", { selector: ".cabecera-paciente__nombre" })).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     expect(await esperarTexto("Ingrese su número de documento")).toBeInTheDocument();
-    expect(localStorage.getItem(TOKEN_PACIENTE)).toBeNull();
+    expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBeNull();
   });
 });
 
@@ -371,7 +381,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "DELETE /chat": undefined,
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Asistente" }));
+    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
     expect(await esperarTexto("Hola, ¿en qué le ayudo?")).toBeInTheDocument(); // recupera la conversación
 
     await usuario.type(screen.getByLabelText("Escriba su mensaje"), "Quiero una cita");
@@ -390,9 +400,9 @@ describe("Asistente conversacional (HU-33)", () => {
     ]);
 
     await usuario.click(screen.getByRole("button", { name: "Nueva conversación" }));
-    expect(await esperarTexto(/Soy el asistente de SaludYA/)).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Cerrar el asistente" }));
-    expect(screen.queryByRole("dialog", { name: /Asistente virtual/ })).not.toBeInTheDocument();
+    expect(await esperarTexto(/Soy Eli, su guía de SaludYA/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Cerrar a Eli" }));
+    expect(screen.queryByRole("dialog", { name: /Eli, su guía de SaludYA/ })).not.toBeInTheDocument();
   });
 
   it("una urgencia se muestra destacada con botones para llamar", async () => {
@@ -401,7 +411,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "POST /chat": { respuesta: "Llame al 123. También la Línea 192.", tipo: "urgencia", cita: null },
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Asistente" }));
+    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
     await usuario.click(await screen.findByRole("button", { name: "Solicitar una cita" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Llame al 123");
     expect(screen.getByRole("link", { name: "Llamar al 123" })).toHaveAttribute("href", "tel:123");
@@ -416,13 +426,13 @@ describe("Asistente conversacional (HU-33)", () => {
       "DELETE /chat": error(500, "No se pudo reiniciar."),
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Asistente" }));
+    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
     await usuario.type(await screen.findByLabelText("Escriba su mensaje"), "Hola{Enter}");
     expect(await esperarTexto("El asistente no está disponible.")).toBeInTheDocument();
     expect(screen.getByLabelText("Escriba su mensaje")).toHaveValue("Hola");
 
     await usuario.keyboard("{Escape}");
-    expect(screen.getByRole("button", { name: "Asistente" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pregúntele a Eli/ })).toBeInTheDocument();
   });
 
   it("al reiniciar con error lo avisa, y una sesión vencida cierra la sesión", async () => {
@@ -433,12 +443,12 @@ describe("Asistente conversacional (HU-33)", () => {
       "POST /chat": error(401, "La sesión expiró."),
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Asistente" }));
+    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
     await usuario.click(await screen.findByRole("button", { name: "Nueva conversación" }));
     expect(await esperarTexto("No se pudo reiniciar.")).toBeInTheDocument();
 
     await usuario.type(screen.getByLabelText("Escriba su mensaje"), "Hola{Enter}");
-    await waitFor(() => expect(localStorage.getItem(TOKEN_PACIENTE)).toBeNull());
+    await waitFor(() => expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBeNull());
   });
 
   it("en Mis citas, una acción del asistente actualiza la lista", async () => {
@@ -447,7 +457,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "POST /chat": { respuesta: "Confirmada.", tipo: "asistencia_confirmada", cita: CITA_CHAT },
     });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Asistente" }));
+    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
     await usuario.type(await screen.findByLabelText("Escriba su mensaje"), "Sí voy{Enter}");
     expect(await esperarTexto("Asistencia confirmada", { selector: ".badge" })).toBeInTheDocument();
     await waitFor(() => expect(llamadasA(llamadas, "GET", "/citas").length).toBe(2));

@@ -27,10 +27,11 @@ export default function AdminSolicitudesPage() {
 
   return (
     <>
-      <h1 className="admin-titulo">Solicitudes</h1>
+      <h1 className="admin-titulo">Cartas y peticiones</h1>
       <p className="admin-subtitulo">
-        Solicitudes formales y derechos de petición que radican los pacientes para pedir una cita. Las pendientes
-        aparecen primero.
+        Lo que los pacientes piden por escrito cuando no consiguen la cita que necesitan: cartas para pedir una cita en
+        otra fecha y derechos de petición, que por ley deben responderse en máximo 15 días hábiles. Las pendientes
+        aparecen primero; en "Ver contexto" se revisan y se decide.
       </p>
 
       {error && <div className="alert alert--error">{error}</div>}
@@ -78,14 +79,13 @@ export default function AdminSolicitudesPage() {
                 <tr key={s.id}>
                   <td>
                     {s.numero_radicado}
-                    <span className="texto-suave">
-                      {TIPOS_SOLICITUD[s.tipo]} · {formatearFechaHora(s.radicada_en)}
-                    </span>
+                    <span className="texto-suave">{TIPOS_SOLICITUD[s.tipo]}</span>
+                    <span className="texto-suave">Recibida el {formatearFechaHora(s.radicada_en)}</span>
                   </td>
                   <td>{s.paciente_nombre}</td>
                   <td>{TIPOS_CITA[s.tipo_cita]}</td>
                   <td>{s.especialidad}</td>
-                  <td>{formatearFecha(s.fecha_deseada)}</td>
+                  <td className="celda-fecha">{formatearFecha(s.fecha_deseada)}</td>
                   <td>
                     <span className={`badge ${clase}`}>{texto}</span>
                     {s.prioritaria && <span className="texto-suave">Prioritaria</span>}
@@ -100,7 +100,7 @@ export default function AdminSolicitudesPage() {
             })}
           </tbody>
         </table>
-        {solicitudes && visibles.length === 0 && <p className="empty-state">No hay solicitudes con ese estado.</p>}
+        {solicitudes && visibles.length === 0 && <p className="empty-state">No hay cartas con ese estado.</p>}
       </div>
     </>
   );

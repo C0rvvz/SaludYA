@@ -20,5 +20,6 @@ EXPOSE 8000
 # Aplica las migraciones pendientes antes de arrancar la API: así la base
 # queda al día en cualquier PC sin correr "alembic upgrade head" a mano.
 # Si una migración falla, la API no arranca (mejor que correr con la base
-# desactualizada).
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+# desactualizada). --no-server-header: no anuncia qué servidor usa (una
+# pista menos para quien busca vulnerabilidades conocidas).
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-server-header"]

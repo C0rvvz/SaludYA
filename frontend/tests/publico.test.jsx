@@ -2,22 +2,74 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TOKEN_PACIENTE } from "../src/api/client";
 import { abrir, backendFalso, error, esperarTexto, llamadasA } from "./backendFalso";
-import { FRANJAS } from "./datos";
+import { FRANJAS, OTRA_SEDE, SEDE } from "./datos";
 
-describe("Inicio", () => {
-  it("muestra un horario real disponible y los accesos", async () => {
-    backendFalso({ "GET /disponibilidad/buscar": FRANJAS });
+describe("Inicio (rediseño 2a)", () => {
+  it("muestra los próximos cupos reales, los accesos y las secciones del menú", async () => {
+    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE, OTRA_SEDE] });
     abrir("/");
-    expect(await esperarTexto("Cardiología · Dr. Carlos Ramírez")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Registrarse" })).toHaveAttribute("href", "/registrarse");
+    expect(screen.getByRole("heading", { name: "Su cita médica, sin filas ni llamadas." })).toBeInTheDocument();
+
+    // Un cupo por especialidad, el más cercano: Cardiología y Dermatología.
+    const carrusel = await screen.findByRole("region", { name: "Próximos cupos disponibles" });
+    expect(within(carrusel).getByText("Próximo cupo")).toBeInTheDocument();
+    expect(within(carrusel).getAllByRole("button", { name: /Ver cupo/ })).toHaveLength(2);
+    expect(within(carrusel).getByText("Cardiología").closest("[aria-hidden]")).toHaveAttribute("aria-hidden", "false");
+
+    expect(screen.getByRole("link", { name: "Agendar cita" })).toHaveAttribute("href", "/registrarse");
+    expect(screen.getByRole("link", { name: /Agendar una cita/ })).toHaveAttribute("href", "/registrarse");
+    expect(screen.getByRole("link", { name: "Iniciar sesión" })).toHaveAttribute("href", "/iniciar-sesion");
+    expect(screen.getByRole("link", { name: "Ya tengo cuenta" })).toHaveAttribute("href", "/iniciar-sesion");
     expect(screen.getByRole("link", { name: /Acceso para personal/ })).toHaveAttribute("href", "/admin/ingresar");
+
+    // El menú lleva a secciones que existen.
+    for (const [nombre, destino] of [["Cómo funciona", "como-funciona"], ["Sedes", "sedes"], ["Ayuda", "ayuda"]]) {
+      expect(screen.getByRole("link", { name: nombre })).toHaveAttribute("href", `#${destino}`);
+      expect(document.getElementById(destino)).toBeInTheDocument();
+    }
+    expect(await esperarTexto("Sede Laureles")).toBeInTheDocument();
+    expect(screen.getByText("¿Necesito una contraseña?")).toBeInTheDocument();
   });
 
-  it("sin horarios (o sin backend) no muestra el ejemplo", async () => {
-    const llamadas = backendFalso({ "GET /disponibilidad/buscar": error(500, "caído") });
+  it("los controles del carrusel cambian el cupo y avanza solo, salvo con el cursor encima", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [] });
+    const usuario = abrir("/");
+    const carrusel = await screen.findByRole("region", { name: "Próximos cupos disponibles" });
+    const activa = () => within(carrusel).getByRole("group", { hidden: false }).textContent;
+
+    expect(activa()).toMatch(/Cardiología/);
+    await usuario.click(within(carrusel).getByRole("button", { name: "Cupo siguiente" }));
+    expect(activa()).toMatch(/Dermatología/);
+    await usuario.click(within(carrusel).getByRole("button", { name: "Cupo siguiente" }));
+    expect(activa()).toMatch(/Cardiología/); // es cíclico
+    await usuario.click(within(carrusel).getByRole("button", { name: "Cupo anterior" }));
+    expect(activa()).toMatch(/Dermatología/);
+    await usuario.click(within(carrusel).getByRole("button", { name: /Ver cupo 1 de 2/ }));
+    expect(activa()).toMatch(/Cardiología/);
+
+    await usuario.unhover(carrusel.querySelector(".inicio-cupo"));
+    await act(() => vi.advanceTimersByTimeAsync(5600));
+    expect(activa()).toMatch(/Dermatología/); // avanzó solo
+
+    await usuario.hover(carrusel.querySelector(".inicio-cupo"));
+    await act(() => vi.advanceTimersByTimeAsync(12_000));
+    expect(activa()).toMatch(/Dermatología/); // en pausa con el cursor encima
+  });
+
+  it("con sesión, agendar lleva directo a buscar cita", async () => {
+    backendFalso({ "GET /disponibilidad/buscar": [], "GET /sedes": [] });
+    abrir("/", { paciente: true });
+    await waitFor(() => expect(screen.getByRole("link", { name: "Agendar cita" })).toHaveAttribute("href", "/panel"));
+  });
+
+  it("sin horarios (o sin backend) no anuncia ningún cupo", async () => {
+    const llamadas = backendFalso({ "GET /disponibilidad/buscar": error(500, "caído"), "GET /sedes": error(500, "caído") });
     abrir("/");
-    await waitFor(() => expect(llamadas).toHaveLength(1));
+    await waitFor(() => expect(llamadas).toHaveLength(2));
     expect(screen.queryByText("Disponible")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Próximos cupos disponibles" })).not.toBeInTheDocument();
+    expect(screen.getByText("Las sedes se muestran al elegir la especialidad.")).toBeInTheDocument();
   });
 });
 
@@ -32,7 +84,7 @@ describe("Rutas protegidas", () => {
     backendFalso({ "GET /auth/paciente/me": error(401, "La sesión expiró.") });
     abrir("/panel", { paciente: true });
     expect(await esperarTexto("Ingrese su número de documento")).toBeInTheDocument();
-    expect(localStorage.getItem(TOKEN_PACIENTE)).toBeNull();
+    expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBeNull();
   });
 });
 
@@ -52,28 +104,28 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     const llamadas = backendFalso(rutas);
     const usuario = abrir("/iniciar-sesion");
 
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
     expect(screen.getByText("Ingresa tu número de documento.")).toBeInTheDocument();
 
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    expect(await esperarTexto("Ingrese el código")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
+    expect(await esperarTexto("Escriba el código")).toBeInTheDocument();
     expect(screen.getByText("4567")).toBeInTheDocument();
-    expect(screen.getByText("123456")).toBeInTheDocument(); // modo demostración
+    expect(screen.getAllByText("123456").length).toBeGreaterThan(0); // modo demostración: en el celular de muestra
 
-    await usuario.click(screen.getByRole("button", { name: "Confirmar código" }));
+    await usuario.click(screen.getByRole("button", { name: "Entrar" }));
     expect(screen.getByText("Ingresa el código de verificación.")).toBeInTheDocument();
 
     await usuario.type(screen.getByPlaceholderText("000000"), "99a9999");
     expect(screen.getByPlaceholderText("000000")).toHaveValue("999999"); // solo dígitos
-    await usuario.click(screen.getByRole("button", { name: "Confirmar código" }));
+    await usuario.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await esperarTexto("El código no es correcto.")).toBeInTheDocument();
 
     await usuario.clear(screen.getByPlaceholderText("000000"));
     await usuario.type(screen.getByPlaceholderText("000000"), "123456");
-    await usuario.click(screen.getByRole("button", { name: "Confirmar código" }));
+    await usuario.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await esperarTexto("Busque su especialista")).toBeInTheDocument();
-    expect(localStorage.getItem(TOKEN_PACIENTE)).toBe("token-nuevo");
+    expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBe("token-nuevo");
     expect(llamadasA(llamadas, "POST", "/auth/paciente/otp/validar")).toHaveLength(2);
   });
 
@@ -82,12 +134,13 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     const llamadas = backendFalso(rutas);
     const usuario = abrir("/iniciar-sesion");
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    expect(await screen.findByRole("button", { name: /Reenviar código \(espere/ })).toBeDisabled();
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
+    expect(await esperarTexto(/Reenviar en/)).toBeInTheDocument(); // hay que esperar
+    expect(screen.queryByRole("button", { name: "Reenviar código" })).not.toBeInTheDocument();
 
     await act(() => vi.advanceTimersByTimeAsync(61_000));
     await usuario.click(screen.getByRole("button", { name: "Reenviar código" }));
-    expect(await esperarTexto("654321")).toBeInTheDocument();
+    expect((await screen.findAllByText("654321")).length).toBeGreaterThan(0);
     expect(llamadasA(llamadas, "POST", "/auth/paciente/otp/reenviar")).toHaveLength(1);
   });
 
@@ -96,12 +149,12 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     const usuario = abrir("/iniciar-sesion");
     await usuario.selectOptions(screen.getByLabelText("Tipo de documento"), "pasaporte");
     await usuario.type(screen.getByLabelText("Número de documento"), "AV123456");
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
     expect(await esperarTexto(/No se encontró ningún paciente/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Regístrese aquí" })).toBeInTheDocument();
 
     backendFalso({ "POST /auth/paciente/identificar": error(500, "Servidor caído") });
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
     expect(await esperarTexto("Servidor caído")).toBeInTheDocument();
   });
 
@@ -110,8 +163,8 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     backendFalso({ ...rutas, "POST /auth/paciente/otp/reenviar": error(429, "Espere un momento.") });
     const usuario = abrir("/iniciar-sesion");
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    await screen.findByText("Ingrese el código");
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
+    await screen.findByText("Escriba el código");
     await act(() => vi.advanceTimersByTimeAsync(61_000));
     await usuario.click(screen.getByRole("button", { name: "Reenviar código" }));
     expect(await esperarTexto("Espere un momento.")).toBeInTheDocument();
@@ -194,7 +247,7 @@ describe("Registro", () => {
     await usuario.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
     expect(await esperarTexto("Algo falló.")).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole("button", { name: "← Volver" }));
+    await usuario.click(screen.getByRole("button", { name: "Volver al paso anterior" }));
     expect(screen.getByLabelText("Nombre completo")).toHaveValue("Laura Gómez");
   });
 

@@ -23,8 +23,9 @@ class IdentificarPacienteRequest(BaseModel):
 
 
 class IdentificarPacienteResponse(BaseModel):
+    # Sin el nombre: si no, cualquiera que escriba un número de documento
+    # vería el nombre completo de esa persona. Se muestra al validar el código.
     registrado: bool
-    nombre: str
     mensaje: str
 
 
@@ -96,3 +97,4 @@ class MePacienteResponse(BaseModel):
     numero_documento: str
     telefono_whatsapp: str
     correo: str | None
+    eps: str | None = None  # el encabezado muestra nombre y EPS de la persona

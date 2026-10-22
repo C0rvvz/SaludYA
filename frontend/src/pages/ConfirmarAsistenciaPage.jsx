@@ -34,8 +34,8 @@ export default function ConfirmarAsistenciaPage() {
   }
 
   return (
-    <AuthShell>
-      <div className="auth-card__header">
+    <AuthShell ancho="ancho">
+      <div className="auth-card__header auth-card__header--izquierda">
         <p className="auth-card__eyebrow">Confirmar asistencia</p>
 
         {resultado ? (
@@ -46,9 +46,7 @@ export default function ConfirmarAsistenciaPage() {
         ) : (
           <>
             <h1>¿Va a asistir a su cita?</h1>
-            <p className="auth-card__lead">
-              Confírmelo con un toque. Así podemos ofrecer a otra persona los horarios que no se van a usar.
-            </p>
+            <p className="auth-card__lead">Toque el botón verde para avisarnos que sí va a venir.</p>
           </>
         )}
       </div>
@@ -56,7 +54,7 @@ export default function ConfirmarAsistenciaPage() {
       {error && <div className="alert alert--error">{error}</div>}
 
       {resultado && (
-        <div className="card" style={{ marginBottom: "1rem" }}>
+        <div className="registro-exito__datos">
           <div className="summary-row">
             <span className="summary-row__label">Especialidad</span>
             <span className="summary-row__value">{resultado.especialidad}</span>
@@ -86,7 +84,7 @@ export default function ConfirmarAsistenciaPage() {
         </button>
       )}
 
-      <p className="field__hint" style={{ marginTop: "1rem", textAlign: "center" }}>
+      <p className="auth-card__nota">
         ¿No puede asistir o quiere cambiar la fecha?{" "}
         <Link to="/mis-citas" className="link-inline">
           Ingrese a Mis citas

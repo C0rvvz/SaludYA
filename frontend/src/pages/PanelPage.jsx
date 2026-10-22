@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import AsistenteChat from "../components/AsistenteChat";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
 import { listarEspecialidades, listarSedes, buscarDisponibilidad } from "../api/catalogo";
 import { confirmarCita } from "../api/citas";
@@ -316,16 +315,6 @@ export default function PanelPage() {
               </div>
             )}
 
-            {yaConsulto && !buscando && (
-              <p className="field__hint">
-                ¿No encuentra un horario que le sirva?{" "}
-                <Link to={conFiltros("/lista-espera", { especialidad: filtros.especialidad_id })}>
-                  Únase a la lista de espera
-                </Link>{" "}
-                y le avisamos cuando se libere un cupo.
-              </p>
-            )}
-
             <div className="specialist-grid">
               {grupos.map((grupo) => {
                 const proxima = grupo.franjas[0];
@@ -361,6 +350,33 @@ export default function PanelPage() {
                 );
               })}
             </div>
+
+            {/* Debajo de los resultados: las dos salidas cuando ningún horario sirve, y qué pasa con cada una. */}
+            {yaConsulto && !buscando && (
+              <section className="sin-horario" aria-labelledby="sin-horario">
+                <p id="sin-horario" className="sin-horario__titulo">
+                  {grupos.length > 0 ? "¿Ninguno de estos horarios le sirve?" : "¿No encontró un horario que le sirva?"}
+                </p>
+                <div className="acciones-admin">
+                  <Link
+                    className="btn btn--outline"
+                    to={conFiltros("/lista-espera", { especialidad: filtros.especialidad_id })}
+                  >
+                    Avisarme si se libera un cupo
+                  </Link>
+                  <Link
+                    className="btn btn--outline"
+                    to={conFiltros("/solicitudes", { tipo: "formal", especialidad: filtros.especialidad_id })}
+                  >
+                    Pedir una cita en otra fecha
+                  </Link>
+                </div>
+                <p className="field__hint">
+                  Con el aviso, le escribimos cuando otro paciente cancele. Con la carta, nos cuenta por qué necesita
+                  otra fecha y el personal la revisa.
+                </p>
+              </section>
+            )}
           </>
         )}
 
@@ -576,7 +592,6 @@ export default function PanelPage() {
       </div>
 
       {/* HU-33: alternativa conversacional al flujo por pasos de arriba. */}
-      <AsistenteChat />
     </div>
   );
 }

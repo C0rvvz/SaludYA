@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarAuditoria } from "../../api/admin";
-import { formatearFechaHora } from "../../utils/formato";
+import FechaHora from "../../components/FechaHora";
 
 /**
  * Auditoría — HU-80 a HU-85: qué acción se hizo (HU-82), quién la hizo
@@ -135,7 +135,9 @@ export default function AdminAuditoriaPage() {
           <tbody>
             {visibles.map((r) => (
               <tr key={r.id}>
-                <td>{formatearFechaHora(r.fecha)}</td>
+                <td>
+                  <FechaHora valor={r.fecha} />
+                </td>
                 <td>{r.actor_nombre}</td>
                 <td>
                   {r.descripcion}

@@ -40,7 +40,10 @@ function revision(cambios = {}, cambiosSolicitud = {}) {
       eps: null,
       estado_afiliacion: "activa",
     },
-    historial: [{ id: "c0", fecha: "2026-09-01", especialidad: "Cardiología", estado_visible: "no_asistio", estado_texto: "No asistió" }],
+    historial: [
+      { id: "c0", fecha: "2026-09-01", hora: "10:00:00", especialidad: "Cardiología", especialista: "Dr. Carlos Ramírez",
+        sede: "Sede Poblado", estado_visible: "no_asistio", estado_texto: "No asistió" },
+    ],
     resumen_asistencia: { atendidas: 0, no_asistio: 1, canceladas: 0, reprogramadas: 0 },
     observaciones: [{ id: "o1", texto: "Paciente mayor.", autor: "Ana", creado_en: "2026-10-01T09:00:00-05:00" }],
     en_lista_espera: ["Cardiología"],
@@ -330,6 +333,12 @@ describe("Lista de espera del personal", () => {
 
 // --- Centro de recordatorios (HU-62 a HU-67) ---
 
+// Envíos siempre en el futuro: el formulario no deja programar en el pasado
+// (con fechas fijas, las pruebas empezaron a fallar cuando esas fechas pasaron).
+const DIA_ENVIO = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("en-CA");
+const ENVIO = `${DIA_ENVIO}T09:00`;
+const ENVIO_LLAMADA = `${DIA_ENVIO}T10:00`;
+
 const PACIENTES = [
   {
     paciente_id: "p1",
@@ -372,7 +381,7 @@ function programado(cambios = {}) {
     canal: "sms",
     plantilla: null,
     texto: "Recuerde su cita.",
-    programado_para: "2026-10-02T09:00:00-05:00",
+    programado_para: `${ENVIO}:00-05:00`,
     estado: "pendiente",
     intentos: 1,
     enviado_en: null,
@@ -410,7 +419,7 @@ describe("Centro de recordatorios", () => {
     await usuario.selectOptions(within(formulario).getByLabelText("Plantilla"), "recordatorio_estandar");
     expect(within(formulario).getByLabelText("Mensaje")).toHaveValue("Recordatorio SaludYA: tiene cita...");
     await usuario.selectOptions(within(formulario).getByLabelText("Canal"), "correo");
-    await usuario.type(within(formulario).getByLabelText("Fecha y hora del envío"), "2026-10-02T09:00");
+    await usuario.type(within(formulario).getByLabelText("Fecha y hora del envío"), ENVIO);
     await usuario.click(within(formulario).getByRole("button", { name: "Programar" }));
 
     expect(await esperarTexto(/Se programó el mensaje por Correo electrónico a Mario Ruiz/)).toBeInTheDocument();
@@ -420,7 +429,7 @@ describe("Centro de recordatorios", () => {
       canal: "correo",
       plantilla: "recordatorio_estandar",
       texto: "Recordatorio SaludYA: tiene cita...",
-      programado_para: "2026-10-02T09:00",
+      programado_para: ENVIO,
     });
 
     // Llamada para un paciente sin citas activas.
@@ -430,7 +439,7 @@ describe("Centro de recordatorios", () => {
     expect(within(llamada).getByText(/Se llamará al 3001112233/)).toBeInTheDocument();
     await usuario.selectOptions(within(llamada).getByLabelText("Cita"), "");
     await usuario.type(within(llamada).getByLabelText("Mensaje de voz de la llamada"), "Hola Laura");
-    await usuario.type(within(llamada).getByLabelText("Fecha y hora del envío"), "2026-10-03T10:00");
+    await usuario.type(within(llamada).getByLabelText("Fecha y hora del envío"), ENVIO_LLAMADA);
     await usuario.click(within(llamada).getByRole("button", { name: "Programar" }));
     expect(await esperarTexto(/Se programó la llamada a Laura Gómez/)).toBeInTheDocument();
   });
@@ -490,7 +499,7 @@ describe("Centro de recordatorios", () => {
     expect(await esperarTexto("No existe ese paciente.")).toBeInTheDocument();
     const formulario = screen.getByRole("heading", { name: /Programar recordatorio/ }).closest("form");
     await usuario.type(within(formulario).getByLabelText("Mensaje"), "Hola");
-    await usuario.type(within(formulario).getByLabelText("Fecha y hora del envío"), "2026-10-02T09:00");
+    await usuario.type(within(formulario).getByLabelText("Fecha y hora del envío"), ENVIO);
     await usuario.click(within(formulario).getByRole("button", { name: "Programar" }));
     expect(await esperarTexto("La fecha y hora del envío deben ser futuras.")).toBeInTheDocument();
     await usuario.click(within(formulario).getByRole("button", { name: "Volver" }));

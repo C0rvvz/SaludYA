@@ -12,6 +12,11 @@ export function obtenerPersonalActual() {
   return conPersonal("/admin/auth/me");
 }
 
+/** Cierra la sesión en el servidor (el token ya se quitó de la pestaña). */
+export function salirPersonal(token) {
+  return apiFetch("/admin/auth/salir", { method: "POST", token });
+}
+
 export function listarUsuarios() {
   return conPersonal("/admin/usuarios");
 }

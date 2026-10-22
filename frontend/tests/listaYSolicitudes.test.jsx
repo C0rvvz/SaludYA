@@ -167,7 +167,7 @@ describe("Lista de espera del paciente", () => {
   });
 });
 
-describe("Solicitudes de cita del paciente", () => {
+describe("Cartas y peticiones del paciente", () => {
   function solicitud(cambios = {}) {
     return {
       id: "s1",
@@ -187,7 +187,7 @@ describe("Solicitudes de cita del paciente", () => {
     };
   }
 
-  it("radica una solicitud y la muestra con su estado", async () => {
+  it("primero elige qué necesita, escribe la carta y la ve con su estado", async () => {
     let lista = [];
     const llamadas = backendFalso({
       "GET /solicitudes": () => lista,
@@ -198,20 +198,27 @@ describe("Solicitudes de cita del paciente", () => {
       },
     });
     const usuario = abrir("/solicitudes", { paciente: true });
-    const radicar = await screen.findByRole("button", { name: "Radicar solicitud" });
-    expect(radicar).toBeDisabled();
+    // Sin cartas, empieza por las dos opciones, cada una con lo que es y un ejemplo.
+    expect(await screen.findByRole("heading", { name: "¿Qué necesita?" })).toBeInTheDocument();
+    expect(screen.getByText(/obligada a responderle por escrito en máximo 15 días hábiles/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: /^Pedir una cita en otra fecha/ }));
+    expect(screen.getByLabelText(/Por qué no le sirven los horarios disponibles/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Elegir otro tipo de carta" }));
+    await usuario.click(screen.getByRole("button", { name: /^Derecho de petición/ }));
 
-    await usuario.click(screen.getByLabelText("Derecho de petición"));
+    const enviar = screen.getByRole("button", { name: "Enviar derecho de petición" });
+    expect(enviar).toBeDisabled();
     await screen.findByRole("option", { name: "Cardiología" });
     await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-1");
     await usuario.click(screen.getByLabelText("Control"));
     await usuario.type(screen.getByLabelText("¿Para qué fecha necesita la cita?"), "2026-10-30");
-    await usuario.type(screen.getByLabelText("Cuéntenos por qué la necesita"), "Necesito control.");
+    await usuario.type(screen.getByLabelText("¿Qué le pide a su EPS y por qué?"), "Necesito control.");
     await usuario.click(screen.getByLabelText("Mensaje de texto"));
-    await usuario.click(radicar);
+    await usuario.click(enviar);
 
-    expect(await esperarTexto(/Radicamos su solicitud con el número RAD-1A2B/)).toBeInTheDocument();
+    expect(await esperarTexto(/Recibimos su derecho de petición\. Su número de radicado es RAD-1A2B/)).toBeInTheDocument();
     expect(await esperarTexto("Pendiente de revisión")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Derecho de petición · Cardiología" })).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/solicitudes")[0].cuerpo).toEqual({
       tipo: "derecho_peticion",
       especialidad_id: "esp-1",
@@ -235,16 +242,26 @@ describe("Solicitudes de cita del paciente", () => {
     expect(await esperarTexto(/Comprobante SY-LE1/)).toBeInTheDocument();
     expect(screen.getByText("Aprobada por el coordinador.")).toBeInTheDocument();
     expect(screen.getByText(/en trámite con su EPS/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pedir una cita en otra fecha · Cardiología" })).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole("button", { name: "Radicar una solicitud" }));
+    await usuario.click(screen.getByRole("button", { name: "Escribir una carta" }));
+    await usuario.click(screen.getByRole("button", { name: "Volver" }));
+    await usuario.click(screen.getByRole("button", { name: "Escribir una carta" }));
+    await usuario.click(screen.getByRole("button", { name: /^Pedir una cita en otra fecha/ }));
     await screen.findByRole("option", { name: "Cardiología" });
     await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-1");
     await usuario.type(screen.getByLabelText("¿Para qué fecha necesita la cita?"), "2026-10-30");
-    await usuario.type(screen.getByLabelText("Cuéntenos por qué la necesita"), "Lo necesito ya mismo.");
-    await usuario.click(screen.getByRole("button", { name: "Radicar solicitud" }));
+    await usuario.type(screen.getByLabelText(/Por qué no le sirven los horarios/), "Lo necesito ya mismo.");
+    await usuario.click(screen.getByRole("button", { name: "Enviar carta" }));
     expect(await esperarTexto("La fecha que solicita debe ser a partir de mañana.")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Volver" }));
-    expect(screen.getByRole("button", { name: "Radicar una solicitud" })).toBeInTheDocument();
+  });
+
+  it("llega desde la búsqueda de citas con la carta y la especialidad elegidas", async () => {
+    backendFalso({ "GET /solicitudes": [solicitud()], "GET /especialidades": [ESPECIALIDAD] });
+    abrir("/solicitudes?tipo=formal&especialidad=esp-1", { paciente: true });
+    expect(await screen.findByRole("heading", { name: "Pedir una cita en otra fecha" })).toBeInTheDocument();
+    await screen.findByRole("option", { name: "Cardiología" });
+    expect(screen.getByLabelText("¿Qué especialidad necesita?")).toHaveValue("esp-1");
   });
 
   it("errores al cargar", async () => {
@@ -252,7 +269,8 @@ describe("Solicitudes de cita del paciente", () => {
     abrir("/solicitudes", { paciente: true });
     expect(await esperarTexto("No cargaron")).toBeInTheDocument();
     backendFalso({ "GET /solicitudes": [], "GET /especialidades": error(500, "Sin catálogo") });
-    abrir("/solicitudes", { paciente: true });
+    const usuario = abrir("/solicitudes", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: /^Derecho de petición/ }));
     expect(await esperarTexto("Sin catálogo")).toBeInTheDocument();
   });
 });

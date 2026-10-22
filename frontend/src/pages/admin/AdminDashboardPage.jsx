@@ -67,12 +67,12 @@ export default function AdminDashboardPage() {
             </section>
 
             <section className="card">
-              <h2 className="admin-card__titulo">Solicitudes y revisiones de {r.periodo_texto.toLowerCase()}</h2>
+              <h2 className="admin-card__titulo">Cartas y peticiones de {r.periodo_texto.toLowerCase()}</h2>
               <div className="cifras">
                 <Cifra
                   valor={r.solicitudes.recibidas}
-                  nombre="Solicitudes recibidas"
-                  detalle={`${r.solicitudes.formales} formales · ${r.solicitudes.derechos_peticion} derechos de petición`}
+                  nombre="Cartas recibidas"
+                  detalle={`${r.solicitudes.formales} para pedir otra fecha · ${r.solicitudes.derechos_peticion} derechos de petición`}
                 />
                 <Cifra valor={r.solicitudes.pendientes_revision} nombre="Pendientes de revisión" />
                 <Cifra valor={r.solicitudes.prioritarias_aprobadas} nombre="Revisiones prioritarias aprobadas" />

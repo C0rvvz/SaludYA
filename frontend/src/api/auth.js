@@ -31,3 +31,8 @@ export function validarOtp(numeroDocumento, codigo) {
 export function obtenerPacienteActual() {
   return apiFetch("/auth/paciente/me", { auth: true });
 }
+
+/** Cierra la sesión en el servidor (el token ya se quitó de la pestaña). */
+export function salirPaciente(token) {
+  return apiFetch("/auth/paciente/salir", { method: "POST", token });
+}

@@ -12,7 +12,9 @@ import {
   formatearMesCorto,
   formatearPorcentaje,
 } from "../src/utils/formato";
+import { FOTO_INICIO, proximosCupos, textoCuando } from "../src/utils/inicio";
 import { ESTADOS_SOLICITUD } from "../src/utils/solicitudes";
+import { franja, OTRO_ESPECIALISTA, OTRA_SEDE } from "./datos";
 import {
   validarCodigoOtp,
   validarCorreo,
@@ -23,6 +25,32 @@ import {
 
 // Intl separa "a. m." con espacios especiales: se comparan como espacios normales.
 const plano = (texto) => texto.replace(/\s/g, " ");
+
+describe("próximos cupos del Home", () => {
+  const AHORA = new Date("2026-10-21T09:00:00"); // miércoles
+
+  it("dice cuándo en palabras: hoy, mañana o el día", () => {
+    expect(plano(textoCuando("2026-10-21", "15:00:00", AHORA))).toBe("Hoy · 3:00 p. m.");
+    expect(plano(textoCuando("2026-10-22", "08:30:00", AHORA))).toBe("Mañana, jueves 22 · 8:30 a. m.");
+    expect(plano(textoCuando("2026-10-26", "14:30:00", AHORA))).toBe("Lunes 26 · 2:30 p. m.");
+  });
+
+  it("toma el horario más cercano de cada especialidad, con su foto", () => {
+    const cupos = proximosCupos(
+      [
+        franja("tarde", "2026-10-23", "15:00:00"),
+        franja("temprano", "2026-10-22", "08:00:00", { sede: OTRA_SEDE, modalidad: "virtual" }),
+        franja("derma", "2026-10-24", "09:00:00", { especialista: OTRO_ESPECIALISTA }),
+      ],
+      AHORA
+    );
+    expect(cupos.map((c) => c.id)).toEqual(["temprano", "derma"]);
+    expect(cupos[0]).toMatchObject({ especialidad: "Cardiología", lugar: "Sede Laureles · Virtual" });
+    expect(cupos[0].foto).toContain("unsplash.com");
+    expect(cupos[1].foto).not.toBe(FOTO_INICIO); // Dermatología tiene su propia foto
+    expect(proximosCupos([], AHORA)).toEqual([]);
+  });
+});
 
 describe("formato", () => {
   it("fechas en español de Colombia", () => {

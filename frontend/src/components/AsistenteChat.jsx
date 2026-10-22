@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { enviarMensaje, obtenerConversacion, reiniciarConversacion } from "../api/chat";
 import { ApiError } from "../api/client";
+import EliAvatar from "./EliAvatar";
 import { CANALES } from "../utils/citas";
 import { formatearFecha, formatearHora, capitalizar } from "../utils/formato";
 
@@ -36,16 +37,6 @@ function sugerenciasPara(texto) {
     .map((m) => `${m[1]}. ${m[2].trim()}`);
 }
 
-function IconoChat() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path
-        d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function TarjetaCita({ cita, tipo }) {
   const encabezado = TARJETAS[tipo] ?? TARJETAS.cita_agendada;
@@ -125,14 +116,17 @@ function Mensaje({ mensaje }) {
 }
 
 /**
+ * Eli, la guía de SaludYA. Se abre y se cierra desde afuera (`abierto`,
+ * `onAbrir`, `onCerrar`): con su botón flotante en computador o con la
+ * pestaña "Eli" de la barra inferior en celular (ver EncabezadoPaciente).
+ *
  * `onCambioCitas` (opcional): se llama cuando el asistente agenda,
  * cancela, reprograma o confirma una cita, para que la página que lo
  * contiene (p. ej. "Mis citas") actualice lo que muestra.
  */
-export default function AsistenteChat({ onCambioCitas }) {
+export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCitas }) {
   const { paciente, cerrarSesion } = useAuth();
 
-  const [abierto, setAbierto] = useState(false);
   const [mensajes, setMensajes] = useState([]);
   const [historialCargado, setHistorialCargado] = useState(false);
   const [texto, setTexto] = useState("");
@@ -169,11 +163,11 @@ export default function AsistenteChat({ onCambioCitas }) {
   useEffect(() => {
     if (!abierto) return;
     function manejarEscape(evento) {
-      if (evento.key === "Escape") setAbierto(false);
+      if (evento.key === "Escape") onCerrar();
     }
     document.addEventListener("keydown", manejarEscape);
     return () => document.removeEventListener("keydown", manejarEscape);
-  }, [abierto]);
+  }, [abierto, onCerrar]);
 
   async function enviar(contenido) {
     const limpio = contenido.trim();
@@ -228,21 +222,34 @@ export default function AsistenteChat({ onCambioCitas }) {
 
   if (!abierto) {
     return (
-      <button type="button" className="chat-launcher" onClick={() => setAbierto(true)}>
-        <IconoChat />
-        <span>Asistente</span>
-      </button>
+      <div className="eli-lanzador">
+        {/* Cada 12 s el botón vibra y aparece esta nube (decorativa: el botón ya dice qué hace). */}
+        <p className="eli-lanzador__nube" aria-hidden="true">
+          ¿Necesita ayuda para agendar, escribir una carta de petición o con cualquier otro trámite?{" "}
+          <strong>Yo le ayudo.</strong>
+        </p>
+        <button type="button" className="eli-lanzador__boton" onClick={onAbrir}>
+          <EliAvatar tamano={46} />
+          <span className="eli-lanzador__textos">
+            <span className="eli-lanzador__titulo">Pregúntele a Eli</span>
+            <span className="eli-lanzador__subtitulo">Su guía de SaludYA</span>
+          </span>
+        </button>
+      </div>
     );
   }
 
   const primerNombre = paciente?.nombre?.split(" ")[0] ?? "";
 
   return (
-    <dialog open className="chat-panel" aria-label="Asistente virtual de SaludYA">
+    <dialog open className="chat-panel" aria-label="Eli, su guía de SaludYA">
       <header className="chat-panel__header">
-        <div>
-          <h2>Asistente SaludYA</h2>
-          <p>Escriba lo que necesita, con sus palabras</p>
+        <div className="chat-panel__quien">
+          <EliAvatar tamano={44} />
+          <div>
+            <h2>Eli</h2>
+            <p>Su guía de SaludYA</p>
+          </div>
         </div>
         <div className="chat-panel__acciones">
           <button
@@ -256,8 +263,8 @@ export default function AsistenteChat({ onCambioCitas }) {
           <button
             type="button"
             className="chat-panel__cerrar"
-            onClick={() => setAbierto(false)}
-            aria-label="Cerrar el asistente"
+            onClick={onCerrar}
+            aria-label="Cerrar a Eli"
           >
             ×
           </button>
@@ -267,7 +274,7 @@ export default function AsistenteChat({ onCambioCitas }) {
       <div className="chat-panel__mensajes" aria-live="polite">
         {historialCargado && mensajes.length === 0 && (
           <div className="chat-burbuja chat-burbuja--asistente">
-            {`Hola, ${primerNombre}. Soy el asistente de SaludYA.\nCuénteme qué necesita, por ejemplo: "Necesito una cita de dermatología para mañana".`}
+            {`Hola, ${primerNombre}. Soy Eli, su guía de SaludYA.\nCuénteme qué necesita, por ejemplo: "Necesito una cita de dermatología para mañana".`}
           </div>
         )}
         {mensajes.map((m) => (

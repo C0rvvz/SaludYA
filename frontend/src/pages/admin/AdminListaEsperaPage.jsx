@@ -218,7 +218,9 @@ export default function AdminListaEsperaPage() {
     <>
       <h1 className="admin-titulo">Lista de espera</h1>
       <p className="admin-subtitulo">
-        Pacientes que esperan un cupo, en el orden de la lista: primero por prioridad médica y luego por antigüedad.
+        Pacientes a los que ningún horario les sirvió y pidieron que se les avise cuando se libere un cupo. Cuando
+        alguien cancela, el cupo se ofrece al primero de la lista: primero por prioridad médica y luego por
+        antigüedad. Desde aquí también se le puede confirmar una cita directamente.
       </p>
 
       {aviso && <div className="alert alert--success">{aviso}</div>}

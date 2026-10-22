@@ -22,19 +22,23 @@ import jwt
 from app.core.config import settings
 
 ALGORITHM = "HS256"
+EMISOR = "saludya"
 
 TIPO_PACIENTE = "paciente"
 TIPO_PERSONAL = "personal"
 
 
 def crear_access_token(
-    sujeto_id: uuid.UUID, rol: str = "paciente", tipo: str = TIPO_PACIENTE
+    sujeto_id: uuid.UUID, sid: uuid.UUID, rol: str = "paciente", tipo: str = TIPO_PACIENTE
 ) -> tuple[str, datetime]:
+    """`sid`: la sesión del servidor a la que pertenece el token (ver models/sesion.py)."""
     ahora = datetime.now(timezone.utc)
     expira = ahora + timedelta(minutes=settings.jwt_expire_minutes)
 
     payload = {
+        "iss": EMISOR,
         "sub": str(sujeto_id),
+        "sid": str(sid),
         "rol": rol,
         "tipo": tipo,
         "iat": ahora,
@@ -86,7 +90,13 @@ def verificar_password(password: str, guardado: str) -> bool:
 
 def decodificar_access_token(token: str) -> dict:
     """Puede lanzar jwt.ExpiredSignatureError o jwt.InvalidTokenError."""
-    return jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+    return jwt.decode(
+        token,
+        settings.jwt_secret,
+        algorithms=[ALGORITHM],  # nunca "none" ni otro algoritmo que proponga el token
+        issuer=EMISOR,
+        options={"require": ["exp", "iat", "iss", "sub", "sid"]},
+    )
 
 
 # --- HU-23: enlace para confirmar la asistencia desde el recordatorio ---

@@ -99,7 +99,7 @@ describe("Dashboard", () => {
     const usuario = abrir("/admin/dashboard", { personal: true });
     expect(await esperarTexto("Hoy, Jueves, 1 de octubre")).toBeInTheDocument();
     expect(screen.getByText("35 %")).toBeInTheDocument();
-    expect(screen.getByText("3 formales · 1 derechos de petición")).toBeInTheDocument();
+    expect(screen.getByText("3 para pedir otra fecha · 1 derechos de petición")).toBeInTheDocument();
     expect(screen.getByText("45 min")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver historial" })).toHaveAttribute("href", "/admin/citas/c9");
 
@@ -221,11 +221,22 @@ describe("Usuarios del personal", () => {
     expect(await esperarTexto("Cuenta creada para Nueva Persona.")).toBeInTheDocument();
     expect(screen.getByLabelText("Nombre")).toHaveValue("");
 
+    // Cambiar el rol o desactivar pide confirmación, con el nombre y el correo.
+    await usuario.selectOptions(screen.getByLabelText("Rol de Carlos Agenda"), "call_center");
+    expect(
+      screen.getByText("¿Cambiar el rol de Carlos Agenda (carlos@saludya.co) de Agendamiento a Call center?")
+    ).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "No, volver" }));
+    expect(screen.getByLabelText("Rol de Carlos Agenda")).toHaveValue("agendamiento"); // no cambió
     await usuario.selectOptions(screen.getByLabelText("Rol de Carlos Agenda"), "coordinador_medico");
+    await usuario.click(screen.getByRole("button", { name: "Sí, cambiar el rol" }));
     expect(await esperarTexto("Rol de Carlos Agenda actualizado.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Desactivar" }));
+    expect(screen.getByText(/Perderá el acceso de inmediato/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Sí, desactivar" }));
     expect(await esperarTexto("Cuenta de Carlos Agenda desactivada.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Activar" }));
+    await usuario.click(screen.getByRole("button", { name: "Sí, activar" }));
     expect(await esperarTexto("Cuenta de Inactiva activada.")).toBeInTheDocument();
 
     await usuario.click(screen.getAllByRole("button", { name: "Cambiar contraseña" })[1]);
@@ -270,7 +281,7 @@ describe("Lista de solicitudes del personal", () => {
     await usuario.selectOptions(screen.getByLabelText("Estado"), "aprobada");
     expect(screen.queryByText("RAD-1")).not.toBeInTheDocument();
     await usuario.selectOptions(screen.getByLabelText("Estado"), "negada");
-    expect(screen.getByText("No hay solicitudes con ese estado.")).toBeInTheDocument();
+    expect(screen.getByText("No hay cartas con ese estado.")).toBeInTheDocument();
   });
 
   it("si no cargan, lo dice", async () => {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import AsistenteChat from "../components/AsistenteChat";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
 import DetalleCita from "../components/citas/DetalleCita";
 import HistorialCitas from "../components/citas/HistorialCitas";
@@ -140,7 +139,7 @@ export default function MisCitasPage() {
 
   return (
     <div>
-      <EncabezadoPaciente />
+      <EncabezadoPaciente onCambioCitas={cargar} />
 
       <div className="section mis-citas">
         {seleccion ? (
@@ -191,7 +190,6 @@ export default function MisCitasPage() {
       </div>
 
       {/* El asistente también puede gestionar las citas: al terminar una acción, la lista se actualiza. */}
-      <AsistenteChat onCambioCitas={cargar} />
     </div>
   );
 }
