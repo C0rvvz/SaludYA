@@ -31,6 +31,7 @@ os.environ["DATABASE_URL"] = _URL_PRUEBAS.render_as_string(hide_password=False)
 os.environ["TAREAS_PERIODICAS_ACTIVAS"] = "false"
 os.environ["WHATSAPP_MODE"] = "mock"
 os.environ["IA_API_KEY"] = ""
+os.environ["TURNSTILE_SECRET"] = ""  # "No soy un robot" apagado: se prueba aparte (test_seguridad.py)
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -184,9 +185,13 @@ class Fabrica:
         return self._guardar(Disponibilidad(**(valores | datos)))
 
     def cita(self, paciente: Paciente, estado: EstadoCita = EstadoCita.CONFIRMADA, **datos_franja) -> Cita:
-        """Por defecto, las ya cerradas (atendida / no asistió) son de hoy temprano, y las demás, futuras."""
+        """
+        Por defecto, las ya cerradas (atendida / no asistió) son de ayer, y las
+        demás, futuras. Ayer y no "hoy temprano": de madrugada, una cita de hoy
+        a las 6:00 a. m. todavía no habría empezado.
+        """
         if estado in (EstadoCita.ATENDIDA, EstadoCita.NO_ASISTIO):
-            datos_franja = {"fecha": hoy_en_colombia()} | datos_franja
+            datos_franja = {"fecha": hoy_en_colombia() - timedelta(days=1)} | datos_franja
         franja = self.franja(estado=EstadoDisponibilidad.RESERVADO, **datos_franja)
         return self._guardar(Cita(
             paciente_id=paciente.id,

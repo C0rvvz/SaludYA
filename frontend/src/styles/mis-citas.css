@@ -1,0 +1,835 @@
+/* ============ Mis citas (MisCitasPage) ============
+   Computador: pestañas y, debajo, la lista (440 px) con el detalle de la
+   cita elegida al lado. Celular (≤1099 px): saludo, la próxima cita
+   destacada en azul oscuro y la lista con las acciones de cada cita; al
+   tocar una, su detalle ocupa la pantalla. */
+
+.section.mis-citas {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 1320px;
+  padding-top: 40px;
+  padding-bottom: 124px; /* que Eli no tape lo último */
+}
+
+.mis-citas > *,
+.mis-citas__inicio > * {
+  margin: 0;
+}
+
+.mis-citas .alert {
+  margin: 0;
+}
+
+.mis-citas .btn-volver {
+  align-self: flex-start;
+  border: 1px solid var(--color-line);
+  background: #fff;
+}
+
+.mis-citas .btn-volver .btn__circulo {
+  background: var(--color-bg);
+}
+
+.mis-citas__inicio {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.mis-citas__titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mis-citas__titulo h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.1;
+}
+
+.mis-citas__titulo p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 1.1875rem;
+}
+
+.mis-citas__saludo {
+  display: none;
+}
+
+.mis-citas__ayuda {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+/* --- Pestañas --- */
+.mis-citas__pestanas {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px; /* que el halo del foco no se corte */
+  scrollbar-width: none;
+}
+
+.pestana-mis-citas {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pestana-mis-citas:hover {
+  border-color: var(--color-line-strong);
+}
+
+.pestana-mis-citas.is-active {
+  border-color: var(--color-dark);
+  background: var(--color-dark);
+  color: #fff;
+}
+
+.pestana-mis-citas__conteo {
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  font-size: var(--text-xs);
+}
+
+.pestana-mis-citas.is-active .pestana-mis-citas__conteo {
+  background: var(--color-dark-2);
+}
+
+/* --- Lista y detalle --- */
+.mis-citas__cuerpo.con-detalle {
+  display: grid;
+  grid-template-columns: minmax(320px, 440px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.mis-citas__lista,
+.mis-citas__detalle {
+  min-width: 0;
+}
+
+.mis-citas__tarjetas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mis-citas__vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 28px;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.mis-citas__vacio p {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+/* Historial: filtros y meses */
+.mis-citas .filtros-historial {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+
+.mis-citas .filtro-historial {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.mis-citas .filtro-historial.is-active {
+  border-color: var(--color-navy);
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.mis-citas .grupo-mes {
+  margin-bottom: 18px;
+}
+
+.mis-citas .grupo-mes__titulo {
+  margin: 0 0 10px;
+  color: var(--color-ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mis-citas .grupo-mes .lista-citas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* --- Una cita en la lista --- */
+.tarjeta-cita {
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: #fff;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.tarjeta-cita:hover {
+  border-color: var(--color-line-strong);
+}
+
+.tarjeta-cita.is-elegida {
+  border: 2px solid var(--color-navy);
+  box-shadow: var(--shadow-seleccion);
+}
+
+.tarjeta-cita__principal {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  border-radius: 18px;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tarjeta-cita.is-elegida .tarjeta-cita__principal {
+  padding: 15px;
+}
+
+.bloque-fecha-cita {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 68px;
+  border-radius: 14px;
+  background: var(--color-bg);
+}
+
+.bloque-fecha-cita__mes {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.bloque-fecha-cita__dia {
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.bloque-fecha-cita.is-elegida {
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.bloque-fecha-cita.is-elegida .bloque-fecha-cita__mes {
+  color: var(--color-primary-on-dark);
+}
+
+.tarjeta-cita__cuerpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tarjeta-cita__fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tarjeta-cita__textos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tarjeta-cita__especialidad {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.tarjeta-cita__meta {
+  color: var(--color-ink-soft);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+/* Lo del celular, oculto en el computador */
+.tarjeta-cita__cuando,
+.tarjeta-cita__foto,
+.tarjeta-cita__meta--movil,
+.acciones-tarjeta-cita,
+.proxima-cita,
+.detalle-mi-cita__volver {
+  display: none;
+}
+
+/* --- Detalle --- */
+.detalle-mi-cita {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detalle-mi-cita__tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.detalle-mi-cita__tarjeta > *,
+.detalle-mi-cita__tarjeta .alert {
+  margin: 0;
+}
+
+.detalle-mi-cita__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detalle-mi-cita__numero {
+  color: var(--color-ink-soft);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9375rem;
+}
+
+.detalle-mi-cita__quien {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.detalle-mi-cita__quien h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: -0.015em;
+}
+
+.detalle-mi-cita__quien p {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.detalle-mi-cita__datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  column-gap: 32px;
+}
+
+.detalle-mi-cita .summary-row {
+  gap: 16px;
+}
+
+.detalle-mi-cita .summary-row__value {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.detalle-mi-cita__nota {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--color-bg);
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.acciones-detalle-cita {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Estado de su cita (HU-18) */
+.estado-cita {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+
+.estado-cita__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.estado-cita__cabeza h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.boton-novedades {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-navy);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.boton-novedades:hover:not(:disabled) {
+  box-shadow: var(--halo);
+}
+
+.boton-novedades:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.estado-cita__linea {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.estado-cita__linea li {
+  position: relative;
+  padding: 0 0 16px 28px;
+}
+
+.estado-cita__linea li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: var(--color-line);
+}
+
+.estado-cita__punto {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #9aa3ad;
+}
+
+.estado-cita__linea li.is-actual .estado-cita__punto {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
+}
+
+.estado-cita__linea p {
+  margin: 0;
+}
+
+.estado-cita__cuando {
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.estado-cita__que {
+  font-size: var(--text-sm);
+}
+
+.estado-cita__linea li.is-actual .estado-cita__que {
+  font-weight: 600;
+}
+
+/* --- Próxima cita (solo celular) --- */
+.proxima-cita {
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--color-navy);
+  color: #fff;
+  box-shadow: 0 18px 36px -20px rgba(14, 31, 57, 0.7);
+}
+
+.proxima-cita p {
+  margin: 0;
+  color: inherit;
+}
+
+.proxima-cita__cabeza,
+.proxima-cita__fila {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.proxima-cita__cabeza {
+  align-items: center;
+}
+
+.proxima-cita .proxima-cita__rotulo {
+  color: var(--color-primary-on-dark);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.proxima-cita__hora {
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.proxima-cita .proxima-cita__quien {
+  color: #c9d0d8;
+  font-size: var(--text-base);
+}
+
+.proxima-cita .foto-profesional {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.proxima-cita__acciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.proxima-cita__boton {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-navy);
+}
+
+.proxima-cita__secundario {
+  border-color: #4f5d72;
+  background: transparent;
+  color: #fff;
+}
+
+.proxima-cita__secundario:hover:not(:disabled) {
+  border-color: #fff;
+}
+
+/* --- Reprogramar su cita (HU-20) --- */
+.reprogramar-cita {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.reprogramar-cita__cuerpo {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.reprogramar-cita__resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.reprogramar-cita__resumen .alert {
+  margin: 0;
+}
+
+.cambio-cita {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.cambio-cita p {
+  margin: 0;
+}
+
+.cambio-cita .rotulo {
+  font-size: var(--text-xs);
+}
+
+.cambio-cita__cuando {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.cambio-cita__cuando--tachada {
+  color: var(--color-ink-soft);
+  text-decoration: line-through;
+}
+
+.cambio-cita__quien {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.cambio-cita--nueva:not(.is-vacia) {
+  border-color: var(--color-navy);
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.cambio-cita--nueva:not(.is-vacia) .rotulo {
+  color: var(--color-primary-on-dark);
+}
+
+.cambio-cita--nueva:not(.is-vacia) .cambio-cita__cuando {
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.cambio-cita--nueva:not(.is-vacia) .cambio-cita__quien {
+  color: #c9d0d8;
+}
+
+.cambio-cita--nueva.is-vacia {
+  border-style: dashed;
+  border-color: var(--color-line-strong);
+}
+
+.reprogramar-cita__flecha {
+  align-self: center;
+  color: var(--color-ink-soft);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.reprogramar-cita__horarios {
+  grid-area: auto;
+}
+
+.reprogramar-cita__titulo-horas {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+/* --- Pantallas medianas --- */
+@media (max-width: 1279px) {
+  .mis-citas__cuerpo.con-detalle {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  }
+}
+
+/* --- Celular y tableta --- */
+@media (max-width: 1099px) {
+  .section.mis-citas {
+    gap: 16px;
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+
+  .mis-citas__inicio {
+    gap: 16px;
+  }
+
+  .mis-citas__titulo .mis-citas__saludo {
+    display: block;
+    font-size: var(--text-base);
+  }
+
+  .mis-citas__titulo {
+    gap: 2px;
+  }
+
+  .mis-citas__titulo h1 {
+    font-size: 1.875rem;
+  }
+
+  .mis-citas__lead {
+    display: none;
+  }
+
+  .reprogramar-cita .mis-citas__titulo p {
+    font-size: var(--text-base);
+  }
+
+  .pestana-mis-citas {
+    min-height: 44px;
+    padding: 0 16px;
+    font-size: var(--text-sm);
+  }
+
+  .proxima-cita {
+    display: flex;
+  }
+
+  /* Lista o detalle, uno a la vez */
+  .mis-citas__cuerpo.con-detalle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mis-citas[data-detalle-en-celular="no"] .mis-citas__detalle,
+  .mis-citas[data-detalle-en-celular="si"] .mis-citas__inicio,
+  .mis-citas[data-detalle-en-celular="si"] .mis-citas__lista {
+    display: none;
+  }
+
+  .detalle-mi-cita__volver {
+    display: inline-flex;
+  }
+
+  .detalle-mi-cita__tarjeta,
+  .estado-cita {
+    padding: 20px;
+  }
+
+  .detalle-mi-cita__quien h2 {
+    font-size: 1.5rem;
+  }
+
+  .acciones-detalle-cita .btn {
+    flex: 1 1 160px;
+  }
+
+  /* La tarjeta de la lista, como en el celular del diseño */
+  .tarjeta-cita--oculta-movil {
+    display: none;
+  }
+
+  /* Arriba "HOY · 10:00 A. M." y el estado; debajo, foto, especialidad y médico. */
+  .tarjeta-cita__principal,
+  .tarjeta-cita.is-elegida .tarjeta-cita__principal {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px 12px;
+    padding: 18px 18px 12px;
+  }
+
+  .tarjeta-cita__cuerpo {
+    display: contents;
+  }
+
+  .tarjeta-cita__principal .badge {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .tarjeta-cita__fila {
+    grid-column: 1 / -1;
+  }
+
+  .tarjeta-cita.is-elegida {
+    border-width: 1px;
+    box-shadow: none;
+  }
+
+  .bloque-fecha-cita,
+  .tarjeta-cita__meta--computador {
+    display: none;
+  }
+
+  .tarjeta-cita__cuando {
+    display: block;
+    grid-row: 1;
+    grid-column: 1;
+    align-self: center;
+    color: var(--color-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .tarjeta-cita__cuando span {
+    white-space: nowrap; /* que "10:00 A. M." no se parta */
+  }
+
+  .tarjeta-cita__foto,
+  .tarjeta-cita__meta--movil {
+    display: block;
+  }
+
+  .tarjeta-cita__especialidad {
+    font-size: 1.1875rem;
+  }
+
+  .acciones-tarjeta-cita {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+    gap: 6px;
+    padding: 0 18px 18px;
+  }
+
+  .acciones-tarjeta-cita .btn {
+    min-height: 46px;
+    padding: 0 6px;
+    font-size: 0.9375rem;
+  }
+
+  .acciones-tarjeta-cita .btn--texto-peligro {
+    border-color: transparent;
+    background: none;
+  }
+
+  /* Reprogramar: primero los horarios, luego el resumen y confirmar */
+  .reprogramar-cita {
+    gap: 16px;
+  }
+
+  .reprogramar-cita__cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .reprogramar-cita__resumen {
+    order: 2;
+  }
+
+  .reprogramar-cita__horarios {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .tarjeta-cita .badge {
+    font-size: 0.8125rem;
+  }
+}

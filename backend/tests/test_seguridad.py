@@ -194,6 +194,70 @@ def test_contrasena_valida(db):
     assert persona.password_hash.startswith("scrypt$")  # nunca se guarda la contraseña
 
 
+# --- "No soy un robot" (Cloudflare Turnstile) ---
+
+class _RespuestaCloudflare:
+    def __init__(self, exito: bool):
+        self._exito = exito
+
+    def json(self):
+        return {"success": self._exito}
+
+
+@pytest.fixture
+def turnstile(monkeypatch):
+    """Verificación encendida; Cloudflare aprueba solo el token "token-valido"."""
+    from app.integrations import verificacion_humana
+
+    enviados = []
+
+    def post_falso(url, data, timeout):
+        enviados.append(data)
+        return _RespuestaCloudflare(data["response"] == "token-valido")
+
+    monkeypatch.setattr(settings, "turnstile_secret", "llave-secreta")
+    monkeypatch.setattr(verificacion_humana.httpx, "post", post_falso)
+    return enviados
+
+
+def test_sin_la_casilla_no_se_envia_el_codigo_ni_se_registra_ni_entra_el_personal(cliente, fabrica, turnstile):
+    paciente = fabrica.paciente()
+    documento = {"numero_documento": paciente.numero_documento}
+    persona = fabrica.personal()
+
+    r = cliente.post("/auth/paciente/otp/enviar", json=documento)
+    assert r.status_code == 400
+    assert "No soy un robot" in r.json()["detail"]
+    assert cliente.post("/auth/paciente/otp/enviar", json=documento, headers={"X-Verificacion": "inventado"}).status_code == 400
+    assert cliente.post("/admin/auth/login", json={"correo": persona.correo, "password": CLAVE}).status_code == 400
+    assert cliente.post("/pacientes/registro", json={}).status_code == 400  # ni siquiera llega a validar los datos
+
+    r = cliente.post("/auth/paciente/otp/enviar", json=documento, headers={"X-Verificacion": "token-valido"})
+    assert r.status_code == 201, r.text
+    assert turnstile[-1]["secret"] == "llave-secreta"  # se le pregunta a Cloudflare con la llave del servidor
+    r = cliente.post(
+        "/admin/auth/login",
+        json={"correo": persona.correo, "password": CLAVE},
+        headers={"X-Verificacion": "token-valido"},
+    )
+    assert r.status_code == 200
+
+
+def test_si_cloudflare_no_responde_no_deja_pasar(cliente, fabrica, monkeypatch):
+    import httpx
+
+    from app.integrations import verificacion_humana
+
+    def caido(*args, **kwargs):
+        raise httpx.ConnectTimeout("sin conexión")
+
+    monkeypatch.setattr(settings, "turnstile_secret", "llave-secreta")
+    monkeypatch.setattr(verificacion_humana.httpx, "post", caido)
+    documento = {"numero_documento": fabrica.paciente().numero_documento}
+    r = cliente.post("/auth/paciente/otp/enviar", json=documento, headers={"X-Verificacion": "token-valido"})
+    assert r.status_code == 400  # se falla cerrado
+
+
 # --- Cabeceras de seguridad ---
 
 def test_cabeceras_de_seguridad(cliente):

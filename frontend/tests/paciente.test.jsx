@@ -24,122 +24,171 @@ const CITA_CREADA = {
 };
 
 describe("Agendar cita", () => {
-  it("busca, elige especialista, día y hora, y confirma con comprobante", async () => {
+  it("elige especialidad, médico, día y hora, y confirma con comprobante", async () => {
     const llamadas = backendFalso({ ...CATALOGO, "POST /citas": CITA_CREADA });
     const usuario = abrir("/panel", { paciente: true });
 
-    await screen.findByRole("option", { name: "Cardiología" });
-    await usuario.selectOptions(screen.getByLabelText("Especialidad"), "esp-1");
-    await usuario.type(screen.getByLabelText("Ciudad"), "Medellín");
-    await usuario.selectOptions(screen.getByLabelText("Sede"), "sede-1");
-    await usuario.selectOptions(screen.getByLabelText("Modalidad"), "presencial");
-    await usuario.click(screen.getByRole("button", { name: "Buscar" }));
-    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({
-      especialidad_id: "esp-1",
-      ciudad: "Medellín",
-      sede_id: "sede-1",
-      modalidad: "presencial",
-    });
+    // Paso 1: la especialidad, con cuántos profesionales tienen cupo.
+    const cardiologia = await screen.findByRole("button", { name: /Cardiología/ });
+    expect(cardiologia).toHaveTextContent("1 profesional");
+    expect(screen.getByRole("button", { name: "Elija una especialidad" })).toBeDisabled();
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({});
+    await usuario.click(cardiologia);
+    expect(cardiologia).toHaveAttribute("aria-pressed", "true");
+    await usuario.click(screen.getByRole("button", { name: "Continuar con Cardiología" }));
 
-    // Una tarjeta por especialista (HU-12).
-    const tarjetas = await screen.findAllByRole("button", { name: "Ver disponibilidad" });
-    expect(tarjetas).toHaveLength(2);
-    await usuario.click(tarjetas[0]);
+    // Paso 2: busca los horarios de esa especialidad (HU-11) y elige al primero con cupo.
+    expect(await esperarTexto("Elija médico, día y hora")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[1].query).toEqual({ especialidad_id: "esp-1" });
+    expect(screen.getByRole("button", { name: /Dr. Carlos Ramírez/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Confirmar cita" })).toBeDisabled();
 
-    expect(screen.getByRole("button", { name: "Continuar" })).toBeDisabled();
-    await usuario.click(screen.getByRole("button", { name: /21/ })); // otro día
-    await usuario.click(screen.getByRole("button", { name: /20/ }));
-    await usuario.click(screen.getByRole("button", { name: /Sede Poblado · Virtual/ }));
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+    await usuario.click(screen.getByRole("button", { name: /21 de octubre: 1 horario/ })); // otro día
+    await usuario.click(screen.getByRole("button", { name: /20 de octubre: 2 horarios/ }));
+    await usuario.click(screen.getByRole("button", { name: /10:00 a\. m\., Sede Poblado, Virtual/ }));
+    const resumen = screen.getByText("Su cita").closest("section");
+    expect(within(resumen).getByText("Sede Poblado · Medellín")).toBeInTheDocument();
+    expect(within(resumen).getByText("Virtual")).toBeInTheDocument();
 
-    expect(screen.getByText("Confirme su cita")).toBeInTheDocument();
-    expect(screen.getByText("CC 1020304050")).toBeInTheDocument();
     await usuario.click(screen.getByLabelText("Mensaje de texto"));
     await usuario.click(screen.getByRole("button", { name: "Confirmar cita" }));
 
-    expect(await esperarTexto("¡Su cita quedó agendada exitosamente!")).toBeInTheDocument();
+    // Paso 3: el comprobante (HU-17).
+    expect(await esperarTexto("Su cita quedó agendada")).toBeInTheDocument();
+    expect(screen.getByText(/Le enviamos el comprobante por mensaje de texto/)).toBeInTheDocument();
     expect(screen.getByText("SY-NUEVA")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas")[0].cuerpo).toEqual({
       disponibilidad_id: "f2",
       canal_recordatorio: "sms",
     });
+    expect(screen.getByRole("link", { name: "Ver mis citas" })).toHaveAttribute("href", "/mis-citas");
 
     await usuario.click(screen.getByRole("button", { name: "Agendar otra cita" }));
-    expect(await esperarTexto("Busque su especialista")).toBeInTheDocument();
+    expect(await esperarTexto("¿Qué especialista busca?")).toBeInTheDocument();
   });
 
-  it("si otro paciente tomó el horario, lo dice y permite volver a buscar", async () => {
-    backendFalso({ ...CATALOGO, "POST /citas": error(409, "Ese horario ya no está disponible.") });
+  it("el buscador encuentra especialidades y médicos por su nombre, sin importar las tildes", async () => {
+    backendFalso(CATALOGO);
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Buscar" }));
-    await usuario.click((await screen.findAllByRole("button", { name: "Ver disponibilidad" }))[0]);
-    await usuario.click(screen.getByRole("button", { name: /8:00/ }));
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    await usuario.click(screen.getByRole("button", { name: "← Volver a horarios" }));
-    await usuario.click(screen.getByRole("button", { name: /8:00/ }));
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+    const buscador = await screen.findByLabelText("Buscar una especialidad o un médico");
+    await screen.findByRole("button", { name: /Cardiología/ });
+
+    await usuario.type(buscador, "cardio");
+    expect(screen.getByRole("button", { name: /Cardiología/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dermatología/ })).not.toBeInTheDocument();
+
+    await usuario.clear(buscador);
+    await usuario.type(buscador, "xyz");
+    expect(screen.getByText(/No encontramos «xyz»/)).toBeInTheDocument();
+
+    // Un médico: se pasa directo a sus horarios.
+    await usuario.clear(buscador);
+    await usuario.type(buscador, "ramirez");
+    await usuario.click(screen.getByRole("button", { name: /Dr. Carlos Ramírez/ }));
+    expect(await esperarTexto("Elija médico, día y hora")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Dr. Carlos Ramírez/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("los filtros de ciudad, modalidad y sede cambian los médicos y horarios", async () => {
+    backendFalso(CATALOGO);
+    const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
+    expect(await screen.findByText("2 médicos con cupo")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Medellín" })).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("button", { name: "Sede Laureles" }));
+    expect(screen.getByText("1 médico con cupo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /3:00 p\. m\., Sede Laureles/ })).toBeInTheDocument();
+
+    await usuario.selectOptions(screen.getByLabelText("Modalidad"), "virtual");
+    expect(screen.getByText("Ningún médico tiene cupo con estos filtros.")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Quitar los filtros" }));
+    expect(screen.getByText("2 médicos con cupo")).toBeInTheDocument();
+
+    // Otro médico: sus propios días y horas.
+    await usuario.click(screen.getByRole("button", { name: /Dra. Ana Gómez/ }));
+    expect(screen.getByRole("button", { name: /9:00 a\. m\., Sede Poblado, Presencial/ })).toBeInTheDocument();
+  });
+
+  it("si otro paciente tomó el horario, lo dice y vuelve a consultar los cupos", async () => {
+    const llamadas = backendFalso({ ...CATALOGO, "POST /citas": error(409, "Ese horario ya no está disponible.") });
+    const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: /^8:00 a\. m\.,/ }));
     await usuario.click(screen.getByRole("button", { name: "Confirmar cita" }));
 
     expect(await esperarTexto(/otra persona lo reservó/)).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Volver a buscar" }));
-    expect(await esperarTexto("Busque su especialista")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirmar cita" })).toBeDisabled();
+    await waitFor(() => expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")).toHaveLength(3));
   });
 
-  it("otros errores al confirmar, búsqueda vacía y limpiar filtros", async () => {
-    const llamadas = backendFalso({ ...CATALOGO, "POST /citas": error(500, "Error del servidor.") });
-    const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Buscar" }));
-    await usuario.click((await screen.findAllByRole("button", { name: "Ver disponibilidad" }))[1]);
-    await usuario.click(screen.getByRole("button", { name: /9:00/ }));
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+  it("otros errores al confirmar se muestran tal cual", async () => {
+    backendFalso({ ...CATALOGO, "POST /citas": error(500, "Error del servidor.") });
+    const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: /^10:00 a\. m\.,/ }));
     await usuario.click(screen.getByRole("button", { name: "Confirmar cita" }));
     expect(await esperarTexto("Error del servidor.")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "← Volver a horarios" }));
-    await usuario.click(screen.getByRole("button", { name: "← Volver a la búsqueda" }));
-
-    backendFalso({ ...CATALOGO, "GET /disponibilidad/buscar": [] });
-    await usuario.type(await screen.findByLabelText("Fecha"), "2026-12-24");
-    await usuario.click(screen.getByRole("button", { name: "Buscar" }));
-    expect(await esperarTexto(/No se encontraron horarios/)).toBeInTheDocument();
-    expect(screen.getByText("¿No encontró un horario que le sirva?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Avisarme si se libera un cupo" })).toHaveAttribute("href", "/lista-espera");
-    expect(screen.getByRole("link", { name: "Pedir una cita en otra fecha" })).toHaveAttribute(
-      "href",
-      "/solicitudes?tipo=formal"
-    );
-
-    await usuario.click(screen.getByRole("button", { name: "Limpiar" }));
-    expect(screen.getByLabelText("Fecha")).toHaveValue("");
-    expect(llamadas.length).toBeGreaterThan(0);
   });
 
-  it("'Agendar de nuevo' llega con la especialidad y busca de una vez", async () => {
+  it("'Agendar de nuevo' llega con la especialidad, entra al paso 2 y ofrece las salidas", async () => {
     const llamadas = backendFalso(CATALOGO);
-    abrir("/panel?especialidad=esp-1", { paciente: true });
-    expect((await screen.findAllByRole("button", { name: "Ver disponibilidad" })).length).toBe(2);
-    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({ especialidad_id: "esp-1" });
-    expect(screen.getByText("¿Ninguno de estos horarios le sirve?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Avisarme si se libera un cupo" })).toHaveAttribute(
+    const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
+    expect(await esperarTexto("Elija médico, día y hora")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar").map((l) => l.query)).toContainEqual({
+      especialidad_id: "esp-1",
+    });
+    expect(screen.getByRole("link", { name: "Pida que le avisemos si hay cupo" })).toHaveAttribute(
       "href",
       "/lista-espera?especialidad=esp-1"
     );
-    expect(screen.getByRole("link", { name: "Pedir una cita en otra fecha" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "escríbanos una carta de petición" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal&especialidad=esp-1"
+    );
+
+    await usuario.click(screen.getByRole("button", { name: "Cambiar especialidad" }));
+    expect(await esperarTexto("¿Qué especialista busca?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continuar con Cardiología" })).toBeEnabled();
+  });
+
+  it("sin horarios libres: lo dice y ofrece el aviso de cupo o la carta", async () => {
+    backendFalso({ ...CATALOGO, "GET /disponibilidad/buscar": [] });
+    const usuario = abrir("/panel", { paciente: true });
+    const cardiologia = await screen.findByRole("button", { name: /Cardiología/ });
+    expect(cardiologia).toHaveTextContent("Sin cupos por ahora");
+    await usuario.click(cardiologia);
+    await usuario.click(screen.getByRole("button", { name: "Continuar con Cardiología" }));
+
+    expect(await esperarTexto("Por ahora no hay horarios libres de Cardiología")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Avisarme cuando haya cupo" })).toHaveAttribute(
+      "href",
+      "/lista-espera?especialidad=esp-1"
+    );
+    expect(screen.getByRole("link", { name: "Escribir carta de petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );
   });
 
-  it("errores al cargar filtros o al buscar", async () => {
-    backendFalso({
+  it("errores al cargar las especialidades o los horarios", async () => {
+    const llamadas = backendFalso({
       "GET /especialidades": error(500, "Sin catálogo"),
-      "GET /sedes": error(500, "Sin catálogo"),
       "GET /disponibilidad/buscar": error(500, "Sin horarios"),
     });
-    const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
-    expect(await esperarTexto(/No pudimos cargar por completo los filtros/)).toBeInTheDocument();
+    const usuario = abrir("/panel", { paciente: true });
+    expect(await esperarTexto(/No pudimos cargar la lista de especialidades: Sin catálogo/)).toBeInTheDocument();
+    expect(await esperarTexto(/No pudimos ver los cupos de cada especialidad: Sin horarios/)).toBeInTheDocument();
+
+    abrir("/panel?especialidad=esp-1", { paciente: true });
     expect(await esperarTexto("Sin horarios")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Buscar" }));
-    expect(await esperarTexto("Sin horarios")).toBeInTheDocument();
+    const antes = llamadasA(llamadas, "GET", "/disponibilidad/buscar").length;
+    await usuario.click(screen.getByRole("button", { name: "Intentar de nuevo" }));
+    await waitFor(() => expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar").length).toBeGreaterThan(antes));
+  });
+
+  it("'¿No sabe cuál?' abre a Eli", async () => {
+    backendFalso(CATALOGO);
+    const usuario = abrir("/panel", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: "¿No sabe cuál? Pregúntele a Eli" }));
+    expect(await screen.findByRole("dialog", { name: /Eli, su guía de SaludYA/ })).toBeInTheDocument();
   });
 
   it("cerrar sesión", async () => {
@@ -167,8 +216,10 @@ describe("Mis citas", () => {
     citaPasada("h2", "no_asistio", "No asistió", "2026-09-05"),
     citaPasada("h3", "cancelada", "Cancelada", "2026-08-20", { motivo_cancelacion: "Viaje" }),
   ];
+  const DE_LA_CITA = "la cita de Cardiología del Martes, 20 de octubre, 8:00 a. m.";
+  const detalle = () => screen.getByRole("heading", { level: 2, name: "Cardiología" }).closest("section");
 
-  it("organiza por estado y confirma la asistencia desde la lista", async () => {
+  it("organiza por estado, muestra el detalle al lado y confirma la asistencia desde la lista", async () => {
     let citas = [PENDIENTE, CONFIRMADA, ...HISTORIAL];
     const llamadas = backendFalso({
       "GET /citas": () => citas,
@@ -183,11 +234,22 @@ describe("Mis citas", () => {
     expect(await screen.findByRole("tab", { name: "Por confirmar 1" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Próximas 2" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Historial 3" })).toBeInTheDocument();
+    expect(screen.getByText("Hola, Laura")).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole("button", { name: "Confirmar asistencia" }));
+    // La primera cita de la pestaña se abre al lado, con su estado y su línea de tiempo (HU-18).
+    expect(within(detalle()).getByText("SY-0001")).toBeInTheDocument();
+    expect(within(detalle()).getByText("Por confirmar")).toBeInTheDocument();
+    expect(screen.getByText("Cita agendada")).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("button", { name: `Confirmar mi asistencia a ${DE_LA_CITA}` }));
     expect(await esperarTexto(/Confirmó su asistencia a Cardiología/)).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas/cita-1/confirmar-asistencia")).toHaveLength(1);
     expect(await esperarTexto("No tiene citas pendientes de confirmar.")).toBeInTheDocument();
+
+    // Otra cita: su detalle reemplaza al anterior.
+    await usuario.click(screen.getByRole("tab", { name: /Próximas/ }));
+    await usuario.click(screen.getByRole("button", { name: /^Ver detalle: Cardiología, Domingo, 25 de octubre/ }));
+    expect(within(detalle()).getByText("SY-0002")).toBeInTheDocument();
   });
 
   it("historial por mes, con filtros por resultado", async () => {
@@ -199,6 +261,7 @@ describe("Mis citas", () => {
 
     await usuario.click(screen.getByRole("button", { name: "Canceladas (1)" }));
     expect(screen.queryByRole("region", { name: "Septiembre de 2026" })).not.toBeInTheDocument();
+    expect(screen.getByText("Viaje")).toBeInTheDocument(); // el motivo, en el detalle
     expect(screen.getAllByRole("link", { name: /Agendar de nuevo/ })[0]).toHaveAttribute(
       "href",
       "/panel?especialidad=esp-1"
@@ -209,17 +272,17 @@ describe("Mis citas", () => {
     backendFalso({ "GET /citas": [] });
     abrir("/mis-citas", { paciente: true });
     expect(await esperarTexto("No tiene citas próximas.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Agendar una cita" })).toHaveAttribute("href", "/panel");
 
     backendFalso({ "GET /citas": error(500, "No cargó") });
     abrir("/mis-citas", { paciente: true });
     expect(await esperarTexto("No cargó")).toBeInTheDocument();
   });
 
-  it("detalle: cancelar con motivo", async () => {
+  it("cancelar en una ventana, con motivo; la cita pasa al historial", async () => {
     let cita = PENDIENTE;
     const llamadas = backendFalso({
       "GET /citas": () => [cita],
-      "GET /citas/:id": () => cita,
       "POST /citas/:id/cancelar": ({ cuerpo }) => {
         cita = { ...PENDIENTE, estado_visible: "cancelada", estado_texto: "Cancelada", puede_cancelar: false,
           puede_reprogramar: false, puede_confirmar_asistencia: false, motivo_cancelacion: cuerpo.motivo };
@@ -227,130 +290,203 @@ describe("Mis citas", () => {
       },
     });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /^Cancelar la cita de Cardiología/ }));
 
-    expect(await esperarTexto("¿Desea cancelar esta cita?")).toBeInTheDocument();
-    await usuario.click(screen.getByLabelText("Otro motivo"));
-    await usuario.type(screen.getByLabelText("Cuéntenos el motivo"), "Me mudé");
-    await usuario.click(screen.getByRole("button", { name: "Sí, cancelar la cita" }));
+    // Escape cierra la ventana sin hacer nada.
+    await usuario.click(await screen.findByRole("button", { name: `Cancelar ${DE_LA_CITA}` }));
+    expect(screen.getByRole("dialog", { name: "¿Desea cancelar esta cita?" })).toBeInTheDocument();
+    await usuario.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("button", { name: "Cancelar cita" }));
+    const ventana = screen.getByRole("dialog", { name: "¿Desea cancelar esta cita?" });
+    await usuario.click(within(ventana).getByLabelText("Otro motivo"));
+    await usuario.type(within(ventana).getByLabelText("Cuéntenos el motivo"), "Me mudé");
+    await usuario.click(within(ventana).getByRole("button", { name: "Sí, cancelar la cita" }));
 
     expect(await esperarTexto(/Su cita fue cancelada/)).toBeInTheDocument();
-    expect(screen.getByText("Me mudé")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas/cita-1/cancelar")[0].cuerpo).toEqual({ motivo: "Me mudé" });
-
-    await usuario.click(screen.getByRole("button", { name: "← Volver a mis citas" }));
-    expect(await screen.findByRole("heading", { name: "Mis citas" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Historial/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Me mudé")).toBeInTheDocument();
   });
 
-  it("detalle: reprogramar eligiendo un horario nuevo", async () => {
-    const NUEVA = miCita({ id: "cita-nueva", numero_comprobante: "SY-0099", fecha: "2026-10-21", hora: "15:00:00", reprogramada_desde: "SY-0001" });
+  it("si cancelar falla, el error se ve dentro de la ventana", async () => {
+    backendFalso({ "GET /citas": [PENDIENTE], "POST /citas/:id/cancelar": error(409, "Esta cita ya pasó.") });
+    const usuario = abrir("/mis-citas", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: "Cancelar cita" }));
+    const ventana = screen.getByRole("dialog");
+    await usuario.click(within(ventana).getByRole("button", { name: "Sí, cancelar la cita" }));
+    expect(await within(ventana).findByText("Esta cita ya pasó.")).toBeInTheDocument();
+    await usuario.click(within(ventana).getByRole("button", { name: "No, volver" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("reprogramar: cita actual y nueva lado a lado; luego se ve la cita nueva", async () => {
+    const NUEVA = miCita({ id: "cita-nueva", numero_comprobante: "SY-0099", fecha: "2026-10-21", hora: "15:00:00",
+      reprogramada_desde: "SY-0001" });
+    const ANTERIOR = { ...PENDIENTE, estado_visible: "reprogramada", estado_texto: "Reprogramada", reprogramada_a: "SY-0099",
+      puede_cancelar: false, puede_reprogramar: false, puede_confirmar_asistencia: false };
+    let citas = [PENDIENTE];
     const llamadas = backendFalso({
-      "GET /citas": [PENDIENTE, NUEVA],
-      "GET /citas/cita-1": PENDIENTE,
-      "GET /citas/cita-nueva": NUEVA,
+      "GET /citas": () => citas,
       "GET /disponibilidad/buscar": FRANJAS.slice(1, 3),
-      "POST /citas/:id/reprogramar": NUEVA,
+      "POST /citas/:id/reprogramar": () => {
+        citas = [ANTERIOR, NUEVA];
+        return NUEVA;
+      },
     });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /^Reprogramar la cita de Cardiología del Martes, 20/ }));
+    await usuario.click(await screen.findByRole("button", { name: `Reprogramar ${DE_LA_CITA}` }));
 
-    expect(await esperarTexto("Elija el nuevo horario")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: /21/ }));
-    await usuario.click(screen.getByRole("button", { name: /3:00/ }));
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    expect(screen.getByText("¿Confirma el cambio?")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Elegir otro horario" }));
-    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    await usuario.click(screen.getByRole("button", { name: "Sí, cambiar la cita" }));
+    expect(await screen.findByRole("heading", { name: "Reprogramar su cita" })).toBeInTheDocument();
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({ especialidad_id: "esp-1" });
+    const confirmar = screen.getByRole("button", { name: "Confirmar el cambio" });
+    expect(confirmar).toBeDisabled();
+    expect(screen.getByText("Elija un día y una hora.")).toBeInTheDocument();
+
+    await usuario.click(await screen.findByRole("button", { name: /21 de octubre: 1 horario/ }));
+    await usuario.click(screen.getByRole("button", { name: /^3:00 p\. m\.,/ }));
+    expect(screen.getByText(/Mié 21 oct · 3:00 p\. m\./)).toBeInTheDocument();
+    await usuario.click(confirmar);
 
     expect(await esperarTexto(/Este es su nuevo comprobante: SY-0099/)).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas/cita-1/reprogramar")[0].cuerpo).toEqual({ disponibilidad_id: "f3" });
-    // Desde la cita nueva se puede abrir la original por su número.
+    expect(within(detalle()).getByText("SY-0099")).toBeInTheDocument();
+
+    // Desde la cita nueva se abre la original por su número (en el historial).
     await usuario.click(screen.getByRole("button", { name: "SY-0001" }));
-    expect(await screen.findByRole("button", { name: "Cancelar cita" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Historial/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "SY-0099" })).toBeInTheDocument();
   });
 
-  it("detalle: sin horarios para reprogramar, o error al buscarlos", async () => {
-    backendFalso({ "GET /citas": [PENDIENTE], "GET /citas/:id": PENDIENTE, "GET /disponibilidad/buscar": [] });
+  it("reprogramar: primero con su mismo médico, o con cualquier profesional", async () => {
+    backendFalso({ "GET /citas": [PENDIENTE], "GET /disponibilidad/buscar": FRANJAS });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /^Ver detalle/ }));
+    await usuario.click(await screen.findByRole("button", { name: "Reprogramar" }));
+
+    const conSuMedico = await screen.findByRole("button", { name: "Con Dr. Ramírez" });
+    expect(conSuMedico).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: /22 de octubre/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("button", { name: "Cualquier profesional" }));
+    await usuario.click(screen.getByRole("button", { name: /22 de octubre: 1 horario/ }));
+    expect(screen.getByRole("button", { name: /9:00 a\. m\., Dra\. Ana Gómez/ })).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("button", { name: "No, volver" }));
+    expect(await screen.findByRole("heading", { name: "Mis citas" })).toBeInTheDocument();
+  });
+
+  it("reprogramar: sin horarios, error al buscarlos o el horario ya se tomó", async () => {
+    backendFalso({ "GET /citas": [PENDIENTE], "GET /disponibilidad/buscar": [] });
+    const usuario = abrir("/mis-citas", { paciente: true });
     await usuario.click(await screen.findByRole("button", { name: "Reprogramar" }));
     expect(await esperarTexto(/No hay otros horarios disponibles de Cardiología/)).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Volver" }));
+    await usuario.click(screen.getByRole("button", { name: "Volver a mis citas" }));
 
-    backendFalso({ "GET /citas/:id": PENDIENTE, "GET /disponibilidad/buscar": error(500, "Sin búsqueda") });
-    await usuario.click(screen.getByRole("button", { name: "Reprogramar" }));
+    backendFalso({ "GET /citas": [PENDIENTE], "GET /disponibilidad/buscar": error(500, "Sin búsqueda") });
+    await usuario.click(await screen.findByRole("button", { name: "Reprogramar" }));
     expect(await esperarTexto("Sin búsqueda")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "No, volver" }));
+
+    const llamadas = backendFalso({
+      "GET /citas": [PENDIENTE],
+      "GET /disponibilidad/buscar": FRANJAS.slice(1, 3),
+      "POST /citas/:id/reprogramar": error(409, "Ese horario ya no está disponible."),
+    });
+    await usuario.click(await screen.findByRole("button", { name: "Reprogramar" }));
+    await usuario.click(await screen.findByRole("button", { name: /^10:00 a\. m\.,/ }));
+    await usuario.click(screen.getByRole("button", { name: "Confirmar el cambio" }));
+    expect(await esperarTexto("Ese horario ya no está disponible.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirmar el cambio" })).toBeDisabled();
+    await waitFor(() => expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")).toHaveLength(2));
   });
 
-  it("el día de la cita registra la llegada y confirma desde el detalle", async () => {
+  it("el día de la cita: 'Ya llegué' desde el detalle y los datos para recepción", async () => {
     const HOY = miCita({ puede_registrar_llegada: true });
     const LLEGO = miCita({ estado_visible: "llegada_registrada", estado_texto: "Llegada registrada",
       puede_registrar_llegada: false, puede_cancelar: false, puede_reprogramar: false, puede_confirmar_asistencia: false,
       llegada_disponible_desde: null });
-    backendFalso({
-      "GET /citas": [HOY],
-      "GET /citas/:id": HOY,
-      "POST /citas/:id/registrar-llegada": LLEGO,
-      "POST /citas/:id/confirmar-asistencia": error(409, "Ya pasó."),
+    let cita = HOY;
+    const llamadas = backendFalso({
+      "GET /citas": () => [cita],
+      "POST /citas/:id/registrar-llegada": () => {
+        cita = LLEGO;
+        return LLEGO;
+      },
     });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /^Ver detalle/ }));
-    await usuario.click(await screen.findByRole("button", { name: "Confirmar asistencia" }));
-    expect(await esperarTexto("Ya pasó.")).toBeInTheDocument();
-
-    await usuario.click(screen.getByRole("button", { name: "Registrar mi llegada" }));
-    expect(await esperarTexto(/Registramos su llegada/)).toBeInTheDocument();
-    expect(screen.getByText(/muestre este número/)).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Actualizar estado" }));
+    await usuario.click(await screen.findByRole("button", { name: "Ya llegué" }));
+    expect(await esperarTexto(/Registramos su llegada a Cardiología/)).toBeInTheDocument();
+    expect(llamadasA(llamadas, "POST", "/citas/cita-1/registrar-llegada")).toHaveLength(1);
+    expect(await esperarTexto(/muestre este número/)).toBeInTheDocument();
   });
 
-  it("registrar la llegada desde la lista", async () => {
+  it("la próxima cita, destacada para el celular: 'Ya llegué' y 'Cómo llegar'", async () => {
     const HOY = miCita({ puede_registrar_llegada: true });
-    const llamadas = backendFalso({ "GET /citas": [HOY], "POST /citas/:id/registrar-llegada": HOY });
+    const llamadas = backendFalso({ "GET /citas": [HOY, CONFIRMADA], "POST /citas/:id/registrar-llegada": HOY });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "Registrar mi llegada" }));
-    expect(await esperarTexto(/Registramos su llegada a Cardiología/)).toBeInTheDocument();
+    const proxima = await screen.findByRole("region", { name: /^Próxima/ });
+    expect(within(proxima).getByRole("link", { name: "Cómo llegar" })).toHaveAttribute(
+      "href",
+      "https://www.google.com/maps/search/?api=1&query=Poblado%2C%20Medell%C3%ADn"
+    );
+    await usuario.click(within(proxima).getByRole("button", { name: /^Ya llegué/ }));
+    expect(await esperarTexto(/Registramos su llegada/)).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas/cita-1/registrar-llegada")).toHaveLength(1);
   });
 
-  it("acciones rápidas que fallan muestran el error", async () => {
-    backendFalso({ "GET /citas": [PENDIENTE], "POST /citas/:id/confirmar-asistencia": error(409, "Esta cita ya pasó.") });
+  it("en el celular, el detalle se abre y se cierra con 'Volver a mis citas'", async () => {
+    backendFalso({ "GET /citas": [PENDIENTE] });
+    const usuario = abrir("/mis-citas", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: /^Ver detalle: Cardiología/ }));
+    const pagina = document.querySelector(".mis-citas");
+    expect(pagina).toHaveAttribute("data-detalle-en-celular", "si");
+    await usuario.click(screen.getByRole("button", { name: "Volver a mis citas" }));
+    expect(pagina).toHaveAttribute("data-detalle-en-celular", "no");
+  });
+
+  it("acciones que fallan muestran el error, y 'Ver si hay novedades' vuelve a consultar", async () => {
+    const llamadas = backendFalso({
+      "GET /citas": [PENDIENTE],
+      "POST /citas/:id/confirmar-asistencia": error(409, "Esta cita ya pasó."),
+    });
     const usuario = abrir("/mis-citas", { paciente: true });
     await usuario.click(await screen.findByRole("button", { name: "Confirmar asistencia" }));
     expect(await esperarTexto("Esta cita ya pasó.")).toBeInTheDocument();
+
+    const antes = llamadasA(llamadas, "GET", "/citas").length;
+    await usuario.click(screen.getByRole("button", { name: "Ver si hay novedades" }));
+    await waitFor(() => expect(llamadasA(llamadas, "GET", "/citas")).toHaveLength(antes + 1));
   });
 
-  it("calificar la atención de una cita atendida (HU-71)", async () => {
+  it("calificar la atención de una cita atendida, en una ventana (HU-71)", async () => {
     const ATENDIDA = HISTORIAL[0];
     const CALIFICADA = { ...ATENDIDA, puede_calificar: false, calificacion: 4, comentario_calificacion: "Muy amable" };
+    let cita = ATENDIDA;
     const llamadas = backendFalso({
-      "GET /citas": [ATENDIDA],
-      "GET /citas/:id": ATENDIDA,
-      "POST /citas/:id/calificar": CALIFICADA,
+      "GET /citas": () => [cita],
+      "POST /citas/:id/calificar": () => {
+        cita = CALIFICADA;
+        return CALIFICADA;
+      },
     });
     const usuario = abrir("/mis-citas", { paciente: true });
     await usuario.click(await screen.findByRole("tab", { name: /Historial/ }));
-    await usuario.click(screen.getByRole("button", { name: /^Calificar la atención/ }));
+    await usuario.click(screen.getByRole("button", { name: /^Calificar la atención de Cardiología/ }));
 
-    const enviar = await screen.findByRole("button", { name: "Enviar calificación" });
+    const ventana = screen.getByRole("dialog", { name: "¿Cómo fue su atención?" });
+    expect(within(ventana).getByText("Dr. Carlos Ramírez")).toBeInTheDocument();
+    const enviar = within(ventana).getByRole("button", { name: "Enviar calificación" });
     expect(enviar).toBeDisabled();
-    await usuario.hover(screen.getByText("3 de 5: Regular").closest("label"));
-    expect(screen.getByText("Regular", { selector: ".estrellas__texto" })).toBeInTheDocument();
-    await usuario.click(screen.getByLabelText(/4 de 5: Buena/));
-    await usuario.type(screen.getByLabelText("Comentario (opcional)"), "  Muy amable  ");
+    await usuario.hover(within(ventana).getByText("3 de 5: Regular").closest("label"));
+    expect(within(ventana).getByText("Regular", { selector: ".estrellas-ventana__texto" })).toBeInTheDocument();
+    await usuario.click(within(ventana).getByLabelText(/4 de 5: Buena/));
+    await usuario.type(within(ventana).getByLabelText("Comentario (opcional)"), "  Muy amable  ");
     await usuario.click(enviar);
 
     expect(await esperarTexto("Gracias por calificar su atención.")).toBeInTheDocument();
-    expect(screen.getByText(/4 de 5 · Buena/)).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas/h1/calificar")[0].cuerpo).toEqual({ calificacion: 4, comentario: "Muy amable" });
-  });
-
-  it("si el detalle no carga, lo dice", async () => {
-    backendFalso({ "GET /citas": [PENDIENTE], "GET /citas/:id": error(404, "No encontramos esa cita.") });
-    const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /^Ver detalle/ }));
-    expect(await esperarTexto("No encontramos esa cita.")).toBeInTheDocument();
+    expect(await esperarTexto(/4 de 5 · Buena/)).toBeInTheDocument();
   });
 });
 
@@ -381,7 +517,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "DELETE /chat": undefined,
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
     expect(await esperarTexto("Hola, ¿en qué le ayudo?")).toBeInTheDocument(); // recupera la conversación
 
     await usuario.type(screen.getByLabelText("Escriba su mensaje"), "Quiero una cita");
@@ -411,7 +547,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "POST /chat": { respuesta: "Llame al 123. También la Línea 192.", tipo: "urgencia", cita: null },
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
     await usuario.click(await screen.findByRole("button", { name: "Solicitar una cita" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Llame al 123");
     expect(screen.getByRole("link", { name: "Llamar al 123" })).toHaveAttribute("href", "tel:123");
@@ -426,13 +562,13 @@ describe("Asistente conversacional (HU-33)", () => {
       "DELETE /chat": error(500, "No se pudo reiniciar."),
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
     await usuario.type(await screen.findByLabelText("Escriba su mensaje"), "Hola{Enter}");
     expect(await esperarTexto("El asistente no está disponible.")).toBeInTheDocument();
     expect(screen.getByLabelText("Escriba su mensaje")).toHaveValue("Hola");
 
     await usuario.keyboard("{Escape}");
-    expect(screen.getByRole("button", { name: /Pregúntele a Eli/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pregúntele a Eli/ })).toBeInTheDocument();
   });
 
   it("al reiniciar con error lo avisa, y una sesión vencida cierra la sesión", async () => {
@@ -443,7 +579,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "POST /chat": error(401, "La sesión expiró."),
     });
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
     await usuario.click(await screen.findByRole("button", { name: "Nueva conversación" }));
     expect(await esperarTexto("No se pudo reiniciar.")).toBeInTheDocument();
 
@@ -457,7 +593,7 @@ describe("Asistente conversacional (HU-33)", () => {
       "POST /chat": { respuesta: "Confirmada.", tipo: "asistencia_confirmada", cita: CITA_CHAT },
     });
     const usuario = abrir("/mis-citas", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: /Pregúntele a Eli/ }));
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
     await usuario.type(await screen.findByLabelText("Escriba su mensaje"), "Sí voy{Enter}");
     expect(await esperarTexto("Asistencia confirmada", { selector: ".badge" })).toBeInTheDocument();
     await waitFor(() => expect(llamadasA(llamadas, "GET", "/citas").length).toBe(2));

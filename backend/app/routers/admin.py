@@ -64,7 +64,7 @@ from app.core import limite_intentos
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_personal, requiere, sesion_del_personal
-from app.core.limite_intentos import ip_de, limitar
+from app.core.limite_intentos import exigir_humano, ip_de, limitar
 from app.core.permisos import NOMBRE_ROL, PERMISOS_POR_ROL, Permiso
 from app.core.security import TIPO_PERSONAL, crear_access_token
 from app.models.auditoria import RegistroAuditoria
@@ -327,7 +327,7 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
 @router.post(
     "/auth/login",
     response_model=LoginPersonalResponse,
-    dependencies=[Depends(limitar(limite_intentos.INGRESO_PERSONAL))],
+    dependencies=[Depends(limitar(limite_intentos.INGRESO_PERSONAL)), Depends(exigir_humano)],
 )
 def iniciar_sesion(datos: LoginPersonalRequest, request: Request, db: Session = Depends(get_db)):
     try:

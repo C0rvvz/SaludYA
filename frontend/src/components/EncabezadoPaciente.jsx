@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { iniciales } from "../utils/avatar";
+import { EVENTO_ABRIR_ELI } from "../utils/eli";
 import AsistenteChat from "./AsistenteChat";
 import { IconoAgendar, IconoCarta, IconoChat, IconoEspera, IconoMisCitas, IconoSalir } from "./Iconos";
 import Logo from "./Logo";
@@ -30,6 +31,12 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
   const [eliAbierto, setEliAbierto] = useState(false);
   const abrirEli = useCallback(() => setEliAbierto(true), []);
   const cerrarEli = useCallback(() => setEliAbierto(false), []);
+
+  // Otros botones de la página también abren a Eli (ver utils/eli.js).
+  useEffect(() => {
+    window.addEventListener(EVENTO_ABRIR_ELI, abrirEli);
+    return () => window.removeEventListener(EVENTO_ABRIR_ELI, abrirEli);
+  }, [abrirEli]);
 
   const clasePildora = ({ isActive }) => `menu-paciente__enlace ${isActive ? "is-active" : ""}`;
   const clasePestana = ({ isActive }) => `barra-paciente__pestana ${isActive ? "is-active" : ""}`;

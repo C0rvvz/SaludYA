@@ -4,8 +4,9 @@ import { apiFetch, conFiltros } from "./client";
 const conPersonal = (path, opciones = {}) => apiFetch(path, { ...opciones, auth: "personal" });
 
 // --- Cuentas ---
-export function iniciarSesionPersonal(correo, password) {
-  return apiFetch("/admin/auth/login", { method: "POST", body: { correo, password } });
+/** `verificacion`: el token de "No soy un robot" (ver components/VerificacionHumana.jsx). */
+export function iniciarSesionPersonal(correo, password, verificacion) {
+  return apiFetch("/admin/auth/login", { method: "POST", body: { correo, password }, verificacion });
 }
 
 export function obtenerPersonalActual() {

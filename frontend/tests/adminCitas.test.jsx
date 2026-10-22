@@ -120,7 +120,7 @@ describe("Ingreso del personal", () => {
     });
 
     await usuario.click(screen.getByRole("button", { name: "Cerrar sesión" }));
-    expect(await screen.findByRole("heading", { name: "Ingreso del personal de la EPS o IPS" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Iniciar sesión", level: 1 })).toBeInTheDocument();
     expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBeNull();
   });
 
@@ -140,11 +140,11 @@ describe("Ingreso del personal", () => {
   it("sin sesión, o con la sesión vencida, pide ingresar", async () => {
     backendFalso();
     abrir("/admin/citas");
-    expect(await screen.findByRole("heading", { name: "Ingreso del personal de la EPS o IPS" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Iniciar sesión", level: 1 })).toBeInTheDocument();
 
     backendFalso({ "GET /admin/auth/me": error(401, "Su cuenta no está activa.") });
     abrir("/admin", { personal: true });
-    expect(await screen.findByRole("heading", { name: "Ingreso del personal de la EPS o IPS" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Iniciar sesión", level: 1 })).toBeInTheDocument();
     expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBeNull();
   });
 });

@@ -36,3 +36,25 @@ export const CALIFICACIONES = { 1: "Muy mala", 2: "Mala", 3: "Regular", 4: "Buen
 
 // 4 -> "★★★★☆"
 export const estrellas = (n) => "★".repeat(n) + "☆".repeat(5 - n);
+
+// Estado en pocas palabras, para las insignias de "Mis citas" (el texto
+// completo, estado_texto, va en la línea de tiempo y en el personal).
+export const ESTADO_CORTO = {
+  pendiente_confirmar: "Por confirmar",
+  asistencia_confirmada: "Confirmada",
+  llegada_registrada: "Llegó",
+  finalizada: "En revisión",
+  atendida: "Atendida",
+  no_asistio: "No asistió",
+  cancelada: "Cancelada",
+  reprogramada: "Reprogramada",
+};
+
+/**
+ * Enlace a Google Maps para llegar a la sede. Las sedes todavía no tienen
+ * dirección: se busca por el barrio o municipio ("Poblado, Medellín").
+ */
+export function enlaceComoLlegar(sede) {
+  const lugar = `${sede.nombre.replace(/^Sede\s+/i, "")}, ${sede.ciudad}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
+}

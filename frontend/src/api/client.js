@@ -45,9 +45,11 @@ export function conFiltros(path, filtros = {}) {
  * para cerrarla en esta pestaña y mostrar el motivo al volver a ingresar.
  *
  * `token`: para cerrar sesión con un token que ya se quitó de la pestaña.
+ * `verificacion`: el token de "No soy un robot", que el backend comprueba con Cloudflare.
  */
-export async function apiFetch(path, { method = "GET", body, auth, token: tokenExplicito } = {}) {
+export async function apiFetch(path, { method = "GET", body, auth, token: tokenExplicito, verificacion } = {}) {
   const headers = { "Content-Type": "application/json" };
+  if (verificacion) headers["X-Verificacion"] = verificacion;
   const tipo = auth === "personal" ? "personal" : "paciente";
   const conSesion = Boolean(auth) && Boolean(leerToken(tipo));
 

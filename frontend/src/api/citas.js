@@ -22,11 +22,6 @@ export function listarMisCitas(vista = "todas") {
   return apiFetch(`/citas?vista=${vista}`, { auth: true });
 }
 
-// HU-26 criterio 4 + HU-18: detalle con el estado y su historial.
-export function obtenerMiCita(citaId) {
-  return apiFetch(`/citas/${citaId}`, { auth: true });
-}
-
 // HU-29 / HU-23
 export function confirmarAsistencia(citaId) {
   return apiFetch(`/citas/${citaId}/confirmar-asistencia`, { method: "POST", auth: true });

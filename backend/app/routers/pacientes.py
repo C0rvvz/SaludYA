@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limite_intentos import exigir_humano
 from app.schemas.paciente import PacienteRegistroRequest, PacienteRegistroResponse
 from app.services import registro_service
 from app.services.exceptions import DocumentoYaRegistradoError, EpsNoEncontradaError
@@ -22,6 +23,7 @@ router = APIRouter()
     "/pacientes/registro",
     response_model=PacienteRegistroResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(exigir_humano)],  # "No soy un robot": sin cuentas creadas por bots
 )
 def registrar_paciente(datos: PacienteRegistroRequest, db: Session = Depends(get_db)):
     try:

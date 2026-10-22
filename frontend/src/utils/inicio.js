@@ -7,12 +7,14 @@ import { capitalizar, formatearHora } from "./formato";
 
 // Fotos de ejemplo (Unsplash, libres de uso) del diseño. Reemplazar por
 // fotos propias de las sedes y los profesionales.
-const FOTO_GENERAL = "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1200&q=80&auto=format&fit=crop";
+const FOTO_GENERAL = "https://unsplash.com/photos/EiL21cqvo58/download?w=1400";
 const FOTOS = {
+  "medico general": FOTO_GENERAL,
   "medicina general": FOTO_GENERAL,
   pediatria: "https://unsplash.com/photos/QY8-IuUV3wk/download?w=1400",
   cardiologia: "https://unsplash.com/photos/Q3J1wmn7_8w/download?w=1400",
-  dermatologia: "https://images.unsplash.com/photo-1584515933487-779824d29309?w=1200&q=80&auto=format&fit=crop",
+  dermatologia: "https://unsplash.com/photos/PNdOpC-6q-I/download?w=1400",
+  ortopedia: "https://images.pexels.com/photos/263357/pexels-photo-263357.jpeg?auto=compress&cs=tinysrgb&w=1400",
 };
 
 export const FOTO_INICIO = FOTO_GENERAL;

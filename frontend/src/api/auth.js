@@ -7,10 +7,12 @@ export function identificarPaciente(numeroDocumento) {
   });
 }
 
-export function enviarOtp(numeroDocumento) {
+/** `verificacion`: el token de "No soy un robot" (ver components/VerificacionHumana.jsx). */
+export function enviarOtp(numeroDocumento, verificacion) {
   return apiFetch("/auth/paciente/otp/enviar", {
     method: "POST",
     body: { numero_documento: numeroDocumento },
+    verificacion,
   });
 }
 

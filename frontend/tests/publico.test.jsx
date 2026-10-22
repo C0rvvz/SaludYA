@@ -16,10 +16,10 @@ describe("Inicio (rediseño 2a)", () => {
     expect(within(carrusel).getAllByRole("button", { name: /Ver cupo/ })).toHaveLength(2);
     expect(within(carrusel).getByText("Cardiología").closest("[aria-hidden]")).toHaveAttribute("aria-hidden", "false");
 
-    expect(screen.getByRole("link", { name: "Agendar cita" })).toHaveAttribute("href", "/registrarse");
-    expect(screen.getByRole("link", { name: /Agendar una cita/ })).toHaveAttribute("href", "/registrarse");
+    // Arriba: "Registrarse" e "Iniciar sesión" (el hero ya no tiene botones).
+    expect(screen.getByRole("link", { name: "Registrarse" })).toHaveAttribute("href", "/registrarse");
     expect(screen.getByRole("link", { name: "Iniciar sesión" })).toHaveAttribute("href", "/iniciar-sesion");
-    expect(screen.getByRole("link", { name: "Ya tengo cuenta" })).toHaveAttribute("href", "/iniciar-sesion");
+    expect(screen.getByText("Elija su médico y la hora que le quede mejor. Nosotros le avisamos.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Acceso para personal/ })).toHaveAttribute("href", "/admin/ingresar");
 
     // El menú lleva a secciones que existen.
@@ -124,7 +124,7 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     await usuario.clear(screen.getByPlaceholderText("000000"));
     await usuario.type(screen.getByPlaceholderText("000000"), "123456");
     await usuario.click(screen.getByRole("button", { name: "Entrar" }));
-    expect(await esperarTexto("Busque su especialista")).toBeInTheDocument();
+    expect(await esperarTexto("¿Qué especialista busca?")).toBeInTheDocument();
     expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBe("token-nuevo");
     expect(llamadasA(llamadas, "POST", "/auth/paciente/otp/validar")).toHaveLength(2);
   });

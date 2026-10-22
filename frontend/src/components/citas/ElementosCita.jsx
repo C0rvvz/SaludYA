@@ -1,19 +1,20 @@
-import { CLASE_ESTADO } from "../../utils/citas";
-import { formatearDiaChip, formatearMesCorto } from "../../utils/formato";
+import { CLASE_ESTADO, ESTADO_CORTO } from "../../utils/citas";
+import { formatearMesCorto } from "../../utils/formato";
 
-/** Piezas pequeñas que comparten la lista y el detalle de "Mis citas". */
+/** Piezas pequeñas que comparten la lista y el detalle de "Mis citas" (y el personal). */
 
-export function EstadoBadge({ cita }) {
-  return <span className={`badge ${CLASE_ESTADO[cita.estado_visible]}`}>{cita.estado_texto}</span>;
+/** `corto`: "Por confirmar" en vez de "Pendiente de confirmar asistencia" (Mis citas). */
+export function EstadoBadge({ cita, corto = false }) {
+  const texto = corto ? (ESTADO_CORTO[cita.estado_visible] ?? cita.estado_texto) : cita.estado_texto;
+  return <span className={`badge ${CLASE_ESTADO[cita.estado_visible]}`}>{texto}</span>;
 }
 
-export function BloqueFecha({ fecha }) {
-  const { dia, numero } = formatearDiaChip(fecha);
+/** Bloque "OCT / 22" de la lista de citas; azul oscuro si es la cita abierta. */
+export function BloqueFecha({ fecha, elegida = false }) {
   return (
-    <span className="bloque-fecha" aria-hidden="true">
-      <span>{dia}</span>
-      <strong>{numero}</strong>
-      <span>{formatearMesCorto(fecha)}</span>
+    <span className={`bloque-fecha-cita ${elegida ? "is-elegida" : ""}`} aria-hidden="true">
+      <span className="bloque-fecha-cita__mes">{formatearMesCorto(fecha)}</span>
+      <span className="bloque-fecha-cita__dia">{String(new Date(`${fecha}T00:00:00`).getDate()).padStart(2, "0")}</span>
     </span>
   );
 }

@@ -22,7 +22,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.js'],
     include: ['tests/**/*.test.{js,jsx}'],
-    env: { VITE_API_URL: 'http://api.test' },
+    // Sin llave de Turnstile: la casilla "No soy un robot" se prueba aparte (con un Turnstile falso).
+    env: { VITE_API_URL: 'http://api.test', VITE_TURNSTILE_SITEKEY: '' },
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'text', 'lcov'],

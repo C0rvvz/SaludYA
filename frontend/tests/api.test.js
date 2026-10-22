@@ -96,7 +96,6 @@ const LLAMADAS = [
   [citas.obtenerComprobante, [ID], `/citas/${ID}/comprobante`, "GET", undefined, "paciente"],
   [citas.listarMisCitas, [], "/citas?vista=todas", "GET", undefined, "paciente"],
   [citas.listarMisCitas, ["historial"], "/citas?vista=historial", "GET", undefined, "paciente"],
-  [citas.obtenerMiCita, [ID], `/citas/${ID}`, "GET", undefined, "paciente"],
   [citas.confirmarAsistencia, [ID], `/citas/${ID}/confirmar-asistencia`, "POST", undefined, "paciente"],
   [citas.registrarLlegada, [ID], `/citas/${ID}/registrar-llegada`, "POST", undefined, "paciente"],
   [citas.confirmarAsistenciaPorEnlace, ["tk"], "/citas/confirmar-asistencia/enlace", "POST", { token: "tk" }, null],

@@ -649,27 +649,37 @@
   line-height: 1.5;
 }
 
-/* --- Sedes y Ayuda (destinos del menú) --- */
-.inicio-seccion {
-  padding-top: 64px;
-  padding-bottom: 8px;
+/* --- Pie oscuro: Sedes y Ayuda (destinos del menú) y el acceso del personal --- */
+.inicio-pie {
+  background: var(--i-texto);
+  color: #9aa3ad;
+  font-size: 15px;
 }
 
-.inicio-seccion:last-of-type {
-  padding-bottom: 72px;
+.inicio-pie__secciones {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 64px;
+  padding-top: 72px;
+  padding-bottom: 64px;
 }
 
-.inicio-seccion__lead {
+.inicio-pie__seccion h2 {
+  color: #fff;
+}
+
+.inicio-pie__lead {
   margin-top: 10px;
-  color: var(--i-suave);
-  font-size: 19px;
+  color: #c9d0d8;
+  font-size: 17px;
   line-height: 1.55;
 }
 
 .inicio-sedes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
   margin: 28px 0 0;
   padding: 0;
   list-style: none;
@@ -679,33 +689,37 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 22px 24px;
-  border: 1px solid var(--i-borde);
+  padding: 20px 22px;
+  border: 1px solid #333a43;
   border-radius: 14px;
-  background: var(--i-superficie);
+  background: #1d2228;
 }
 
 .inicio-sede__nombre {
-  font-size: 20px;
+  color: #fff;
+  font-size: 19px;
   font-weight: 600;
 }
 
 .inicio-sede__ciudad {
-  color: var(--i-suave);
-  font-size: 17px;
+  color: #c9d0d8;
+  font-size: 16px;
 }
 
 .inicio-preguntas {
   display: grid;
   gap: 12px;
-  max-width: 820px;
   margin-top: 28px;
 }
 
 .inicio-pregunta {
-  border: 1px solid var(--i-borde);
+  border: 1px solid #333a43;
   border-radius: 14px;
-  background: var(--i-superficie);
+  background: #1d2228;
+}
+
+.inicio-pregunta[open] {
+  border-color: #4a5260;
 }
 
 .inicio-pregunta summary {
@@ -714,8 +728,9 @@
   justify-content: space-between;
   gap: 16px;
   min-height: 60px;
-  padding: 14px 24px;
-  font-size: 19px;
+  padding: 14px 22px;
+  color: #fff;
+  font-size: 18px;
   font-weight: 600;
   list-style: none;
   cursor: pointer;
@@ -727,7 +742,8 @@
 
 .inicio-pregunta summary::after {
   content: "+";
-  color: var(--i-azul);
+  flex-shrink: 0;
+  color: #a9c6ea;
   font-size: 26px;
   font-weight: 500;
   line-height: 1;
@@ -738,17 +754,16 @@
 }
 
 .inicio-pregunta p {
-  padding: 0 24px 20px;
-  color: var(--i-suave);
+  padding: 0 22px 20px;
+  color: #c9d0d8;
   font-size: 17px;
   line-height: 1.55;
 }
 
-/* --- Pie --- */
-.inicio-pie {
-  background: var(--i-texto);
-  color: #9aa3ad;
-  font-size: 15px;
+/* Sobre el fondo oscuro, el foco se marca en azul claro */
+.inicio-pie a:focus-visible,
+.inicio-pie summary:focus-visible {
+  outline-color: #a9c6ea;
 }
 
 .inicio-pie__fila {
@@ -759,6 +774,7 @@
   gap: 24px;
   padding-top: 28px;
   padding-bottom: 28px;
+  border-top: 1px solid #2a3038;
 }
 
 .inicio-pie__marca {
@@ -840,7 +856,8 @@
   }
 
   .inicio-hero,
-  .inicio-personas {
+  .inicio-personas,
+  .inicio-pie__secciones {
     grid-template-columns: 1fr;
     gap: 40px;
   }

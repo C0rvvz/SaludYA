@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
+import {
+  cuandoEs,
+  diasDelProfesional,
+  dondeAtiende,
+  esDeManana,
+  esProfesionalMujer,
+  horaCorta,
+  nombreCorto,
+  resumenEspecialidades,
+  sinTildes,
+  textoDesde,
+} from "../src/utils/agendar";
 import { colorAvatar, iniciales } from "../src/utils/avatar";
-import { CALIFICACIONES, ESTADOS_ACTIVOS, estrellas, horaDe } from "../src/utils/citas";
+import { CALIFICACIONES, ESTADO_CORTO, ESTADOS_ACTIVOS, enlaceComoLlegar, estrellas, horaDe } from "../src/utils/citas";
 import {
   capitalizar,
   formatearDiaChip,
@@ -119,5 +131,74 @@ describe("avatar y constantes", () => {
     expect(CALIFICACIONES[5]).toBe("Excelente");
     expect(ESTADOS_ACTIVOS).toContain("pendiente_confirmar");
     expect(ESTADOS_SOLICITUD.aprobada[0]).toBe("Aprobada");
+  });
+});
+
+describe("agendar", () => {
+  const HOY = new Date(2026, 9, 22, 9, 0); // jueves 22 de octubre
+
+  it("desde cuándo hay cupo, en palabras", () => {
+    expect(textoDesde("2026-10-22", HOY)).toBe("Desde hoy");
+    expect(textoDesde("2026-10-23", HOY)).toBe("Desde mañana");
+    expect(textoDesde("2026-10-26", HOY)).toBe("Desde el lunes");
+    expect(textoDesde("2026-11-03", HOY)).toMatch(/^Desde el 3 de nov/);
+  });
+
+  it("cuántos profesionales tiene cada especialidad", () => {
+    const franjas = [franja("a", "2026-10-26", "08:00:00"), franja("b", "2026-10-23", "09:00:00")];
+    const [cardio, derma] = resumenEspecialidades(
+      [{ id: "esp-1", nombre: "Cardiología" }, { id: "esp-2", nombre: "Dermatología" }],
+      franjas,
+      HOY
+    );
+    expect(cardio).toMatchObject({ profesionales: 1, desde: "Desde mañana" });
+    expect(derma).toMatchObject({ profesionales: 0, desde: null });
+  });
+
+  it("los días del profesional: sin cupos se muestran, salvo los domingos", () => {
+    const dias = diasDelProfesional([
+      franja("a", "2026-10-23", "08:00:00"),
+      franja("b", "2026-10-23", "15:00:00"),
+      franja("c", "2026-10-26", "09:00:00"),
+    ]);
+    expect(dias).toEqual([
+      { fecha: "2026-10-23", cantidad: 2 },
+      { fecha: "2026-10-24", cantidad: 0 }, // sábado
+      { fecha: "2026-10-26", cantidad: 1 },
+    ]);
+    expect(diasDelProfesional([])).toEqual([]);
+  });
+
+  it("horas, sedes, tildes y siluetas", () => {
+    expect(horaCorta("15:00:00")).toBe("3:00");
+    expect(horaCorta("00:30:00")).toBe("12:30");
+    expect(esDeManana("11:59:00")).toBe(true);
+    expect(esDeManana("12:00:00")).toBe(false);
+    expect(dondeAtiende([franja("a", "2026-10-23", "08:00:00")])).toBe("Sede Poblado · Presencial");
+    expect(
+      dondeAtiende([
+        franja("a", "2026-10-23", "08:00:00"),
+        franja("b", "2026-10-23", "09:00:00", { sede: OTRA_SEDE, modalidad: "virtual" }),
+      ])
+    ).toBe("2 sedes · Presencial y virtual");
+    expect(sinTildes("Ramírez")).toBe("ramirez");
+    expect(esProfesionalMujer("Dra. Ana Gómez")).toBe(true);
+    expect(esProfesionalMujer("Dr. Carlos Ramírez")).toBe(false);
+  });
+});
+
+describe("mis citas", () => {
+  it("cuándo es la cita, nombres cortos, estados cortos y cómo llegar", () => {
+    const HOY = new Date(2026, 9, 22, 9, 0);
+    expect(cuandoEs("2026-10-22", HOY)).toBe("Hoy");
+    expect(cuandoEs("2026-10-23", HOY)).toBe("Mañana");
+    expect(cuandoEs("2026-11-03", HOY)).toBe("Mar 3 nov");
+    expect(nombreCorto("Dra. Laura María Gómez")).toBe("Dra. Gómez");
+    expect(nombreCorto("Dr. Ruiz")).toBe("Dr. Ruiz");
+    expect(nombreCorto("Laura Gómez Ruiz")).toBe("Laura Gómez Ruiz");
+    expect(ESTADO_CORTO.pendiente_confirmar).toBe("Por confirmar");
+    expect(enlaceComoLlegar({ nombre: "Sede Envigado", ciudad: "Envigado" })).toBe(
+      "https://www.google.com/maps/search/?api=1&query=Envigado%2C%20Envigado"
+    );
   });
 });

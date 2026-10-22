@@ -50,14 +50,6 @@ const PREGUNTAS = [
   },
 ];
 
-function FlechaDerecha() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-      <path d="M5 12h13M13 6.5 18.5 12 13 17.5" stroke="#0e1f39" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export default function HomePage() {
   const { estaAutenticado } = useAuth();
   const { hash } = useLocation();
@@ -79,9 +71,6 @@ export default function HomePage() {
       .catch(() => setSedes([]));
   }, []);
 
-  // Con sesión, agendar lleva directo a la búsqueda de citas.
-  const agendar = estaAutenticado ? "/panel" : "/registrarse";
-
   return (
     <div className="inicio">
       <header className="inicio-cabecera">
@@ -93,12 +82,20 @@ export default function HomePage() {
             <a href="#ayuda">Ayuda</a>
           </nav>
           <div className="inicio-cabecera__acciones">
-            <Link to="/iniciar-sesion" className="inicio-boton inicio-boton--borde" style={{ "--retraso": "1.2s" }}>
-              Iniciar sesión
-            </Link>
-            <Link to={agendar} className="inicio-boton inicio-boton--oscuro">
-              Agendar cita
-            </Link>
+            {estaAutenticado ? (
+              <Link to="/panel" className="inicio-boton inicio-boton--oscuro">
+                Agendar cita
+              </Link>
+            ) : (
+              <>
+                <Link to="/registrarse" className="inicio-boton inicio-boton--borde" style={{ "--retraso": "1.2s" }}>
+                  Registrarse
+                </Link>
+                <Link to="/iniciar-sesion" className="inicio-boton inicio-boton--oscuro">
+                  Iniciar sesión
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -108,28 +105,7 @@ export default function HomePage() {
           <div className="inicio-hero__texto">
             <span className="inicio-ceja">EPS, IPS y médicos particulares · Todo en un solo lugar</span>
             <h1>Su cita médica, sin filas ni llamadas.</h1>
-            <p className="inicio-hero__lead">
-              Elija especialista, sede y horario. Le confirmamos todo por WhatsApp, con un código: sin contraseñas.
-            </p>
-            <div className="inicio-hero__acciones">
-              <Link to={agendar} className="inicio-boton inicio-boton--oscuro inicio-boton--grande" style={{ "--retraso": "2.4s" }}>
-                Agendar una cita
-                <span className="inicio-boton__flecha">
-                  <FlechaDerecha />
-                </span>
-              </Link>
-              <Link
-                to="/iniciar-sesion"
-                className="inicio-boton inicio-boton--borde inicio-boton--grande"
-                style={{ "--retraso": "3.2s" }}
-              >
-                Ya tengo cuenta
-              </Link>
-            </div>
-            <p className="inicio-nota">
-              <span className="inicio-nota__punto" aria-hidden="true" />
-              Ingrese con su cédula y el código que llega a su WhatsApp
-            </p>
+            <p className="inicio-hero__lead">Elija su médico y la hora que le quede mejor. Nosotros le avisamos.</p>
           </div>
 
           <div className="inicio-hero__visual">
@@ -181,37 +157,41 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="sedes" className="inicio-contenedor inicio-seccion" aria-labelledby="titulo-sedes">
-          <h2 id="titulo-sedes">Sedes</h2>
-          <p className="inicio-seccion__lead">Donde puede atenderse en persona. Muchas citas también son virtuales.</p>
-          {sedes.length > 0 ? (
-            <ul className="inicio-sedes">
-              {sedes.map((s) => (
-                <li key={s.id} className="inicio-sede">
-                  <span className="inicio-sede__nombre">{s.nombre}</span>
-                  <span className="inicio-sede__ciudad">{s.ciudad}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="inicio-seccion__lead">Las sedes se muestran al elegir la especialidad.</p>
-          )}
-        </section>
-
-        <section id="ayuda" className="inicio-contenedor inicio-seccion" aria-labelledby="titulo-ayuda">
-          <h2 id="titulo-ayuda">Ayuda</h2>
-          <div className="inicio-preguntas">
-            {PREGUNTAS.map((p) => (
-              <details key={p.pregunta} className="inicio-pregunta">
-                <summary>{p.pregunta}</summary>
-                <p>{p.respuesta}</p>
-              </details>
-            ))}
-          </div>
-        </section>
       </main>
 
+      {/* Pie oscuro: Sedes y Ayuda (destinos del menú) y, al final, el acceso del personal. */}
       <footer className="inicio-pie">
+        <div className="inicio-contenedor inicio-pie__secciones">
+          <section id="sedes" className="inicio-pie__seccion" aria-labelledby="titulo-sedes">
+            <h2 id="titulo-sedes">Sedes</h2>
+            <p className="inicio-pie__lead">Donde puede atenderse en persona. Muchas citas también son virtuales.</p>
+            {sedes.length > 0 ? (
+              <ul className="inicio-sedes">
+                {sedes.map((s) => (
+                  <li key={s.id} className="inicio-sede">
+                    <span className="inicio-sede__nombre">{s.nombre}</span>
+                    <span className="inicio-sede__ciudad">{s.ciudad}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="inicio-pie__lead">Las sedes se muestran al elegir la especialidad.</p>
+            )}
+          </section>
+
+          <section id="ayuda" className="inicio-pie__seccion" aria-labelledby="titulo-ayuda">
+            <h2 id="titulo-ayuda">Ayuda</h2>
+            <div className="inicio-preguntas">
+              {PREGUNTAS.map((p) => (
+                <details key={p.pregunta} className="inicio-pregunta">
+                  <summary>{p.pregunta}</summary>
+                  <p>{p.respuesta}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        </div>
+
         <div className="inicio-contenedor inicio-pie__fila">
           <span className="inicio-pie__marca">
             <span className="inicio-pie__logo" aria-hidden="true">

@@ -14,8 +14,9 @@ import threading
 import time
 from collections import defaultdict, deque
 
-from fastapi import HTTPException, Request, status
+from fastapi import Header, HTTPException, Request, status
 
+from app.integrations import verificacion_humana
 from app.services.exceptions import DemasiadosIntentosError
 
 
@@ -58,6 +59,15 @@ INGRESO_PACIENTE = LimiteIntentos(maximo=30, ventana_segundos=10 * 60)
 INGRESO_PERSONAL = LimiteIntentos(maximo=10, ventana_segundos=15 * 60)
 
 TODOS = (IDENTIFICAR_PACIENTE, INGRESO_PACIENTE, INGRESO_PERSONAL)
+
+
+def exigir_humano(request: Request, x_verificacion: str | None = Header(default=None)) -> None:
+    """Dependencia de FastAPI: la casilla "No soy un robot" (token de Turnstile en X-Verificacion)."""
+    if not verificacion_humana.es_humano(x_verificacion, ip_de(request)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Marque la casilla «No soy un robot» antes de continuar.",
+        )
 
 
 def limitar(*limites: LimiteIntentos):

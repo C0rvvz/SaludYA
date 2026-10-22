@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expire_minutes: int = 60
 
+    # --- "No soy un robot" (Cloudflare Turnstile) ---
+    # Llave secreta del servicio. Las de prueba de Cloudflare siempre
+    # aprueban (1x0000000000000000000000000000000AA). Vacía = sin
+    # verificación: solo se permite en desarrollo (ver _llaves_obligatorias).
+    turnstile_secret: str = ""
+
     # --- Sesiones (RNF-17 sesión única, RNF-24 inactividad) ---
     # La sesión se cierra tras estos minutos sin ninguna actividad; el JWT
     # además deja de servir a los jwt_expire_minutes aunque haya actividad.
@@ -135,6 +141,9 @@ class Settings(BaseSettings):
         # fuerza bruta. Fuera de desarrollo, la API no arranca con una débil.
         if not self.es_desarrollo and len(self.jwt_secret) < 32:
             raise ValueError("JWT_SECRET debe tener al menos 32 caracteres fuera de desarrollo.")
+        # Sin la verificación de robots, los ingresos quedan expuestos a bots.
+        if not self.es_desarrollo and not self.turnstile_secret:
+            raise ValueError("TURNSTILE_SECRET es obligatoria fuera de desarrollo.")
         return self
 
 

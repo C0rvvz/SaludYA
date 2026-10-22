@@ -4,6 +4,7 @@ import AuthShell from "../components/AuthShell";
 import EliAvatar from "../components/EliAvatar";
 import { Chevron } from "../components/Iconos";
 import ModalTratamientoDatos from "../components/ModalTratamientoDatos";
+import VerificacionHumana from "../components/VerificacionHumana";
 import { registrarPaciente } from "../api/pacientes";
 import { listarEps } from "../api/eps";
 import {
@@ -12,6 +13,7 @@ import {
   validarTelefonoWhatsapp,
   validarCorreo,
 } from "../utils/validaciones";
+import { llaveVerificacion } from "../utils/verificacion";
 
 const TIPOS_DOCUMENTO = [
   { value: "cedula_ciudadania", label: "Cédula de ciudadanía" },
@@ -42,7 +44,7 @@ const MENSAJES_ELI = {
   2: [
     <>¡Muy bien, ya casi terminamos!</>,
     <>
-      Elija su <strong>EPS</strong> y acepte el uso de sus datos para crear la cuenta.
+      Elija su <strong>EPS</strong>, acepte el uso de sus datos y marque que <strong>no es un robot</strong>.
     </>,
   ],
 };
@@ -97,6 +99,9 @@ export default function RegistroPage() {
   const [resultado, setResultado] = useState(null);
   const [modalTratamientoAbierto, setModalTratamientoAbierto] = useState(false);
   const [erroresCampo, setErroresCampo] = useState(ERRORES_CAMPO_VACIOS);
+  // "No soy un robot": el token se gasta en cada envío; `intentos` vuelve a montar la casilla.
+  const [verificacion, setVerificacion] = useState(null);
+  const [intentos, setIntentos] = useState(0);
 
   const [form, setForm] = useState({
     tipo_documento: "cedula_ciudadania",
@@ -146,10 +151,14 @@ export default function RegistroPage() {
   async function enviarRegistro(evento) {
     evento.preventDefault();
     setError("");
+    if (llaveVerificacion() && !verificacion) {
+      setError("Marque la casilla «No soy un robot» antes de continuar.");
+      return;
+    }
     setCargando(true);
     try {
       const datos = { ...form, correo: form.correo.trim() === "" ? null : form.correo };
-      const resp = await registrarPaciente(datos);
+      const resp = await registrarPaciente(datos, verificacion);
       setResultado(resp);
       setPaso(3);
     } catch (err) {
@@ -168,6 +177,9 @@ export default function RegistroPage() {
       }
     } finally {
       setCargando(false);
+      // El token de "No soy un robot" ya se usó: la casilla empieza de nuevo.
+      setVerificacion(null);
+      setIntentos((n) => n + 1);
     }
   }
 
@@ -194,13 +206,20 @@ export default function RegistroPage() {
 
       {error && <div className="alert alert--error">{error}</div>}
 
+      {paso < 3 && (
+        <p className="nota-obligatorios">
+          Los campos con asterisco (<span className="campo-obligatorio">*</span>) son obligatorios. Los que dicen{" "}
+          <strong>(opcional)</strong> puede dejarlos en blanco.
+        </p>
+      )}
+
       {paso === 1 && (
         <>
           <h1 className="sr-only">Indique sus datos personales</h1>
           <form onSubmit={irAPaso2} noValidate>
             <div className="campos-dobles">
               <div className="field">
-                <label htmlFor="tipo_documento">Tipo de documento</label>
+                <label htmlFor="tipo_documento" className="obligatorio">Tipo de documento</label>
                 <select
                   id="tipo_documento"
                   value={form.tipo_documento}
@@ -215,7 +234,7 @@ export default function RegistroPage() {
               </div>
 
               <div className="field">
-                <label htmlFor="numero_documento">Número de documento</label>
+                <label htmlFor="numero_documento" className="obligatorio">Número de documento</label>
                 <input
                   id="numero_documento"
                   type="text"
@@ -232,7 +251,7 @@ export default function RegistroPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="nombre">Nombre completo</label>
+              <label htmlFor="nombre" className="obligatorio">Nombre completo</label>
               <input
                 id="nombre"
                 type="text"
@@ -246,7 +265,7 @@ export default function RegistroPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="telefono_whatsapp">WhatsApp</label>
+              <label htmlFor="telefono_whatsapp" className="obligatorio">WhatsApp</label>
               <input
                 id="telefono_whatsapp"
                 type="tel"
@@ -291,7 +310,7 @@ export default function RegistroPage() {
           <h1 className="sr-only">Su EPS y autorización</h1>
           <form onSubmit={enviarRegistro} noValidate>
             <div className="field">
-              <label htmlFor="eps_id">Su EPS</label>
+              <label htmlFor="eps_id" className="obligatorio">Su EPS</label>
               <select
                 id="eps_id"
                 className={erroresCampo.eps_id ? "has-error" : ""}
@@ -315,6 +334,7 @@ export default function RegistroPage() {
             <div className="field field--checkbox">
               <input
                 id="acepto_tratamiento_datos"
+                aria-required="true"
                 type="checkbox"
                 checked={form.acepto_tratamiento_datos}
                 onChange={(e) => actualizarCampo("acepto_tratamiento_datos", e.target.checked)}
@@ -324,7 +344,7 @@ export default function RegistroPage() {
                 <button type="button" className="link-inline" onClick={() => setModalTratamientoAbierto(true)}>
                   tratamiento de mis datos personales
                 </button>{" "}
-                por parte de SaludYA.
+                por parte de SaludYA. <span className="campo-obligatorio">*</span>
               </label>
             </div>
             {!form.acepto_tratamiento_datos && (
@@ -332,6 +352,8 @@ export default function RegistroPage() {
                 Debe aceptarlo para poder crear la cuenta.
               </p>
             )}
+
+            <VerificacionHumana key={intentos} onToken={setVerificacion} />
 
             <button
               className="btn btn--primary btn--block"

@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
-import CelularCodigo from "../components/CelularCodigo";
 import CodigoCasillas from "../components/CodigoCasillas";
+import EliAvatar from "../components/EliAvatar";
 import { Chevron } from "../components/Iconos";
+import VerificacionHumana from "../components/VerificacionHumana";
 import { identificarPaciente, enviarOtp, reenviarOtp, validarOtp } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { validarNumeroDocumento, validarCodigoOtp } from "../utils/validaciones";
 import { propsCampoProtegido } from "../utils/campoProtegido";
 import { borrarMotivoCierre, leerMotivoCierre } from "../utils/sesion";
+import { llaveVerificacion } from "../utils/verificacion";
 
 const SEGUNDOS_ENFRIAMIENTO = 60; // igual a OTP_REENVIO_SEGUNDOS en el backend
 
@@ -24,10 +26,61 @@ const TIPOS_DOCUMENTO = [
 const reloj = (segundos) => `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
 
 /**
+ * Lo que dice Eli: antes de enviar, cómo entrar; después, el código (en el
+ * modo de prueba, porque WhatsApp no está conectado) o a dónde lo envió.
+ * `compacto`: la versión del celular, dentro de la tarjeta.
+ */
+function MensajeEli({ paso, codigoDemo, telefono, compacto = false }) {
+  if (paso === "otp" && codigoDemo) {
+    return (
+      <output className={`burbuja burbuja--oscura eli-codigo ${compacto ? "eli-codigo--compacto" : ""}`}>
+        <span className="eli-codigo__intro">{compacto ? "Soy Eli. Este es su código:" : "¡Listo! Este es su código de acceso:"}</span>
+        <strong className="eli-codigo__digitos">{codigoDemo}</strong>
+        <span className="eli-codigo__nota">Modo de prueba: en la versión real, este código le llegaría a su WhatsApp.</span>
+      </output>
+    );
+  }
+  if (paso === "otp") {
+    return (
+      <p className="burbuja">
+        ¡Listo! Le envié el código a su WhatsApp terminado en <strong>{telefono?.slice(-4)}</strong>.
+      </p>
+    );
+  }
+  return compacto ? (
+    <p className="burbuja">Escriba su documento y le mando un código. Sin contraseñas.</p>
+  ) : (
+    <p className="burbuja">
+      ¡Hola! Soy <strong>Eli</strong>. Escriba su documento y toque <strong>Enviar código</strong>. Le mando un código
+      para entrar.
+    </p>
+  );
+}
+
+function EliIngreso(props) {
+  return (
+    <div className="eli-registro">
+      <div className="eli-registro__quien">
+        <EliAvatar tamano={150} grande />
+        <div>
+          <p className="eli-registro__nombre">Eli</p>
+          <p className="eli-registro__rol">Su guía de SaludYA</p>
+        </div>
+      </div>
+      <div className="eli-registro__burbujas">
+        <div className="flota" key={`${props.paso}-${props.codigoDemo}`}>
+          <MensajeEli {...props} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Ingreso del paciente (HU-01 a HU-04), sistema 2a: solo con el documento
- * y el código de 6 dígitos que llega por WhatsApp, sin contraseñas. En
- * computador, a la izquierda, un celular de muestra donde aparece el
- * código en el modo demostración.
+ * y el código de 6 dígitos que llega por WhatsApp, sin contraseñas, y la
+ * casilla "No soy un robot". Eli acompaña: a la izquierda en computador y
+ * dentro de la tarjeta en el celular.
  */
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -42,6 +95,9 @@ export default function LoginPage() {
   const [motivoCierre] = useState(() => leerMotivoCierre("paciente"));
   const [avisoCampo, setAvisoCampo] = useState("");
   const protegido = propsCampoProtegido(setAvisoCampo);
+  // "No soy un robot": el token se gasta en cada envío; `intentos` vuelve a montar la casilla.
+  const [verificacion, setVerificacion] = useState(null);
+  const [intentos, setIntentos] = useState(0);
   // Modo demostración: el backend solo lo envía con WhatsApp simulado y en desarrollo.
   const [codigoDemo, setCodigoDemo] = useState(null);
 
@@ -81,6 +137,10 @@ export default function LoginPage() {
     const mensajeError = validarNumeroDocumento(numeroDocumento, tipoDocumento);
     setErrorDocumento(mensajeError);
     if (mensajeError) return;
+    if (llaveVerificacion() && !verificacion) {
+      setError("Marque la casilla «No soy un robot» antes de continuar.");
+      return;
+    }
 
     setCargando(true);
     try {
@@ -88,7 +148,7 @@ export default function LoginPage() {
       await identificarPaciente(numeroDocumento);
 
       // HU-02: generar y enviar el código automáticamente
-      const envio = await enviarOtp(numeroDocumento);
+      const envio = await enviarOtp(numeroDocumento, verificacion);
       setTelefonoEnmascarado(envio.telefono_enmascarado);
       setCodigoDemo(envio.codigo_demo);
       iniciarEnfriamiento();
@@ -101,6 +161,9 @@ export default function LoginPage() {
       }
     } finally {
       setCargando(false);
+      // El token ya se usó (o se intentó usar): la casilla empieza de nuevo.
+      setVerificacion(null);
+      setIntentos((n) => n + 1);
     }
   }
 
@@ -147,24 +210,20 @@ export default function LoginPage() {
     setErrorCodigo("");
   }
 
-  const pie = (
-    <>
-      <p className="auth-tarjeta-pie">
-        ¿No tiene cuenta? <Link to="/registrarse">Regístrese</Link>
-      </p>
-      <Link to="/admin/ingresar" className="auth-acceso-personal">
-        <span className="auth-acceso-personal__punto" aria-hidden="true" />
-        Acceso para personal de la EPS o IPS
-      </Link>
-    </>
-  );
+  const eli = { paso, codigoDemo, telefono: telefonoEnmascarado };
 
   return (
     <AuthShell
       protegida
       ancho="angosto"
-      lado={<CelularCodigo codigoDemo={paso === "otp" ? codigoDemo : null} telefono={paso === "otp" ? telefonoEnmascarado : null} />}
-      pie={paso === "cedula" ? pie : null}
+      lado={<EliIngreso {...eli} />}
+      pie={
+        paso === "cedula" ? (
+          <p className="auth-tarjeta-pie">
+            ¿No tiene cuenta? <Link to="/registrarse">Regístrese</Link>
+          </p>
+        ) : null
+      }
     >
       {motivoCierre && <div className="alert alert--info">{motivoCierre}</div>}
       {avisoCampo && <div className="alert alert--error">{avisoCampo}</div>}
@@ -176,18 +235,34 @@ export default function LoginPage() {
             <p className="auth-card__lead">Entre con su documento. Sin contraseñas.</p>
           </div>
 
+          {/* En el celular, Eli va dentro de la tarjeta */}
+          <div className="eli-compacto">
+            <EliAvatar tamano={44} />
+            <MensajeEli {...eli} compacto />
+          </div>
+
           {noRegistrado && (
             <div className="alert alert--error">
-              No se encontró ningún paciente con ese documento.{" "}
-              <Link to="/registrarse">Regístrese aquí</Link>.
+              No se encontró ningún paciente con ese documento. <Link to="/registrarse">Regístrese aquí</Link>.
             </div>
           )}
           {error && <div className="alert alert--error">{error}</div>}
 
+          <p className="nota-obligatorios">
+            Los campos con asterisco (<span className="campo-obligatorio">*</span>) son obligatorios.
+          </p>
+
           <form onSubmit={manejarEnvioCedula} noValidate>
             <div className="field">
-              <label htmlFor="tipo_documento">Tipo de documento</label>
-              <select id="tipo_documento" value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value)}>
+              <label htmlFor="tipo_documento" className="obligatorio">
+                Tipo de documento
+              </label>
+              <select
+                id="tipo_documento"
+                aria-required="true"
+                value={tipoDocumento}
+                onChange={(e) => setTipoDocumento(e.target.value)}
+              >
                 {TIPOS_DOCUMENTO.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -197,10 +272,13 @@ export default function LoginPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="numero_documento">Número de documento</label>
+              <label htmlFor="numero_documento" className="obligatorio">
+                Número de documento
+              </label>
               <input
                 id="numero_documento"
                 type="text"
+                aria-required="true"
                 // Único caso con letras: el pasaporte (p. ej. AV123456).
                 // Los demás tipos de documento son siempre numéricos, así
                 // que ahí sí mostramos el teclado numérico en celular.
@@ -217,6 +295,8 @@ export default function LoginPage() {
               />
               {errorDocumento && <p className="field__error">{errorDocumento}</p>}
             </div>
+
+            <VerificacionHumana key={intentos} onToken={setVerificacion} />
 
             <button className="btn btn--primary btn--block" type="submit" disabled={cargando}>
               {cargando ? "Enviando el código..." : "Enviar código"}
@@ -235,7 +315,7 @@ export default function LoginPage() {
             <span className="btn__circulo">
               <Chevron hacia="izquierda" />
             </span>
-            Cambiar el documento
+            Atrás
           </button>
 
           <div className="auth-card__header auth-card__header--izquierda">
@@ -245,15 +325,14 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {error && <div className="alert alert--error">{error}</div>}
+          <div className="eli-compacto">
+            <EliAvatar tamano={44} />
+            <div className="flota">
+              <MensajeEli {...eli} compacto />
+            </div>
+          </div>
 
-          {/* En celular no hay celular de muestra: el código de demostración va aquí. */}
-          {codigoDemo && (
-            <output className="alert alert--demo auth-demo-celular">
-              <strong>Modo demostración:</strong> WhatsApp no está conectado, así que mostramos aquí el código que le
-              habría llegado: <strong className="codigo-demo">{codigoDemo}</strong>
-            </output>
-          )}
+          {error && <div className="alert alert--error">{error}</div>}
 
           <form onSubmit={manejarValidacion} noValidate>
             <div className="field">

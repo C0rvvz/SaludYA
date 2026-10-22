@@ -50,6 +50,50 @@ describe("RNF-16: ingreso sin copiar, pegar ni seleccionar", () => {
   });
 });
 
+describe("No soy un robot (Cloudflare Turnstile)", () => {
+  function turnstileFalso() {
+    const widgets = {};
+    window.turnstile = {
+      render: (_contenedor, opciones) => {
+        widgets.w1 = opciones;
+        return "w1";
+      },
+      execute: (id) => widgets[id].callback(`token-${id}`),
+      reset: () => {},
+      remove: () => {},
+    };
+    return widgets;
+  }
+
+  it("sin marcar la casilla no envía el código; marcada, manda el token al backend", async () => {
+    vi.stubEnv("VITE_TURNSTILE_SITEKEY", "llave-de-prueba");
+    const widgets = turnstileFalso();
+    backendFalso({
+      "POST /auth/paciente/identificar": { registrado: true },
+      "POST /auth/paciente/otp/enviar": { telefono_enmascarado: "******4567", codigo_demo: null },
+    });
+    const usuario = abrir("/iniciar-sesion");
+    await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
+    expect(await esperarTexto("Marque la casilla «No soy un robot» antes de continuar.")).toBeInTheDocument();
+
+    const casilla = await screen.findByRole("checkbox", { name: /No soy un robot/ });
+    expect(casilla).toHaveAttribute("aria-checked", "false");
+    await waitFor(() => expect(widgets.w1).toBeDefined()); // Cloudflare ya dibujó su reto (invisible)
+    expect(widgets.w1.sitekey).toBe("llave-de-prueba");
+    await usuario.click(casilla);
+    expect(casilla).toHaveAttribute("aria-checked", "true");
+
+    await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
+    expect(await esperarTexto("Escriba el código")).toBeInTheDocument();
+    const envio = fetch.mock.calls.find(([url]) => url.endsWith("/auth/paciente/otp/enviar"));
+    expect(envio[1].headers["X-Verificacion"]).toBe("token-w1");
+
+    vi.unstubAllEnvs();
+    delete window.turnstile;
+  });
+});
+
 describe("RNF-17: sesión única y cierre real", () => {
   it("si el servidor cierra la sesión, se vuelve al ingreso diciendo por qué", async () => {
     const MOTIVO = "Su sesión se cerró porque se inició sesión con su cuenta en otra pestaña o dispositivo.";
@@ -75,9 +119,12 @@ describe("RNF-17: sesión única y cierre real", () => {
       abrir("/solicitudes", { paciente: true });
       await screen.findByRole("heading", { name: "Cartas y peticiones" });
 
+      // El aviso se repite hasta que la página ya esté escuchando (con muchas pruebas a la vez, tarda).
       const otraPestana = new BroadcastChannel("saludya-sesion");
-      otraPestana.postMessage({ tipo: "paciente", pestana: "otra-pestana" });
-      expect(await esperarTexto(/Se abrió SaludYA con su cuenta en otra pestaña/)).toBeInTheDocument();
+      await waitFor(() => {
+        otraPestana.postMessage({ tipo: "paciente", pestana: "otra-pestana" });
+        expect(screen.getByText(/Se abrió SaludYA con su cuenta en otra pestaña/)).toBeInTheDocument();
+      });
       expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBeNull();
       otraPestana.close();
     }
@@ -120,7 +167,7 @@ describe("RNF-24: cierre a los 2 minutos sin actividad", () => {
     await screen.findByRole("heading", { name: "Gestión de citas" });
     await act(() => vi.advanceTimersByTimeAsync(121_000));
     expect(await esperarTexto(/después de 2 minutos sin actividad/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ingreso del personal de la EPS o IPS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Iniciar sesión", level: 1 })).toBeInTheDocument();
     expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBeNull();
   });
 });

@@ -26,7 +26,7 @@ from app.core import limite_intentos
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_paciente, sesion_del_paciente
-from app.core.limite_intentos import ip_de, limitar
+from app.core.limite_intentos import exigir_humano, ip_de, limitar
 from app.core.security import TIPO_PACIENTE, crear_access_token
 from app.models.codigo_otp import CodigoOTP
 from app.models.paciente import Paciente
@@ -86,7 +86,8 @@ def identificar_paciente(datos: IdentificarPacienteRequest, db: Session = Depend
     "/otp/enviar",
     response_model=EnviarOTPResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[_LIMITE_INGRESO],
+    # "No soy un robot": un bot no puede mandar códigos por WhatsApp a nombre de nadie.
+    dependencies=[_LIMITE_INGRESO, Depends(exigir_humano)],
 )
 def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
     try:
