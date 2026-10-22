@@ -2,13 +2,30 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarSolicitudesAdmin } from "../../api/admin";
 import { Cifra } from "../../components/admin/Reportes";
-import { formatearFecha, formatearFechaHora } from "../../utils/formato";
-import { ESTADOS_SOLICITUD, TIPOS_CITA, TIPOS_SOLICITUD } from "../../utils/solicitudes";
+import { iniciales } from "../../utils/avatar";
+import { formatearSoloFecha } from "../../utils/formato";
+import {
+  ESTADOS_SOLICITUD,
+  ESTADO_SOLICITUD_CORTO,
+  GRUPOS_SOLICITUD,
+  TIPOS_CITA,
+  TIPOS_SOLICITUD_PERSONAL,
+} from "../../utils/solicitudes";
+
+const POR_DECIDIR = new Set(["pendiente", "pendiente_eps"]);
+
+// "14 oct"
+const diaCorto = (fechaIso) =>
+  new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" })
+    .format(new Date(fechaIso))
+    .replace(".", "")
+    .replace(" de ", " ");
 
 /**
- * Solicitudes de cita (cartas de petición) — HU-76: paciente, tipo de
- * cita, especialidad y fecha solicitada; HU-77: su estado, con las
- * pendientes primero; HU-78: "Ver contexto" lleva a la revisión clínica.
+ * Solicitudes (cartas de solicitud y derechos de petición) — HU-76:
+ * paciente, tipo de cita, especialidad y fecha solicitada; HU-77: su
+ * estado, con las pendientes primero; HU-78: "Revisar" lleva a la
+ * revisión clínica.
  */
 export default function AdminSolicitudesPage() {
   const [solicitudes, setSolicitudes] = useState(null);
@@ -27,37 +44,46 @@ export default function AdminSolicitudesPage() {
 
   return (
     <>
-      <h1 className="admin-titulo">Cartas y peticiones</h1>
-      <p className="admin-subtitulo">
-        Lo que los pacientes piden por escrito cuando no consiguen la cita que necesitan: cartas para pedir una cita en
-        otra fecha y derechos de petición, que por ley deben responderse en máximo 15 días hábiles. Las pendientes
-        aparecen primero; en "Ver contexto" se revisan y se decide.
-      </p>
+      <div className="admin-encabezado">
+        <div>
+          <h1 className="admin-titulo">Solicitudes</h1>
+          <p className="admin-subtitulo">
+            Cartas de solicitud de cita y derechos de petición radicados por los pacientes. Los derechos de petición
+            deben responderse en un plazo máximo de 15 días hábiles. Las solicitudes pendientes se muestran primero.
+          </p>
+        </div>
+      </div>
 
       {error && <div className="alert alert--error">{error}</div>}
 
       {solicitudes && (
-        <div className="cifras lista-espera-admin__cifras">
-          <Cifra valor={contar("pendiente")} nombre="Pendientes de revisión" />
-          <Cifra valor={contar("pendiente_eps")} nombre="En trámite con la EPS" />
-          <Cifra valor={contar("aprobada")} nombre="Aprobadas" />
-          <Cifra valor={contar("negada")} nombre="No aprobadas" />
-        </div>
-      )}
+        <>
+          <section className="card" aria-label="Resumen de las solicitudes">
+            <div className="cifras">
+              <Cifra valor={contar("pendiente")} nombre="Pendientes de revisión" tono="aviso" />
+              <Cifra valor={contar("pendiente_eps")} nombre="En trámite con la EPS" />
+              <Cifra valor={contar("aprobada")} nombre="Aprobadas" tono="exito" />
+              <Cifra valor={contar("negada")} nombre="No aprobadas" />
+            </div>
+          </section>
 
-      <div className="filters-card filtros-admin filtros-admin--periodo">
-        <div className="field">
-          <label htmlFor="estado">Estado</label>
-          <select id="estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
-            <option value="">Todas</option>
-            {Object.entries(ESTADOS_SOLICITUD).map(([valor, [texto]]) => (
-              <option key={valor} value={valor}>
-                {texto}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+          <div className="chips-estado" role="group" aria-label="Filtrar por estado">
+            {[["", "Todas", todas.length], ...GRUPOS_SOLICITUD.map(([v, n]) => [v, n, contar(v)])].map(
+              ([valor, nombre, total]) => (
+                <button
+                  key={valor || "todas"}
+                  type="button"
+                  className={`chip-estado ${estado === valor ? "is-activo" : ""}`}
+                  aria-pressed={estado === valor}
+                  onClick={() => setEstado(valor)}
+                >
+                  {nombre} <span className="chip-estado__conteo">{total}</span>
+                </button>
+              )
+            )}
+          </div>
+        </>
+      )}
 
       <div className="tabla-contenedor">
         <table className="tabla">
@@ -69,30 +95,51 @@ export default function AdminSolicitudesPage() {
               <th>Especialidad</th>
               <th>Fecha solicitada</th>
               <th>Estado</th>
-              <th></th>
+              <th>
+                <span className="sr-only">Acciones</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibles.map((s) => {
-              const [texto, clase] = ESTADOS_SOLICITUD[s.estado];
+              const clase = ESTADOS_SOLICITUD[s.estado][1];
+              const porDecidir = POR_DECIDIR.has(s.estado);
               return (
                 <tr key={s.id}>
                   <td>
-                    {s.numero_radicado}
-                    <span className="texto-suave">{TIPOS_SOLICITUD[s.tipo]}</span>
-                    <span className="texto-suave">Recibida el {formatearFechaHora(s.radicada_en)}</span>
+                    <span className="celda-doble">
+                      <span className="admin-comprobante admin-comprobante--fuerte">{s.numero_radicado}</span>
+                      <span className="celda-doble__dato">
+                        {TIPOS_SOLICITUD_PERSONAL[s.tipo]} · {diaCorto(s.radicada_en)}
+                      </span>
+                    </span>
                   </td>
-                  <td>{s.paciente_nombre}</td>
+                  <td>
+                    <span className="celda-persona">
+                      <span className="celda-persona__iniciales" aria-hidden="true">
+                        {iniciales(s.paciente_nombre)}
+                      </span>
+                      <span className="celda-persona__nombre">{s.paciente_nombre}</span>
+                    </span>
+                  </td>
                   <td>{TIPOS_CITA[s.tipo_cita]}</td>
                   <td>{s.especialidad}</td>
-                  <td className="celda-fecha">{formatearFecha(s.fecha_deseada)}</td>
+                  <td className="celda-fecha">{formatearSoloFecha(`${s.fecha_deseada}T00:00:00`)}</td>
                   <td>
-                    <span className={`badge ${clase}`}>{texto}</span>
-                    {s.prioritaria && <span className="texto-suave">Prioritaria</span>}
+                    <span className="celda-doble">
+                      <span>
+                        <span className={`badge ${clase}`}>{ESTADO_SOLICITUD_CORTO[s.estado]}</span>
+                      </span>
+                      {s.prioritaria && <span className="celda-doble__aviso">Prioritaria</span>}
+                    </span>
                   </td>
                   <td>
-                    <Link className="btn btn--outline btn--compacto" to={`/admin/solicitudes/${s.id}`}>
-                      Ver contexto
+                    <Link
+                      className={`btn btn--compacto ${porDecidir ? "btn--primary" : "btn--outline"}`}
+                      to={`/admin/solicitudes/${s.id}`}
+                      aria-label={`${porDecidir ? "Revisar" : "Ver"} la solicitud ${s.numero_radicado}`}
+                    >
+                      {porDecidir ? "Revisar" : "Ver"}
                     </Link>
                   </td>
                 </tr>
@@ -100,7 +147,7 @@ export default function AdminSolicitudesPage() {
             })}
           </tbody>
         </table>
-        {solicitudes && visibles.length === 0 && <p className="empty-state">No hay cartas con ese estado.</p>}
+        {solicitudes && visibles.length === 0 && <p className="tabla-vacia">No hay solicitudes con ese estado.</p>}
       </div>
     </>
   );

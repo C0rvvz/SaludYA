@@ -35,3 +35,24 @@ export const ESTADOS_SOLICITUD = {
   aprobada: ["Aprobada", "badge--success"],
   negada: ["No aprobada", "badge--error"],
 };
+
+// Para el personal: nombres formales del tipo de carta, el estado corto de
+// la tabla y los grupos de los chips con contador.
+export const TIPOS_SOLICITUD_PERSONAL = {
+  formal: "Carta de solicitud",
+  derecho_peticion: "Derecho de petición",
+};
+
+export const ESTADO_SOLICITUD_CORTO = {
+  pendiente: "Pendiente",
+  pendiente_eps: "En trámite con la EPS",
+  aprobada: "Aprobada",
+  negada: "No aprobada",
+};
+
+export const GRUPOS_SOLICITUD = [
+  ["pendiente", "Pendientes"],
+  ["pendiente_eps", "En trámite con la EPS"],
+  ["aprobada", "Aprobadas"],
+  ["negada", "No aprobadas"],
+];

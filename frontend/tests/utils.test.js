@@ -11,7 +11,7 @@ import {
   sinTildes,
   textoDesde,
 } from "../src/utils/agendar";
-import { colorAvatar, iniciales } from "../src/utils/avatar";
+import { iniciales } from "../src/utils/avatar";
 import { CALIFICACIONES, ESTADO_CORTO, ESTADOS_ACTIVOS, enlaceComoLlegar, estrellas, horaDe } from "../src/utils/citas";
 import {
   capitalizar,
@@ -117,11 +117,9 @@ describe("validaciones (las mismas reglas del backend)", () => {
 });
 
 describe("avatar y constantes", () => {
-  it("iniciales sin títulos y color estable", () => {
+  it("iniciales sin títulos", () => {
     expect(iniciales("Dra. Ana María Gómez")).toBe("AM");
     expect(iniciales("")).toBe("");
-    expect(colorAvatar("Ana")).toBe(colorAvatar("Ana"));
-    expect(colorAvatar("")).toMatch(/^#/);
   });
 
   it("estrellas y estados", () => {

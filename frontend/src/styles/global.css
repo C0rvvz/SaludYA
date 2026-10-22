@@ -375,55 +375,6 @@ select:focus-visible {
   color: var(--color-ink-soft);
 }
 
-/* ============ Comprobante ============ */
-
-.comprobante-numero {
-  font-family: monospace;
-  font-size: var(--text-md);
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-/* ============ Avatar de iniciales ============ */
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  font-weight: 700;
-  color: white;
-  flex-shrink: 0;
-}
-
-/* ============ Canal preferido (tarjetas) ============ */
-.channel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.channel-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  border: 1.5px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  padding: 0.9rem 1rem;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: var(--text-sm);
-}
-
-.channel-card:has(input:checked) {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-
-.channel-card input {
-  accent-color: var(--color-primary);
-}
-
 /* ============ Botón de éxito (confirmar) ============ */
 .btn--success {
   background: var(--color-success);

@@ -67,12 +67,12 @@ describe("Revisión clínica", () => {
     expect(screen.getByText("Paciente mayor.")).toBeInTheDocument();
     expect(screen.getAllByText("Cardiología", { selector: ".summary-row__value" })).toHaveLength(2); // especialidad y lista de espera
 
-    await usuario.click(screen.getByRole("button", { name: "Aprobar y asignar cita" }));
-    const panel = (await screen.findByRole("heading", { name: "Aprobar y asignar la cita" })).closest(".card");
-    // Solo desde la fecha solicitada (21 de octubre): no aparece el del 20.
+    // La decisión ya muestra los horarios: solo desde la fecha solicitada (21 de octubre), no el del 20.
+    const panel = screen.getByRole("heading", { name: "Decisión" }).closest(".card");
+    expect(await within(panel).findByText(/Horarios disponibles desde el 21 de octubre/)).toBeInTheDocument();
     expect(within(panel).queryByText(/Martes, 20 de octubre/)).not.toBeInTheDocument();
     await usuario.click(within(panel).getByLabelText(/Jueves, 22 de octubre/));
-    await usuario.click(within(panel).getByLabelText("Revisión prioritaria"));
+    await usuario.click(within(panel).getByLabelText("Marcar como revisión prioritaria"));
     await usuario.type(within(panel).getByLabelText("Mensaje para el paciente (opcional)"), "Aprobada.");
     await usuario.click(within(panel).getByRole("button", { name: "Aprobar y asignar cita" }));
 
@@ -86,7 +86,7 @@ describe("Revisión clínica", () => {
     });
   });
 
-  it("enviar a la EPS y después registrar que no la autorizó", async () => {
+  it("remitir a la EPS y después registrar que no la autorizó", async () => {
     const llamadas = backendFalso({
       "GET /admin/solicitudes/:id": revision({ historial: [], observaciones: [], en_lista_espera: [] }),
       "POST /admin/solicitudes/:id/enviar-eps": revision({}, {
@@ -102,11 +102,12 @@ describe("Revisión clínica", () => {
     expect(screen.getByText("Sin observaciones del personal.")).toBeInTheDocument();
     expect(screen.getByText("No está en lista de espera")).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole("button", { name: "Enviar a la EPS" }));
+    await usuario.click(screen.getByRole("button", { name: "Remitir a la EPS" }));
+    expect(screen.getByRole("heading", { name: "Remitir a la EPS para autorización" })).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Volver" }));
-    await usuario.click(screen.getByRole("button", { name: "Enviar a la EPS" }));
-    await usuario.click(within(screen.getByRole("heading", { name: /Enviar a la EPS/ }).closest(".card")).getByRole("button", { name: "Enviar a la EPS" }));
-    expect(await esperarTexto("Solicitud enviada a la EPS.")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Remitir a la EPS" }));
+    await usuario.click(screen.getByRole("button", { name: "Remitir a la EPS" }));
+    expect(await esperarTexto("Solicitud remitida a la EPS.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Respuesta de la EPS" })).toBeInTheDocument();
 
     await usuario.click(screen.getByRole("button", { name: "No aprobar" }));
@@ -125,9 +126,8 @@ describe("Revisión clínica", () => {
       "GET /disponibilidad/buscar": [],
     });
     let usuario = abrir("/admin/solicitudes/s1", { personal: true });
-    await usuario.click(await screen.findByRole("button", { name: "Aprobar y asignar cita" }));
     expect(await esperarTexto(/No hay horarios libres de Cardiología/)).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Volver" }));
+    expect(screen.getByRole("button", { name: "Aprobar y asignar cita" })).toBeDisabled();
 
     backendFalso({
       "GET /admin/solicitudes/:id": revision({}, { fecha_deseada: "2027-01-01" }),
@@ -135,10 +135,10 @@ describe("Revisión clínica", () => {
       "POST /admin/solicitudes/:id/aprobar": error(409, "Ese horario ya no está disponible."),
     });
     usuario = abrir("/admin/solicitudes/s1", { personal: true });
-    await usuario.click(await screen.findByRole("button", { name: "Aprobar y asignar cita" }));
     // Sin horarios desde esa fecha: ofrece los más próximos.
-    const panel = (await screen.findByRole("heading", { name: "Aprobar y asignar la cita" })).closest(".card");
+    const panel = (await screen.findByRole("heading", { name: "Decisión" })).closest(".card");
     await within(panel).findByLabelText(/Martes, 20 de octubre/);
+    expect(within(panel).getByText(/estos son los más próximos/)).toBeInTheDocument();
     await usuario.click(within(panel).getByRole("button", { name: "Aprobar y asignar cita" }));
     expect(await esperarTexto("Ese horario ya no está disponible.")).toBeInTheDocument();
 
@@ -157,8 +157,7 @@ describe("Revisión clínica", () => {
     expect(await esperarTexto("No existe esa solicitud.")).toBeInTheDocument();
 
     backendFalso({ "GET /admin/solicitudes/:id": revision(), "GET /disponibilidad/buscar": error(500, "Sin horarios") });
-    const usuario = abrir("/admin/solicitudes/s1", { personal: true });
-    await usuario.click(await screen.findByRole("button", { name: "Aprobar y asignar cita" }));
+    abrir("/admin/solicitudes/s1", { personal: true });
     expect(await esperarTexto("Sin horarios")).toBeInTheDocument();
   });
 });

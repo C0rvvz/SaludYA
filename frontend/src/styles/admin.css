@@ -1035,6 +1035,11 @@
   font-size: 0.8125rem;
 }
 
+.admin-comprobante--fuerte {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
 /* Filas de datos ("Documento · CC 1010") */
 .admin .summary-row {
   gap: 12px;
@@ -1187,6 +1192,11 @@
   box-shadow: var(--halo);
 }
 
+/* Casilla suelta con el mismo aspecto (p. ej. "Marcar como revisión prioritaria") */
+.opcion-admin--casilla {
+  align-self: flex-start;
+}
+
 .opcion-admin__textos {
   display: flex;
   flex-direction: column;
@@ -1291,10 +1301,22 @@
 }
 
 .revision__motivo {
+  margin: 0;
   padding: 12px 14px;
   border-radius: 10px;
   background: var(--color-bg);
+  font-size: 0.875rem;
+  line-height: 1.5;
   white-space: pre-line;
+}
+
+/* Lo que escribió el paciente, entre comillas */
+blockquote.revision__motivo::before {
+  content: "“";
+}
+
+blockquote.revision__motivo::after {
+  content: "”";
 }
 
 /* Riesgo estimado de inasistencia (HU-34): anillo con el porcentaje */

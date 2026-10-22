@@ -289,12 +289,16 @@ describe("Lista de solicitudes del personal", () => {
     const usuario = abrir("/admin/solicitudes", { personal: true });
     expect(await esperarTexto("RAD-1")).toBeInTheDocument();
     expect(screen.getByText("Prioritaria")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Ver contexto" })[0]).toHaveAttribute("href", "/admin/solicitudes/s1");
+    expect(screen.getByText("Carta de solicitud · 1 oct")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Revisar la solicitud RAD-1" })).toHaveAttribute("href", "/admin/solicitudes/s1");
+    expect(screen.getByRole("link", { name: "Ver la solicitud RAD-2" })).toHaveAttribute("href", "/admin/solicitudes/s2");
 
-    await usuario.selectOptions(screen.getByLabelText("Estado"), "aprobada");
+    // Chips por estado, con cuántas hay de cada uno.
+    expect(screen.getByRole("button", { name: "Todas 2" })).toHaveAttribute("aria-pressed", "true");
+    await usuario.click(screen.getByRole("button", { name: "Aprobadas 1" }));
     expect(screen.queryByText("RAD-1")).not.toBeInTheDocument();
-    await usuario.selectOptions(screen.getByLabelText("Estado"), "negada");
-    expect(screen.getByText("No hay cartas con ese estado.")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "No aprobadas 0" }));
+    expect(screen.getByText("No hay solicitudes con ese estado.")).toBeInTheDocument();
   });
 
   it("si no cargan, lo dice", async () => {
