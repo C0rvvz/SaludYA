@@ -18,9 +18,17 @@ function solicitudEspera(cambios = {}) {
     posicion: 2,
     total_en_lista: 5,
     oferta: null,
+    cupo_quitado: null,
+    busca_desde: hoy(),
     cita: null,
     ...cambios,
   };
+}
+
+function hoy(dias = 0) {
+  const fecha = new Date();
+  fecha.setDate(fecha.getDate() + dias);
+  return fecha.toLocaleDateString("en-CA");
 }
 
 const OFERTA = {
@@ -53,12 +61,14 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
     expect(await screen.findByRole("heading", { name: "Pedir un aviso" })).toBeInTheDocument();
     const pedir = screen.getByRole("button", { name: "Avisarme cuando haya cupo" });
     expect(pedir).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Actualizar mi posición" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Recargar mi posición" })).not.toBeInTheDocument();
 
     await screen.findByRole("option", { name: "Cardiología" });
     await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-1");
     await usuario.click(await screen.findByLabelText("Sede Laureles")); // desmarca una de las dos
+    expect(screen.queryByText(/Si ya pasó la mañana de hoy/)).not.toBeInTheDocument();
     await usuario.click(screen.getByLabelText("En la mañana"));
+    expect(screen.getByText("Si ya pasó la mañana de hoy, le buscamos desde mañana en la mañana.")).toBeInTheDocument();
     await usuario.click(screen.getByLabelText("Virtual"));
     await usuario.click(screen.getByLabelText("Correo electrónico"));
     await usuario.click(pedir);
@@ -90,6 +100,10 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
     expect(within(aviso).getByText("Se liberó un cupo para usted")).toBeInTheDocument();
     expect(within(aviso).getByText(/Dr\. Carlos Ramírez · Sede Poblado · Virtual/)).toBeInTheDocument();
     expect(within(aviso).getByText(/^Lo tenemos reservado hasta/)).toBeInTheDocument();
+    // El recuadro del cupo va arriba, antes del nombre de la especialidad.
+    const rotulo = within(aviso).getByText("Se liberó un cupo para usted");
+    const titulo = within(aviso).getByRole("heading", { name: "Cardiología" });
+    expect(rotulo.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Pedir aviso para otra especialidad" })).toBeInTheDocument();
 
     await usuario.click(within(aviso).getByRole("button", { name: "Aceptar esta cita" }));
@@ -97,16 +111,54 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
     expect(await screen.findAllByText(/Comprobante SY-LE1\./)).toHaveLength(2); // aviso y tarjeta
   });
 
-  it("'No me sirve' conserva el lugar; 'Ya no quiero el aviso' pide confirmación en una ventana", async () => {
+  it("'No me sirve, quitarla' quita el cupo y, mientras dure la reserva, 'Me arrepentí' lo devuelve", async () => {
+    const ofrecido = solicitudEspera({ estado: "cupo_ofrecido", oferta: OFERTA });
+    // Ya pasó la mañana de hoy: busca desde mañana.
+    const quitado = solicitudEspera({ cupo_quitado: { ...OFERTA, se_puede_recuperar: true }, busca_desde: hoy(1) });
+    let lista = [ofrecido];
     const llamadas = backendFalso({
-      "GET /lista-espera": [solicitudEspera({ estado: "cupo_ofrecido", oferta: OFERTA, modalidad: "presencial" })],
+      "GET /lista-espera": () => lista,
       "GET /especialidades": [ESPECIALIDAD],
-      "POST /lista-espera/:id/rechazar": solicitudEspera(),
+      "POST /lista-espera/:id/rechazar": () => ((lista = [quitado]), quitado),
+      "POST /lista-espera/:id/recuperar": () => ((lista = [ofrecido]), ofrecido),
+    });
+    const usuario = abrir("/lista-espera", { paciente: true });
+    await usuario.click(await screen.findByRole("button", { name: "No me sirve, quitarla" }));
+
+    const aviso = await screen.findByRole("article", { name: "Cardiología" });
+    expect(await within(aviso).findByText("Listo, quitamos el cupo del martes 20, 8:00 a. m.")).toBeInTheDocument();
+    expect(within(aviso).getByText(/^No se lo volveremos a ofrecer. Seguimos buscando otro cupo en la mañana: como ya pasó la mañana de hoy, buscamos desde mañana /)).toBeInTheDocument();
+    expect(within(aviso).getByText(/^Puede recuperarlo hasta/)).toBeInTheDocument();
+    expect(within(aviso).getByText("Buscando cupo")).toBeInTheDocument();
+    expect(within(aviso).queryByText("Se liberó un cupo para usted")).not.toBeInTheDocument();
+
+    await usuario.click(within(aviso).getByRole("button", { name: "Me arrepentí, ver el cupo otra vez" }));
+    expect(await esperarTexto(/Le devolvimos el cupo/)).toBeInTheDocument();
+    expect(await screen.findByText("Se liberó un cupo para usted")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "POST", "/lista-espera/le-1/recuperar")).toHaveLength(1);
+  });
+
+  it("si el cupo quitado ya es de otra persona, no ofrece recuperarlo", async () => {
+    backendFalso({
+      "GET /lista-espera": [
+        solicitudEspera({ jornada: "tarde", cupo_quitado: { ...OFERTA, se_puede_recuperar: false } }),
+      ],
+      "GET /especialidades": [ESPECIALIDAD],
+    });
+    abrir("/lista-espera", { paciente: true });
+    expect(await esperarTexto("Ese cupo ya se lo ofrecimos a otra persona.")).toBeInTheDocument();
+    expect(screen.getByText("No se lo volveremos a ofrecer. Seguimos buscando otro cupo en la tarde.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Me arrepentí/ })).not.toBeInTheDocument();
+  });
+
+  it("'Ya no quiero el aviso' pide confirmación en una ventana", async () => {
+    const llamadas = backendFalso({
+      "GET /lista-espera": [solicitudEspera({ modalidad: "presencial" })],
+      "GET /especialidades": [ESPECIALIDAD],
       "POST /lista-espera/:id/salir": solicitudEspera({ estado: "cancelada" }),
     });
     const usuario = abrir("/lista-espera", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "No me sirve" }));
-    expect(await esperarTexto(/Conserva su lugar en la lista/)).toBeInTheDocument();
+    await screen.findByRole("article", { name: "Cardiología" });
 
     await usuario.click(screen.getByRole("button", { name: "Ya no quiero el aviso" }));
     expect(screen.getByRole("dialog", { name: "¿Ya no quiere el aviso?" })).toBeInTheDocument();
@@ -119,7 +171,7 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
     expect(llamadasA(llamadas, "POST", "/lista-espera/le-1/salir")).toHaveLength(1);
 
     const antes = llamadasA(llamadas, "GET", "/lista-espera").length;
-    await usuario.click(screen.getByRole("button", { name: "Actualizar mi posición" }));
+    await usuario.click(screen.getByRole("button", { name: "Recargar mi posición" }));
     await waitFor(() => expect(llamadasA(llamadas, "GET", "/lista-espera").length).toBeGreaterThan(antes));
   });
 
@@ -180,7 +232,7 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
   });
 });
 
-describe("Carta de petición", () => {
+describe("Hacer una petición", () => {
   function solicitud(cambios = {}) {
     return {
       id: "s1",
@@ -196,11 +248,15 @@ describe("Carta de petición", () => {
       radicada_en: "2026-10-01T10:00:00-05:00",
       respuesta: null,
       cita: null,
+      novedades: [
+        { texto: "La estamos revisando", en: null },
+        { texto: "Recibimos su petición", en: "2026-10-01T10:00:00-05:00" },
+      ],
       ...cambios,
     };
   }
 
-  it("elige el tipo de carta (con lo que es), la escribe y la ve con su estado", async () => {
+  it("elige el tipo de petición (con lo que es), la escribe y la ve con su estado", async () => {
     let lista = [];
     const llamadas = backendFalso({
       "GET /solicitudes": () => lista,
@@ -211,15 +267,17 @@ describe("Carta de petición", () => {
       },
     });
     const usuario = abrir("/solicitudes", { paciente: true });
-    expect(await esperarTexto(/Todavía no ha enviado cartas/)).toBeInTheDocument();
+    expect(await esperarTexto(/Todavía no ha enviado peticiones/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nueva petición" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Recargar estado" })).not.toBeInTheDocument();
     // Empieza en "Pedir una cita en otra fecha", con su explicación y su pregunta.
     expect(screen.getByLabelText("Pedir una cita en otra fecha")).toBeChecked();
     expect(screen.getByLabelText(/Por qué no le sirven los horarios disponibles/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Enviar mi carta" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Enviar petición" })).toBeDisabled();
 
     await usuario.click(screen.getByLabelText("Derecho de petición"));
     expect(screen.getByText(/obligada a responderle por escrito en máximo 15 días hábiles/)).toBeInTheDocument();
-    const enviar = screen.getByRole("button", { name: "Enviar mi derecho de petición" });
+    const enviar = screen.getByRole("button", { name: "Enviar petición" });
     await screen.findByRole("option", { name: "Cardiología" });
     await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-1");
     await usuario.click(screen.getByLabelText("Control"));
@@ -228,10 +286,11 @@ describe("Carta de petición", () => {
     await usuario.click(screen.getByLabelText("Mensaje de texto"));
     await usuario.click(enviar);
 
-    expect(await esperarTexto(/Recibimos su derecho de petición\. Su número de radicado es RAD-1A2B/)).toBeInTheDocument();
+    expect(await esperarTexto(/Recibimos su petición\. Su número de radicado es RAD-1A2B/)).toBeInTheDocument();
     expect(await esperarTexto("Pendiente de revisión")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cardiología · Control" })).toBeInTheDocument();
-    expect(screen.getByText(/Derecho de petición RAD-1A2B · enviada el 1 de oct · para el 30 de oct/)).toBeInTheDocument();
+    expect(screen.getByText(/^Derecho de petición RAD-1A2B · enviada el 1/)).toBeInTheDocument();
+    expect(screen.getByText("Novedad: la estamos revisando")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/solicitudes")[0].cuerpo).toEqual({
       tipo: "derecho_peticion",
       especialidad_id: "esp-1",
@@ -258,18 +317,50 @@ describe("Carta de petición", () => {
     expect(await esperarTexto(/Comprobante SY-LE1/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver mis citas" })).toHaveAttribute("href", "/mis-citas");
     expect(screen.getByText("Aprobada por el coordinador.")).toBeInTheDocument();
-    expect(screen.getByText(/en trámite con su EPS/)).toBeInTheDocument();
+    expect(screen.getByText("En trámite con su EPS")).toBeInTheDocument();
+    expect(screen.getByText("Novedad: su EPS la está revisando")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cardiología · Primera vez" })).toBeInTheDocument();
 
     await screen.findByRole("option", { name: "Cardiología" });
     await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-1");
     await usuario.type(screen.getByLabelText("¿Para qué fecha la necesita?"), "2026-10-30");
     await usuario.type(screen.getByLabelText(/Por qué no le sirven los horarios/), "Lo necesito ya mismo.");
-    await usuario.click(screen.getByRole("button", { name: "Enviar mi carta" }));
+    await usuario.click(screen.getByRole("button", { name: "Enviar petición" }));
     expect(await esperarTexto("La fecha que solicita debe ser a partir de mañana.")).toBeInTheDocument();
   });
 
-  it("llega desde 'Agendar' con la carta y la especialidad elegidas", async () => {
+  it("'Ver todo el detalle' muestra lo que escribió y qué ha pasado; 'Recargar estado' la vuelve a consultar", async () => {
+    const llamadas = backendFalso({
+      "GET /solicitudes": [solicitud()],
+      "GET /especialidades": [ESPECIALIDAD],
+    });
+    const usuario = abrir("/solicitudes", { paciente: true });
+    const peticion = await screen.findByRole("article", { name: "Cardiología · Control" });
+    expect(screen.getByText(/^Revisado hoy a las/)).toBeInTheDocument();
+    const abrirDetalle = within(peticion).getByRole("button", { name: "Ver todo el detalle" });
+    expect(abrirDetalle).toHaveAttribute("aria-expanded", "false");
+    expect(within(peticion).queryByText("Lo que usted escribió")).not.toBeVisible();
+
+    await usuario.click(abrirDetalle);
+    expect(within(peticion).getByText("Lo que usted escribió")).toBeVisible();
+    expect(within(peticion).getByText("“Necesito control.”")).toBeInTheDocument();
+    expect(within(peticion).getByText("30 de octubre de 2026")).toBeInTheDocument(); // fecha que pidió
+    expect(within(peticion).getByText("Mensaje de texto")).toBeInTheDocument(); // le respondemos por
+    const pasos = within(within(peticion).getByRole("list", { name: "Qué ha pasado con su petición" })).getAllByRole("listitem");
+    expect(pasos.map((p) => p.textContent)).toEqual([
+      "La estamos revisandoEn curso",
+      expect.stringMatching(/^Recibimos su petición1 (de )?oct · /),
+    ]);
+
+    await usuario.click(within(peticion).getByRole("button", { name: "Ocultar detalle" }));
+    expect(within(peticion).getByRole("button", { name: "Ver todo el detalle" })).toHaveAttribute("aria-expanded", "false");
+
+    const antes = llamadasA(llamadas, "GET", "/solicitudes").length;
+    await usuario.click(screen.getByRole("button", { name: "Recargar estado" }));
+    await waitFor(() => expect(llamadasA(llamadas, "GET", "/solicitudes").length).toBeGreaterThan(antes));
+  });
+
+  it("llega desde 'Agendar' con la petición y la especialidad elegidas", async () => {
     backendFalso({ "GET /solicitudes": [solicitud()], "GET /especialidades": [ESPECIALIDAD] });
     abrir("/solicitudes?tipo=derecho_peticion&especialidad=esp-1", { paciente: true });
     await screen.findByRole("option", { name: "Cardiología" });

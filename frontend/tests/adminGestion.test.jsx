@@ -504,7 +504,7 @@ describe("Recordatorios", () => {
     await usuario.type(within(formulario).getByLabelText("Fecha y hora del envío"), ENVIO);
     await usuario.click(within(formulario).getByRole("button", { name: "Programar" }));
     expect(await esperarTexto("La fecha y hora del envío deben ser futuras.")).toBeInTheDocument();
-    await usuario.click(within(formulario).getByRole("button", { name: "Volver" }));
+    await usuario.click(within(formulario).getByRole("button", { name: "No, volver" }));
     expect(screen.queryByRole("heading", { name: /Programar recordatorio/ })).not.toBeInTheDocument();
 
     backendFalso({

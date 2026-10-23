@@ -26,6 +26,11 @@ def test_el_paciente_radica_y_consulta_su_solicitud(cliente, fabrica):
     assert r.status_code == 201, r.text
     assert r.json()["numero_radicado"].startswith("RAD-")
     assert r.json()["estado"] == "pendiente"
+    # "Qué ha pasado con su petición": primero lo que pasa ahora, sin fecha.
+    assert [(n["texto"], n["en"] is None) for n in r.json()["novedades"]] == [
+        ("La estamos revisando", True),
+        ("Recibimos su petición", False),
+    ]
 
     mias = cliente.get("/solicitudes", headers=encabezado(paciente)).json()
     assert [s["id"] for s in mias] == [r.json()["id"]]
@@ -64,6 +69,7 @@ def test_aprobar_asigna_la_cita(cliente, fabrica):
     assert aprobada["prioritaria"] is True
     assert aprobada["cita"]["numero_comprobante"]  # HU-47: cita asignada
     assert aprobada["revisor"] == coordinador.nombre
+    assert aprobada["novedades"][0]["texto"] == "La aprobamos y le asignamos la cita"
 
     otra_vez = cliente.post(
         f"/admin/solicitudes/{solicitud['id']}/negar", headers=encabezado(coordinador),
@@ -86,18 +92,26 @@ def test_no_aprueba_con_un_horario_de_otra_especialidad(cliente, fabrica):
 
 def test_enviar_a_la_eps_y_luego_negar(cliente, fabrica):
     coordinador = fabrica.personal(RolPersonal.COORDINADOR_MEDICO)
-    solicitud = _radicar(cliente, fabrica, fabrica.paciente()).json()
+    paciente = fabrica.paciente()
+    solicitud = _radicar(cliente, fabrica, paciente).json()
     ruta = f"/admin/solicitudes/{solicitud['id']}"
+
+    def textos():  # lo que ve el paciente en "Qué ha pasado con su petición"
+        return [n["texto"] for n in cliente.get("/solicitudes", headers=encabezado(paciente)).json()[0]["novedades"]]
 
     r = cliente.post(f"{ruta}/enviar-eps", headers=encabezado(coordinador), json={})
     assert r.json()["solicitud"]["estado"] == "pendiente_eps"  # HU-47, criterio 3
     assert cliente.post(f"{ruta}/enviar-eps", headers=encabezado(coordinador), json={}).status_code == 400
+    en_la_eps = textos()
+    assert en_la_eps[0] == "Su EPS la está revisando"
+    assert en_la_eps[1].startswith("La enviamos a su EPS")
 
     assert cliente.post(f"{ruta}/negar", headers=encabezado(coordinador), json={"respuesta": "no"}).status_code == 422
     r = cliente.post(f"{ruta}/negar", headers=encabezado(coordinador), json={"respuesta": "La EPS no lo autorizó."})
     negada = r.json()["solicitud"]
     assert negada["estado"] == "negada"
     assert negada["respuesta_eps_en"] is not None
+    assert textos()[0] == "Su EPS no la autorizó"
 
 
 def test_solo_quien_revisa_decide_y_los_indicadores_cuentan(cliente, fabrica):

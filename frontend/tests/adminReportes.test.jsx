@@ -91,7 +91,7 @@ const VACIO = reporte({
   satisfaccion: { calificaciones: 0, promedio: null, porcentaje_satisfechos: null, distribucion: [] },
 });
 
-describe("Dashboard", () => {
+describe("Resumen", () => {
   it("resume el día y el periodo, y cambia de periodo", async () => {
     const llamadas = backendFalso({
       "GET /admin/reportes": ({ query }) => (query.periodo === "anio" ? reporte({ periodo_texto: "Este año", citas: 400 }) : reporte()),
@@ -240,7 +240,7 @@ describe("Usuarios del personal", () => {
     // Cambiar el rol o desactivar pide confirmación, con el nombre y el correo.
     await usuario.selectOptions(screen.getByLabelText("Rol de Carlos Agenda"), "call_center");
     expect(
-      screen.getByText("¿Cambiar el rol de Carlos Agenda (carlos@saludya.co) de Agendamiento a Call center?")
+      screen.getByText("¿Desea cambiar el rol de Carlos Agenda de Agendamiento a Call center?")
     ).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "No, volver" }));
     expect(screen.getByLabelText("Rol de Carlos Agenda")).toHaveValue("agendamiento"); // no cambió
@@ -248,7 +248,8 @@ describe("Usuarios del personal", () => {
     await usuario.click(screen.getByRole("button", { name: "Sí, cambiar el rol" }));
     expect(await esperarTexto("Rol de Carlos Agenda actualizado.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Desactivar la cuenta de Carlos Agenda" }));
-    expect(screen.getByText(/El acceso se revocará de inmediato/)).toBeInTheDocument();
+    expect(screen.getByText("¿Desea desactivar la cuenta de Carlos Agenda?")).toBeInTheDocument();
+    expect(screen.getByText(/Carlos no podrá volver a ingresar al sistema/)).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Sí, desactivar" }));
     expect(await esperarTexto("Cuenta de Carlos Agenda desactivada.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Activar la cuenta de Inactiva" }));

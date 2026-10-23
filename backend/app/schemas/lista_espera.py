@@ -29,6 +29,12 @@ class OfertaOut(BaseModel):
     expira_en: datetime
 
 
+class CupoQuitadoOut(OfertaOut):
+    """El cupo que acaba de quitar; `expira_en` es hasta cuándo puede recuperarlo."""
+
+    se_puede_recuperar: bool  # False si ya se le ofreció a otra persona
+
+
 class CitaAsignadaOut(BaseModel):
     id: uuid.UUID
     numero_comprobante: str | None
@@ -51,6 +57,8 @@ class SolicitudEsperaOut(BaseModel):
     posicion: int | None  # HU-19; None si ya salió de la fila
     total_en_lista: int
     oferta: OfertaOut | None
+    cupo_quitado: CupoQuitadoOut | None
+    busca_desde: date  # si pidió "En la mañana" y ya pasó la de hoy, es mañana
     cita: CitaAsignadaOut | None
 
 

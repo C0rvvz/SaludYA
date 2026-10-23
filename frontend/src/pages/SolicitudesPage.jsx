@@ -1,20 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
+import { IconoRecargar } from "../components/Iconos";
 import { listarEspecialidades } from "../api/catalogo";
 import { listarMisSolicitudes, radicarSolicitud } from "../api/solicitudes";
 import { CANALES } from "../utils/citas";
-import { formatearFechaLarga, formatearHora } from "../utils/formato";
-import { ESTADOS_SOLICITUD, EXPLICACION_SOLICITUD, TIPOS_CITA, TIPOS_SOLICITUD } from "../utils/solicitudes";
+import { formatearFechaLarga, formatearHora, formatearSoloHora } from "../utils/formato";
+import {
+  ESTADOS_SOLICITUD_PACIENTE,
+  EXPLICACION_SOLICITUD,
+  NOVEDAD_SOLICITUD,
+  TIPOS_CITA,
+  TIPOS_SOLICITUD,
+} from "../utils/solicitudes";
 import "../styles/espera-y-cartas.css";
 
 /**
- * "Carta de petición" — HU-76 a HU-79. Un solo apartado con dos tipos de
- * carta (cada uno explicado con un ejemplo antes de escribir):
+ * "Hacer una petición" — HU-76 a HU-79. Un solo apartado con dos tipos de
+ * petición (cada uno explicado con un ejemplo antes de escribir):
  *   - "Pedir una cita en otra fecha": ningún horario le sirve y explica por qué.
  *   - "Derecho de petición": la petición formal que la EPS debe responder por ley.
- * A la izquierda se escribe la carta; a la derecha, las que ya envió, con
- * su estado y la respuesta. Desde "Agendar" se llega con
+ * A la izquierda se escribe la petición; a la derecha, las que ya envió,
+ * con su estado, la novedad más reciente y, al abrirlas, todo el detalle:
+ * lo que escribió y qué ha pasado con ella. Desde "Agendar" se llega con
  * ?tipo=formal&especialidad=... ya elegidos.
  */
 
@@ -24,13 +32,20 @@ const manana = () => {
   return d.toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
 };
 
-// "2 oct"
+// "2 oct" (algunos navegadores dicen "2 de oct.")
 const diaCorto = (fechaIso) =>
   new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" })
     .format(new Date(fechaIso.length > 10 ? fechaIso : `${fechaIso}T00:00:00`))
-    .replace(".", "");
+    .replace(".", "")
+    .replace(" de ", " ");
 
-function FormularioCarta({ tipoInicial, especialidadInicial, onListo }) {
+// "4 de noviembre de 2026"
+const fechaCompleta = (fechaIso) =>
+  new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "long", year: "numeric" }).format(
+    new Date(`${fechaIso}T00:00:00`)
+  );
+
+function FormularioPeticion({ tipoInicial, especialidadInicial, onListo }) {
   const [especialidades, setEspecialidades] = useState([]);
   const [datos, setDatos] = useState({
     tipo: tipoInicial,
@@ -59,10 +74,9 @@ function FormularioCarta({ tipoInicial, especialidadInicial, onListo }) {
     setError("");
     try {
       const s = await radicarSolicitud(datos);
-      const que = datos.tipo === "formal" ? "su carta" : "su derecho de petición";
       setEnviando(false);
       onListo(
-        `Recibimos ${que}. Su número de radicado es ${s.numero_radicado}: guárdelo por si necesita preguntar por ella. Le avisaremos por ${CANALES[s.canal]} cuando sea revisada.`
+        `Recibimos su petición. Su número de radicado es ${s.numero_radicado}: guárdelo por si necesita preguntar por ella. Le avisaremos por ${CANALES[s.canal]} cuando sea revisada.`
       );
     } catch (err) {
       setError(err.message);
@@ -82,8 +96,8 @@ function FormularioCarta({ tipoInicial, especialidadInicial, onListo }) {
   );
 
   return (
-    <form className="card formulario-paciente" onSubmit={enviar} aria-labelledby="titulo-escribir-carta">
-      <h2 id="titulo-escribir-carta">Escribir mi carta</h2>
+    <form className="card formulario-paciente" onSubmit={enviar} aria-labelledby="titulo-nueva-peticion">
+      <h2 id="titulo-nueva-peticion">Nueva petición</h2>
       {error && (
         <div className="alert alert--error" role="alert">
           {error}
@@ -91,7 +105,7 @@ function FormularioCarta({ tipoInicial, especialidadInicial, onListo }) {
       )}
 
       <fieldset className="pregunta-paciente">
-        <legend>¿Qué tipo de carta es?</legend>
+        <legend>¿Qué tipo de solicitud es?</legend>
         {opciones("tipo", TIPOS_SOLICITUD)}
         <p className="pregunta-paciente__ayuda">{explicacion.texto}</p>
       </fieldset>
@@ -150,15 +164,43 @@ function FormularioCarta({ tipoInicial, especialidadInicial, onListo }) {
         type="submit"
         disabled={enviando || !datos.especialidad_id || !datos.fecha_deseada || datos.motivo.trim().length < 10}
       >
-        {enviando ? "Enviando…" : explicacion.boton}
+        {enviando ? "Enviando…" : "Enviar petición"}
       </button>
     </form>
   );
 }
 
-function TarjetaCarta({ s }) {
-  const [estado, clase] = ESTADOS_SOLICITUD[s.estado];
-  const tituloId = `carta-${s.id}`;
+/** "Qué ha pasado con su petición": de lo más reciente a lo más antiguo; sin fecha, lo que está pasando ahora. */
+function LineaDeTiempo({ novedades, tituloId }) {
+  return (
+    <ol className="linea-peticion" aria-labelledby={tituloId}>
+      {novedades.map((n) => (
+        <li key={`${n.texto}-${n.en}`} className={n.en ? "" : "is-en-curso"}>
+          <span className="linea-peticion__punto" aria-hidden="true" />
+          <span className="linea-peticion__texto">
+            <strong>{n.texto}</strong>
+            <span>{n.en ? `${diaCorto(n.en)} · ${formatearSoloHora(n.en)}` : "En curso"}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function TarjetaPeticion({ s }) {
+  const [abierta, setAbierta] = useState(false);
+  const [estado, clase] = ESTADOS_SOLICITUD_PACIENTE[s.estado];
+  const tituloId = `peticion-${s.id}`;
+  const detalleId = `detalle-${s.id}`;
+  const datos = [
+    ["Tipo de petición", TIPOS_SOLICITUD[s.tipo]],
+    ["Especialidad", s.especialidad],
+    ["Fecha que pidió", fechaCompleta(s.fecha_deseada)],
+    ["Primera vez o control", TIPOS_CITA[s.tipo_cita]],
+    ["Le respondemos por", CANALES[s.canal]],
+    ["Número de radicado", s.numero_radicado],
+  ];
+
   return (
     <article className="card tarjeta-carta" aria-labelledby={tituloId}>
       <div className="tarjeta-aviso__cabeza">
@@ -168,10 +210,12 @@ function TarjetaCarta({ s }) {
         <span className={`badge ${clase}`}>{estado}</span>
       </div>
       <p className="tarjeta-carta__meta">
-        {TIPOS_SOLICITUD[s.tipo]} {s.numero_radicado} · enviada el {diaCorto(s.radicada_en)} · para el{" "}
-        {diaCorto(s.fecha_deseada)}
+        {TIPOS_SOLICITUD[s.tipo]} {s.numero_radicado} · enviada el {diaCorto(s.radicada_en)}
       </p>
 
+      {NOVEDAD_SOLICITUD[s.estado] && (
+        <p className="tarjeta-carta__novedad">Novedad: {NOVEDAD_SOLICITUD[s.estado]}</p>
+      )}
       {s.cita && (
         <div className="tarjeta-carta__cita">
           Su cita quedó para el {formatearFechaLarga(s.cita.fecha).toLowerCase()} a las {formatearHora(s.cita.hora)} con{" "}
@@ -179,13 +223,43 @@ function TarjetaCarta({ s }) {
           <Link to="/mis-citas">Ver mis citas</Link>
         </div>
       )}
-      {s.estado === "pendiente" && <p>La estamos revisando. Le avisaremos por {CANALES[s.canal]}.</p>}
-      {s.estado === "pendiente_eps" && <p>Su carta está en trámite con su EPS. Le avisaremos la respuesta.</p>}
       {s.respuesta && (
         <p>
           <strong>Respuesta:</strong> {s.respuesta}
         </p>
       )}
+
+      <div className="detalle-peticion" id={detalleId} hidden={!abierta}>
+        <dl className="detalle-peticion__datos">
+          {datos.map(([rotulo, valor]) => (
+            <div key={rotulo}>
+              <dt>{rotulo}</dt>
+              <dd>{valor}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="detalle-peticion__bloque">
+          <p className="detalle-peticion__rotulo">Lo que usted escribió</p>
+          <p className="detalle-peticion__texto">“{s.motivo}”</p>
+        </div>
+        <div className="detalle-peticion__bloque">
+          <p className="detalle-peticion__rotulo" id={`historia-${s.id}`}>
+            Qué ha pasado con su petición
+          </p>
+          <LineaDeTiempo novedades={s.novedades} tituloId={`historia-${s.id}`} />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="btn btn--outline boton-detalle"
+        aria-expanded={abierta}
+        aria-controls={detalleId}
+        onClick={() => setAbierta(!abierta)}
+      >
+        {abierta ? "Ocultar detalle" : "Ver todo el detalle"}
+        <span aria-hidden="true">{abierta ? "▴" : "▾"}</span>
+      </button>
     </article>
   );
 }
@@ -194,6 +268,8 @@ export default function SolicitudesPage() {
   const [params] = useSearchParams();
   const tipoPedido = TIPOS_SOLICITUD[params.get("tipo")] ? params.get("tipo") : "formal";
   const [solicitudes, setSolicitudes] = useState(null);
+  const [revisadoEn, setRevisadoEn] = useState(null); // cuándo se consultó el estado por última vez
+  const [recargando, setRecargando] = useState(false);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
   const [formulario, setFormulario] = useState(0); // al enviar, el formulario vuelve a empezar
@@ -201,7 +277,11 @@ export default function SolicitudesPage() {
   const cargar = useCallback(
     () =>
       listarMisSolicitudes()
-        .then(setSolicitudes)
+        .then((lista) => {
+          setSolicitudes(lista);
+          setRevisadoEn(new Date());
+          setError("");
+        })
         .catch((err) => setError(err.message)),
     []
   );
@@ -210,6 +290,12 @@ export default function SolicitudesPage() {
     cargar();
   }, [cargar]);
 
+  async function recargar() {
+    setRecargando(true);
+    await cargar();
+    setRecargando(false);
+  }
+
   return (
     <div>
       <EncabezadoPaciente />
@@ -217,11 +303,8 @@ export default function SolicitudesPage() {
       <div className="section pagina-paciente">
         <div className="pagina-paciente__titulo">
           <div>
-            <h1>Carta de petición</h1>
-            <p>
-              ¿No consigue la cita que necesita? Escríbanos una carta contando su caso y le ayudamos a conseguirla.
-              Aquí también ve la respuesta.
-            </p>
+            <h1>Hacer una petición</h1>
+            <p>¿No consigue la cita que necesita? Cuéntenos su caso y le ayudamos a conseguirla. Aquí ve la respuesta.</p>
           </div>
         </div>
 
@@ -237,7 +320,7 @@ export default function SolicitudesPage() {
         )}
 
         <div className="pagina-paciente__cuerpo con-lista pagina-paciente__cuerpo--cartas">
-          <FormularioCarta
+          <FormularioPeticion
             key={formulario}
             tipoInicial={formulario === 0 ? tipoPedido : "formal"}
             especialidadInicial={formulario === 0 ? (params.get("especialidad") ?? "") : ""}
@@ -248,16 +331,31 @@ export default function SolicitudesPage() {
             }}
           />
 
-          <section className="pagina-paciente__lista" aria-labelledby="titulo-cartas-enviadas">
-            <p className="rotulo" id="titulo-cartas-enviadas">
-              Cartas que ya envié
-            </p>
-            {solicitudes === null && !error && <p className="texto-suave">Cargando sus cartas…</p>}
+          <section className="pagina-paciente__lista" aria-labelledby="titulo-peticiones-enviadas">
+            <div className="lista-peticiones__cabeza">
+              <p className="rotulo" id="titulo-peticiones-enviadas">
+                Peticiones que ya envié
+              </p>
+              {solicitudes?.length > 0 && (
+                <button type="button" className="btn btn--outline btn--compacto" disabled={recargando} onClick={recargar}>
+                  <IconoRecargar />
+                  {recargando ? "Recargando…" : "Recargar estado"}
+                </button>
+              )}
+            </div>
+            {solicitudes?.length > 0 && revisadoEn && (
+              <p className="lista-peticiones__revisado" role="status">
+                Revisado hoy a las {formatearSoloHora(revisadoEn)}
+              </p>
+            )}
+            {solicitudes === null && !error && <p className="texto-suave">Cargando sus peticiones…</p>}
             {solicitudes?.length === 0 && (
-              <p className="pagina-paciente__vacio">Todavía no ha enviado cartas. Cuando envíe una, aquí verá su respuesta.</p>
+              <p className="pagina-paciente__vacio">
+                Todavía no ha enviado peticiones. Cuando envíe una, aquí verá su respuesta.
+              </p>
             )}
             {(solicitudes ?? []).map((s) => (
-              <TarjetaCarta key={s.id} s={s} />
+              <TarjetaPeticion key={s.id} s={s} />
             ))}
           </section>
         </div>

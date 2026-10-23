@@ -2,27 +2,30 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AyudaApartado from "../components/AyudaApartado";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
+import { IconoDeshacer, IconoRecargar } from "../components/Iconos";
 import Ventana from "../components/Ventana";
 import { listarEspecialidades, listarEspecialistas } from "../api/catalogo";
 import {
   aceptarCupo,
   listarMiListaEspera,
   rechazarCupo,
+  recuperarCupo,
   salirListaEspera,
   unirseListaEspera,
 } from "../api/listaEspera";
 import { CANALES } from "../utils/citas";
 import { formatearFechaLarga, formatearHora } from "../utils/formato";
-import { hastaCuando } from "../utils/agendar";
+import { cuandoEs, hastaCuando } from "../utils/agendar";
 import "../styles/espera-y-cartas.css";
 
 /**
  * "Avisarme si hay cupo" (lista de espera) — HU-19 (posición), HU-31
  * (cupo liberado) y HU-32 (aceptarlo o rechazarlo).
  *
- * A la izquierda, los avisos que ya pidió: su lugar en la fila (número
- * grande y barra), el cupo que se le ofrece y "Ya no quiero el aviso". A
- * la derecha, el formulario para pedir un aviso nuevo. Desde "Agendar"
+ * A la izquierda, los avisos que ya pidió: arriba el cupo que se le ofrece
+ * (o el que acaba de quitar, con "Me arrepentí" mientras dure la reserva),
+ * su lugar en la fila (número grande y barra) y "Ya no quiero el aviso".
+ * A la derecha, el formulario para pedir un aviso nuevo. Desde "Agendar"
  * se llega con ?especialidad=... ya elegida.
  */
 
@@ -42,7 +45,7 @@ const TEXTO_JORNADA = Object.fromEntries(JORNADAS);
 const TEXTO_MODALIDAD = Object.fromEntries(MODALIDADES);
 
 const ESTADOS = {
-  en_espera: ["En espera", "badge--info"],
+  en_espera: ["Buscando cupo", "badge--info"],
   cupo_ofrecido: ["Cupo ofrecido", "badge--info"],
   asignada: ["Cita asignada", "badge--success"],
   cancelada: ["Sin aviso", "badge--neutral"],
@@ -61,13 +64,76 @@ function BarraPosicion({ posicion, total }) {
   );
 }
 
-function TarjetaAviso({ solicitud: s, ocupado, onAceptar, onRechazar, onSalir }) {
+// "viernes 24"
+function diaYNumero(fechaIso) {
+  const fecha = new Date(`${fechaIso}T00:00:00`);
+  return `${new Intl.DateTimeFormat("es-CO", { weekday: "long" }).format(fecha)} ${fecha.getDate()}`;
+}
+
+/** Qué cupo le seguimos buscando después de quitar uno (la mañana de hoy ya no cuenta si pasó). */
+function seguimosBuscando(s, ahora = new Date()) {
+  if (s.jornada === "tarde") return "Seguimos buscando otro cupo en la tarde.";
+  if (s.jornada !== "manana") return "Seguimos buscando otro cupo.";
+  if (s.busca_desde <= ahora.toLocaleDateString("en-CA")) return "Seguimos buscando otro cupo en la mañana.";
+  const desde = `${cuandoEs(s.busca_desde, ahora) === "Mañana" ? "mañana" : "el"} ${diaYNumero(s.busca_desde)}`;
+  return `Seguimos buscando otro cupo en la mañana: como ya pasó la mañana de hoy, buscamos desde ${desde}.`;
+}
+
+/** El cupo que acaba de quitar: no se le vuelve a ofrecer, pero puede recuperarlo mientras dure la reserva. */
+function CupoQuitado({ solicitud: s, ocupado, onRecuperar }) {
+  const c = s.cupo_quitado;
+  return (
+    <div className="cupo-quitado" role="status">
+      <p className="cupo-quitado__titulo">
+        Listo, quitamos el cupo del {diaYNumero(c.fecha)}, {formatearHora(c.hora)}
+      </p>
+      <p className="cupo-quitado__texto">No se lo volveremos a ofrecer. {seguimosBuscando(s)}</p>
+      {c.se_puede_recuperar ? (
+        <div className="cupo-quitado__acciones">
+          <button type="button" className="btn cupo-quitado__recuperar" disabled={ocupado} onClick={() => onRecuperar(s)}>
+            <IconoDeshacer />
+            Me arrepentí, ver el cupo otra vez
+          </button>
+          {/* Sin punto final: la hora ya termina en "a. m." / "p. m." */}
+          <span className="cupo-quitado__hasta">Puede recuperarlo {hastaCuando(c.expira_en)}</span>
+        </div>
+      ) : (
+        <p className="cupo-quitado__hasta">Ese cupo ya se lo ofrecimos a otra persona.</p>
+      )}
+    </div>
+  );
+}
+
+function TarjetaAviso({ solicitud: s, ocupado, onAceptar, onRechazar, onRecuperar, onSalir }) {
   const activa = ["en_espera", "cupo_ofrecido"].includes(s.estado);
   const [estado, clase] = ESTADOS[s.estado] ?? [s.estado, "badge--neutral"];
   const tituloId = `aviso-${s.id}`;
 
   return (
     <article className="card tarjeta-aviso" aria-labelledby={tituloId}>
+      {s.oferta && (
+        <div className="oferta-cupo">
+          <p className="oferta-cupo__rotulo">Se liberó un cupo para usted</p>
+          <p className="oferta-cupo__cuando">
+            {formatearFechaLarga(s.oferta.fecha)}, {formatearHora(s.oferta.hora)}
+          </p>
+          <p className="oferta-cupo__quien">
+            {s.oferta.especialista} · {s.oferta.sede} · {s.oferta.modalidad === "virtual" ? "Virtual" : "Presencial"}
+          </p>
+          {/* Sin punto final: la hora ya termina en "a. m." / "p. m." */}
+          <p className="oferta-cupo__hasta">Lo tenemos reservado {hastaCuando(s.oferta.expira_en)}</p>
+          <div className="oferta-cupo__acciones">
+            <button type="button" className="btn oferta-cupo__aceptar" disabled={ocupado} onClick={() => onAceptar(s)}>
+              Aceptar esta cita
+            </button>
+            <button type="button" className="btn oferta-cupo__rechazar" disabled={ocupado} onClick={() => onRechazar(s)}>
+              No me sirve, quitarla
+            </button>
+          </div>
+        </div>
+      )}
+      {s.cupo_quitado && <CupoQuitado solicitud={s} ocupado={ocupado} onRecuperar={onRecuperar} />}
+
       <div className="tarjeta-aviso__cabeza">
         <h2 id={tituloId}>{s.especialidad}</h2>
         <span className={`badge ${clase}`}>{estado}</span>
@@ -85,28 +151,6 @@ function TarjetaAviso({ solicitud: s, ocupado, onAceptar, onRechazar, onSalir })
           </div>
           <BarraPosicion posicion={s.posicion} total={s.total_en_lista} />
         </>
-      )}
-
-      {s.oferta && (
-        <div className="oferta-cupo">
-          <p className="oferta-cupo__rotulo">Se liberó un cupo para usted</p>
-          <p className="oferta-cupo__cuando">
-            {formatearFechaLarga(s.oferta.fecha)}, {formatearHora(s.oferta.hora)}
-          </p>
-          <p className="oferta-cupo__quien">
-            {s.oferta.especialista} · {s.oferta.sede} · {s.oferta.modalidad === "virtual" ? "Virtual" : "Presencial"}
-          </p>
-          {/* Sin punto final: la hora ya termina en "a. m." / "p. m." */}
-          <p className="oferta-cupo__hasta">Lo tenemos reservado {hastaCuando(s.oferta.expira_en)}</p>
-          <div className="oferta-cupo__acciones">
-            <button type="button" className="btn oferta-cupo__aceptar" disabled={ocupado} onClick={() => onAceptar(s)}>
-              Aceptar esta cita
-            </button>
-            <button type="button" className="btn oferta-cupo__rechazar" disabled={ocupado} onClick={() => onRechazar(s)}>
-              No me sirve
-            </button>
-          </div>
-        </div>
       )}
 
       {s.estado === "asignada" && s.cita && (
@@ -239,6 +283,9 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
           <fieldset className="pregunta-paciente">
             <legend>¿A qué hora le queda mejor?</legend>
             {opciones("jornada", JORNADAS, jornada, setJornada)}
+            {jornada === "manana" && (
+              <p className="pregunta-paciente__ayuda">Si ya pasó la mañana de hoy, le buscamos desde mañana en la mañana.</p>
+            )}
           </fieldset>
           <fieldset className="pregunta-paciente">
             <legend>¿Cómo prefiere la cita?</legend>
@@ -293,7 +340,7 @@ export default function ListaEsperaPage() {
     setAviso("");
     setError("");
     try {
-      setAviso(mensaje(await fn()));
+      setAviso(mensaje(await fn()) ?? "");
       await cargar();
     } catch (err) {
       // Primero se recarga (cargar() limpia el error) y después se muestra el error.
@@ -334,7 +381,8 @@ export default function ListaEsperaPage() {
           </div>
           {activas && (
             <button type="button" className="btn btn--outline" disabled={ocupado} onClick={() => cargar()}>
-              Actualizar mi posición
+              <IconoRecargar />
+              Recargar mi posición
             </button>
           )}
         </div>
@@ -368,7 +416,14 @@ export default function ListaEsperaPage() {
                   onRechazar={(x) =>
                     responder(
                       () => rechazarCupo(x.id),
-                      () => "Entendido. Conserva su lugar en la lista y le avisaremos del próximo cupo."
+                      // Si no hay otro cupo, el recuadro "Listo, quitamos el cupo…" ya lo explica.
+                      (r) => (r.oferta ? "Quitamos ese cupo y encontramos otro que le puede servir: revíselo en su aviso." : null)
+                    )
+                  }
+                  onRecuperar={(x) =>
+                    responder(
+                      () => recuperarCupo(x.id),
+                      () => "Le devolvimos el cupo. Acéptelo antes de que venza la reserva."
                     )
                   }
                   onSalir={(x) => {
@@ -396,7 +451,10 @@ export default function ListaEsperaPage() {
             <AyudaApartado titulo="¿Cómo funciona?">
               <ul>
                 <li>Cuando otro paciente cancele una cita que le sirva, le avisamos por el medio que elija.</li>
-                <li>Le guardamos ese cupo un tiempo para que lo acepte o lo rechace. Si lo rechaza, sigue en la lista.</li>
+                <li>
+                  Le guardamos ese cupo un tiempo para que lo acepte o lo quite. Si lo quita, no se lo volvemos a
+                  ofrecer y sigue en la lista.
+                </li>
               </ul>
             </AyudaApartado>
           </div>

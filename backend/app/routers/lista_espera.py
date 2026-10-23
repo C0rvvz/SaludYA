@@ -4,7 +4,8 @@ Lista de espera del paciente — HU-19, HU-31 y HU-32 (requieren su sesión).
   GET   /lista-espera                  HU-19: mis solicitudes, posición y cupo ofrecido
   POST  /lista-espera                  unirse
   POST  /lista-espera/{id}/aceptar     HU-32: la cita queda registrada
-  POST  /lista-espera/{id}/rechazar    HU-32: conserva su lugar
+  POST  /lista-espera/{id}/rechazar    HU-32: conserva su lugar ("No me sirve, quitarla")
+  POST  /lista-espera/{id}/recuperar   "Me arrepentí": el cupo que quitó, mientras dure la reserva
   POST  /lista-espera/{id}/salir       salir de la lista
 """
 
@@ -64,6 +65,11 @@ def aceptar(solicitud_id: uuid.UUID, paciente: Paciente = Depends(get_current_pa
 @router.post("/{solicitud_id}/rechazar", response_model=SolicitudEsperaOut)
 def rechazar(solicitud_id: uuid.UUID, paciente: Paciente = Depends(get_current_paciente), db: Session = Depends(get_db)):
     return _responder(lista_espera_service.rechazar, solicitud_id, paciente, db)
+
+
+@router.post("/{solicitud_id}/recuperar", response_model=SolicitudEsperaOut)
+def recuperar(solicitud_id: uuid.UUID, paciente: Paciente = Depends(get_current_paciente), db: Session = Depends(get_db)):
+    return _responder(lista_espera_service.recuperar, solicitud_id, paciente, db)
 
 
 @router.post("/{solicitud_id}/salir", response_model=SolicitudEsperaOut)

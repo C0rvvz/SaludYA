@@ -197,6 +197,31 @@ def negar(db: Session, personal: Personal, solicitud_id: uuid.UUID, respuesta: s
     return solicitud
 
 
+def novedades(solicitud: SolicitudCita) -> list[dict]:
+    """
+    "Qué ha pasado con su petición", en palabras del paciente y de lo más
+    reciente a lo más antiguo. Mientras nadie decida, el primer paso es lo
+    que está pasando ahora (sin fecha).
+    """
+    eps = solicitud.paciente.eps
+    su_eps = f"su EPS {eps.nombre}" if eps else "su EPS"
+    pasos = [{"texto": "Recibimos su petición", "en": solicitud.radicada_en}]
+    if solicitud.enviada_eps_en:
+        pasos.append({"texto": f"La enviamos a {su_eps}", "en": solicitud.enviada_eps_en})
+    decidida_en = solicitud.respuesta_eps_en or solicitud.revisada_en
+    if solicitud.estado == EstadoSolicitudCita.APROBADA:
+        texto = "Su EPS la autorizó y le asignamos la cita" if solicitud.enviada_eps_en else "La aprobamos y le asignamos la cita"
+        pasos.append({"texto": texto, "en": decidida_en})
+    elif solicitud.estado == EstadoSolicitudCita.NEGADA:
+        texto = "Su EPS no la autorizó" if solicitud.enviada_eps_en else "No la aprobamos"
+        pasos.append({"texto": texto, "en": decidida_en})
+    elif solicitud.estado == EstadoSolicitudCita.PENDIENTE_EPS:
+        pasos.append({"texto": "Su EPS la está revisando", "en": None})
+    else:
+        pasos.append({"texto": "La estamos revisando", "en": None})
+    return pasos[::-1]
+
+
 def solicitud_out(solicitud: SolicitudCita) -> dict:
     cita = solicitud.cita
     return {
@@ -228,6 +253,7 @@ def solicitud_out(solicitud: SolicitudCita) -> dict:
             "hora": cita.disponibilidad.hora,
             "estado": citas_service.texto_estado(cita),
         } if cita else None,
+        "novedades": novedades(solicitud),
     }
 
 

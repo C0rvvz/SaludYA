@@ -31,6 +31,13 @@ class CitaAprobadaOut(BaseModel):
     estado: str
 
 
+class NovedadSolicitudOut(BaseModel):
+    """Un paso de "Qué ha pasado con su petición"; `en` vacío si todavía está en curso."""
+
+    texto: str
+    en: datetime | None
+
+
 class SolicitudCitaOut(BaseModel):
     """Lo que ve el paciente (y la base de lo que ve el personal)."""
 
@@ -47,6 +54,7 @@ class SolicitudCitaOut(BaseModel):
     radicada_en: datetime
     respuesta: str | None
     cita: CitaAprobadaOut | None
+    novedades: list[NovedadSolicitudOut]  # de la más reciente a la más antigua
 
 
 class SolicitudCitaAdminOut(SolicitudCitaOut):

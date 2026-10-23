@@ -26,14 +26,14 @@ const NUEVO = { nombre: "", correo: "", rol: "agendamiento", password: "" };
 
 /**
  * Cambiar el rol o desactivar una cuenta cambia lo que esa persona puede
- * hacer de inmediato: antes se pregunta, con el nombre y el correo, para
- * que un clic por error no le quite o le dé permisos a nadie.
+ * hacer de inmediato: antes se pregunta, con su nombre y lo que pasará,
+ * para que un clic por error no le quite o le dé permisos a nadie.
  */
 function confirmacionPara(usuario, cambios) {
-  const quien = `${usuario.nombre} (${usuario.correo})`;
+  const nombre = usuario.nombre.split(" ")[0];
   if ("rol" in cambios) {
     return {
-      pregunta: `¿Cambiar el rol de ${quien} de ${NOMBRE_ROL[usuario.rol]} a ${NOMBRE_ROL[cambios.rol]}?`,
+      pregunta: `¿Desea cambiar el rol de ${usuario.nombre} de ${NOMBRE_ROL[usuario.rol]} a ${NOMBRE_ROL[cambios.rol]}?`,
       detalle: "Sus permisos cambian de inmediato y su sesión abierta se cierra.",
       boton: "Sí, cambiar el rol",
       exito: `Rol de ${usuario.nombre} actualizado.`,
@@ -41,14 +41,14 @@ function confirmacionPara(usuario, cambios) {
   }
   return cambios.activo
     ? {
-        pregunta: `¿Activar la cuenta de ${quien}?`,
-        detalle: "Podrá volver a ingresar con su contraseña.",
+        pregunta: `¿Desea activar la cuenta de ${usuario.nombre}?`,
+        detalle: `${nombre} podrá volver a ingresar con su contraseña.`,
         boton: "Sí, activar",
         exito: `Cuenta de ${usuario.nombre} activada.`,
       }
     : {
-        pregunta: `¿Desactivar la cuenta de ${quien}?`,
-        detalle: "El acceso se revocará de inmediato. La cuenta se conserva para efectos de auditoría.",
+        pregunta: `¿Desea desactivar la cuenta de ${usuario.nombre}?`,
+        detalle: `${nombre} no podrá volver a ingresar al sistema. Su historial se conserva y la cuenta se puede activar de nuevo cuando lo necesite.`,
         boton: "Sí, desactivar",
         exito: `Cuenta de ${usuario.nombre} desactivada.`,
         peligro: true,
@@ -131,7 +131,7 @@ export default function AdminUsuariosPage() {
 
       {porConfirmar && (
         <div
-          className={`panel-admin panel-admin--confirmar ${porConfirmar.peligro ? "panel-admin--peligro" : ""}`}
+          className={`panel-admin panel-admin--confirmar panel-admin--fila ${porConfirmar.peligro ? "panel-admin--peligro" : ""}`}
           role="alertdialog"
           aria-labelledby="confirmar-cuenta"
         >
@@ -148,7 +148,7 @@ export default function AdminUsuariosPage() {
             >
               {porConfirmar.boton}
             </button>
-            <button className="btn btn--outline" onClick={() => setPorConfirmar(null)}>
+            <button className="btn btn--outline btn--texto-peligro" onClick={() => setPorConfirmar(null)}>
               No, volver
             </button>
           </div>

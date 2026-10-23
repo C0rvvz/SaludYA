@@ -11,7 +11,10 @@ Lista de espera — HU-19, HU-31 y HU-32 (paciente) y HU-45, HU-53 a HU-61
   justo después de cada cancelación o reprogramación (citas_service) y
   en cada pasada de la tarea de fondo, que antes vence las ofertas sin
   respuesta.
-- aceptar() / rechazar(): HU-32.
+- aceptar() / rechazar(): HU-32. "No me sirve, quitarla" rechaza el cupo,
+  que no se le vuelve a ofrecer (primera_franja_compatible).
+- recuperar(): "Me arrepentí, ver el cupo otra vez", mientras dure la
+  reserva que tenía y si nadie más lo tomó.
 - posición: HU-19, calculada en cada consulta.
 
 SUPUESTO: se ofrece cualquier horario libre compatible, no solo los que
@@ -22,6 +25,8 @@ responder, para que el paciente siempre tenga el plazo completo.
 SUPUESTO: si el paciente no responde a tiempo, la oferta vence, él
 conserva su lugar en la lista y el cupo pasa al siguiente (igual que si
 lo rechaza).
+SUPUESTO: al quitar un cupo, este pasa de una vez al siguiente de la
+lista; por eso solo se puede recuperar si sigue libre.
 """
 
 import logging
@@ -239,7 +244,7 @@ def aceptar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solicit
 
 
 def rechazar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
-    """HU-32, criterio 3: conserva su solicitud y su lugar; el cupo pasa al siguiente."""
+    """HU-32, criterio 3: conserva su solicitud y su lugar; el cupo pasa al siguiente y no se le vuelve a ofrecer."""
     solicitud = _solicitud_del_paciente(db, paciente, solicitud_id)
     _liberar(_oferta_vigente(db, solicitud), EstadoOferta.RECHAZADA, datetime.now(timezone.utc))
     auditoria_service.registrar(
@@ -248,6 +253,44 @@ def rechazar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solici
     )
     db.commit()
     asignar_cupos(db)
+    db.refresh(solicitud)
+    return solicitud
+
+
+def _cupo_quitado(solicitud: SolicitudEspera) -> OfertaEspera | None:
+    """
+    El cupo que acaba de quitar ("No me sirve, quitarla"), mientras dure la
+    reserva que tenía: sigue esperando y no se le ha ofrecido otro desde entonces.
+    """
+    if solicitud.estado != EstadoSolicitud.EN_ESPERA or not solicitud.ofertas:
+        return None
+    ultima = solicitud.ofertas[-1]
+    if ultima.estado != EstadoOferta.RECHAZADA or ultima.expira_en <= datetime.now(timezone.utc):
+        return None
+    return ultima
+
+
+def recuperar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> SolicitudEspera:
+    """"Me arrepentí": le devuelve el cupo que quitó, con la misma reserva, si nadie más lo tomó."""
+    solicitud = _solicitud_del_paciente(db, paciente, solicitud_id)
+    oferta = _cupo_quitado(solicitud)
+    if oferta is None:
+        db.rollback()
+        raise ListaEsperaInvalidaError("Ese cupo ya no se puede recuperar.")
+    franja = disponibilidad_repository.obtener_con_lock(db, oferta.disponibilidad_id)
+    if franja is None or franja.estado != EstadoDisponibilidad.DISPONIBLE:
+        db.rollback()
+        raise HorarioYaNoDisponibleError("Ese cupo ya se lo ofrecimos a otra persona. Seguimos buscando otro para usted.")
+    franja.estado = EstadoDisponibilidad.RESERVADO
+    oferta.estado = EstadoOferta.PENDIENTE  # la misma oferta: vence a la hora que ya tenía
+    oferta.respondida_en = None
+    solicitud.estado = EstadoSolicitud.CUPO_OFRECIDO
+    auditoria_service.registrar(
+        db, Actor.de_paciente(paciente), "recuperar_cupo",
+        f"Recuperó el cupo que había quitado, del {fecha_legible(franja.fecha)} a las {hora_legible(franja.hora)}",
+        paciente_id=paciente.id,
+    )
+    db.commit()
     db.refresh(solicitud)
     return solicitud
 
@@ -281,12 +324,27 @@ def salir(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solicitud
     )
 
 
+def _franja_out(oferta: OfertaEspera) -> dict:
+    franja = oferta.disponibilidad
+    return {
+        "especialista": franja.especialista.nombre,
+        "sede": franja.sede.nombre,
+        "modalidad": franja.modalidad,
+        "fecha": franja.fecha,
+        "hora": franja.hora,
+        "expira_en": oferta.expira_en,
+    }
+
+
 def solicitud_out(db: Session, solicitud: SolicitudEspera, fila: list[uuid.UUID] | None = None) -> dict:
-    """Datos de la solicitud, con su posición (HU-19) y el cupo ofrecido (HU-31)."""
+    """
+    Datos de la solicitud, con su posición (HU-19), el cupo ofrecido (HU-31)
+    o el que acaba de quitar, y desde qué día se le buscan cupos.
+    """
     if fila is None:
         fila = repo.ids_en_orden(db, solicitud.especialidad_id)
     oferta = solicitud.oferta_vigente
-    franja = oferta.disponibilidad if oferta else None
+    quitado = _cupo_quitado(solicitud)
     cita = solicitud.cita
     return {
         "id": solicitud.id,
@@ -299,14 +357,12 @@ def solicitud_out(db: Session, solicitud: SolicitudEspera, fila: list[uuid.UUID]
         "creado_en": solicitud.creado_en,
         "posicion": fila.index(solicitud.id) + 1 if solicitud.id in fila else None,
         "total_en_lista": len(fila),
-        "oferta": {
-            "especialista": franja.especialista.nombre,
-            "sede": franja.sede.nombre,
-            "modalidad": franja.modalidad,
-            "fecha": franja.fecha,
-            "hora": franja.hora,
-            "expira_en": oferta.expira_en,
-        } if oferta else None,
+        "oferta": _franja_out(oferta) if oferta else None,
+        "cupo_quitado": {
+            **_franja_out(quitado),
+            "se_puede_recuperar": quitado.disponibilidad.estado == EstadoDisponibilidad.DISPONIBLE,
+        } if quitado else None,
+        "busca_desde": repo.desde_para_jornada(solicitud.jornada, ahora_colombia() + _plazo()).date(),
         "cita": {
             "id": cita.id,
             "numero_comprobante": cita.numero_comprobante,

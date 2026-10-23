@@ -1,13 +1,15 @@
 """Lista de espera — HU-19, HU-31, HU-32 (paciente) y HU-45, HU-53 a HU-61 (personal)."""
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
-from app.models.lista_espera import OfertaEspera
+from app.models.lista_espera import EstadoOferta, Jornada, OfertaEspera
 from app.models.personal import RolPersonal
+from app.repositories.lista_espera_repository import desde_para_jornada
 from app.services import lista_espera_service
+from app.utils.tiempo import ZONA_COLOMBIA
 from tests.conftest import encabezado
 
 
@@ -55,6 +57,25 @@ def test_solo_ofrece_horarios_de_su_jornada(cliente, fabrica):
     assert r.json()["estado"] == "en_espera"
 
 
+def test_si_ya_paso_la_manana_busca_desde_la_manana_siguiente():
+    tarde = datetime(2026, 10, 22, 13, 0, tzinfo=ZONA_COLOMBIA)
+    temprano = datetime(2026, 10, 22, 9, 30, tzinfo=ZONA_COLOMBIA)
+    assert desde_para_jornada(Jornada.MANANA, tarde) == datetime(2026, 10, 23, 0, 0, tzinfo=ZONA_COLOMBIA)
+    assert desde_para_jornada(Jornada.MANANA, temprano) == temprano
+    assert desde_para_jornada(Jornada.CUALQUIERA, tarde) == tarde
+
+
+def test_dice_desde_que_dia_busca(cliente, fabrica, monkeypatch):
+    monkeypatch.setattr(
+        lista_espera_service, "ahora_colombia", lambda: datetime(2026, 10, 22, 13, 0, tzinfo=ZONA_COLOMBIA)
+    )
+    manana = _unirse(cliente, fabrica, fabrica.paciente(), jornada="manana").json()
+    tarde = _unirse(cliente, fabrica, fabrica.paciente(), jornada="tarde").json()
+    assert manana["busca_desde"] == date(2026, 10, 23).isoformat()
+    # Con el plazo para responder (2 h), la tarde de hoy todavía sirve.
+    assert tarde["busca_desde"] == date(2026, 10, 22).isoformat()
+
+
 def test_no_se_une_dos_veces_ni_con_datos_invalidos(cliente, fabrica):
     paciente = fabrica.paciente()
     assert _unirse(cliente, fabrica, paciente).status_code == 201
@@ -94,6 +115,45 @@ def test_rechazar_conserva_el_lugar_y_ofrece_otro_horario(cliente, fabrica, db):
     cliente.post(f"/lista-espera/{solicitud['id']}/rechazar", headers=encabezado(paciente))
     sin_oferta = cliente.post(f"/lista-espera/{solicitud['id']}/aceptar", headers=encabezado(paciente))
     assert sin_oferta.status_code == 400  # ya no le queda ningún cupo ofrecido
+
+
+def test_quitar_el_cupo_y_recuperarlo_mientras_dure_la_reserva(cliente, fabrica):
+    paciente = fabrica.paciente()
+    fabrica.franja(hora=time(7, 30))
+    solicitud = _unirse(cliente, fabrica, paciente).json()
+    reserva = solicitud["oferta"]["expira_en"]
+
+    quitado = cliente.post(f"/lista-espera/{solicitud['id']}/rechazar", headers=encabezado(paciente)).json()
+    assert (quitado["estado"], quitado["oferta"]) == ("en_espera", None)
+    assert quitado["cupo_quitado"]["hora"] == "07:30:00"
+    assert quitado["cupo_quitado"]["expira_en"] == reserva  # hasta cuándo lo puede recuperar
+    assert quitado["cupo_quitado"]["se_puede_recuperar"] is True
+
+    r = cliente.post(f"/lista-espera/{solicitud['id']}/recuperar", headers=encabezado(paciente))
+    assert r.status_code == 200, r.text
+    assert r.json()["estado"] == "cupo_ofrecido"
+    assert (r.json()["oferta"]["hora"], r.json()["oferta"]["expira_en"]) == ("07:30:00", reserva)
+    assert r.json()["cupo_quitado"] is None
+    assert cliente.post(f"/lista-espera/{solicitud['id']}/aceptar", headers=encabezado(paciente)).status_code == 200
+
+
+def test_no_recupera_el_cupo_si_ya_es_de_otro_o_vencio_la_reserva(cliente, fabrica, db):
+    primero, segundo = fabrica.paciente(), fabrica.paciente()
+    franja = fabrica.franja()
+    solicitud = _unirse(cliente, fabrica, primero).json()
+    assert _unirse(cliente, fabrica, segundo).json()["estado"] == "en_espera"
+
+    quitado = cliente.post(f"/lista-espera/{solicitud['id']}/rechazar", headers=encabezado(primero)).json()
+    assert quitado["cupo_quitado"]["se_puede_recuperar"] is False  # pasó de una vez al segundo
+    r = cliente.post(f"/lista-espera/{solicitud['id']}/recuperar", headers=encabezado(primero))
+    assert r.status_code == 409
+    assert cliente.get("/lista-espera", headers=encabezado(segundo)).json()[0]["estado"] == "cupo_ofrecido"
+
+    oferta = db.query(OfertaEspera).filter_by(disponibilidad_id=franja.id, estado=EstadoOferta.RECHAZADA).one()
+    oferta.expira_en = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db.commit()
+    assert cliente.get("/lista-espera", headers=encabezado(primero)).json()[0]["cupo_quitado"] is None
+    assert cliente.post(f"/lista-espera/{solicitud['id']}/recuperar", headers=encabezado(primero)).status_code == 400
 
 
 def test_la_oferta_vence_si_no_responde(cliente, fabrica, db):

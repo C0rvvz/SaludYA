@@ -78,6 +78,24 @@ export function IconoSalir({ tamano = 20 }) {
   );
 }
 
+/** "Recargar mi posición" / "Recargar estado" */
+export function IconoRecargar({ tamano = 18 }) {
+  return (
+    <Svg tamano={tamano}>
+      <path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" {...trazo} strokeWidth={2.2} />
+    </Svg>
+  );
+}
+
+/** "Me arrepentí, ver el cupo otra vez" */
+export function IconoDeshacer({ tamano = 18 }) {
+  return (
+    <Svg tamano={tamano}>
+      <path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" {...trazo} strokeWidth={2.2} />
+    </Svg>
+  );
+}
+
 export function IconoMensaje({ tamano = 24 }) {
   return (
     <Svg tamano={tamano}>

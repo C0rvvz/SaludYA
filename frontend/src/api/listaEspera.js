@@ -17,6 +17,11 @@ export function rechazarCupo(solicitudId) {
   return apiFetch(`/lista-espera/${solicitudId}/rechazar`, { method: "POST", auth: true });
 }
 
+// "Me arrepentí, ver el cupo otra vez": el cupo que quitó, mientras dure la reserva.
+export function recuperarCupo(solicitudId) {
+  return apiFetch(`/lista-espera/${solicitudId}/recuperar`, { method: "POST", auth: true });
+}
+
 export function salirListaEspera(solicitudId) {
   return apiFetch(`/lista-espera/${solicitudId}/salir`, { method: "POST", auth: true });
 }

@@ -15,7 +15,7 @@ import { capitalizar, formatearDuracion, formatearFechaLarga, formatearPorcentaj
 const porcentaje = (parte, total) => (total ? Math.round((100 * parte) / total) : null);
 
 /**
- * Dashboard — HU-52 (resumen general), HU-44 (citas del día), HU-46
+ * Resumen (antes "Dashboard") — HU-52 (resumen general), HU-44 (citas del día), HU-46
  * (inasistencia estimada del día e indicadores de solicitudes), HU-47
  * (revisiones), HU-48 (confirmaciones), HU-49 (canales), HU-50
  * (inasistencias por especialidad) y HU-51 (inasistencias por paciente).
@@ -24,7 +24,7 @@ const porcentaje = (parte, total) => (total ? Math.round((100 * parte) / total) 
 export default function AdminDashboardPage() {
   return (
     <ConPeriodo
-      titulo="Dashboard"
+      titulo="Resumen"
       descripcion="Estado general de la agenda. Los indicadores se calculan en tiempo real con los datos registrados."
     >
       {(r) => {

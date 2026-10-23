@@ -128,13 +128,13 @@ export default function PasoHorario({
         {encabezado}
         <section className="card agendar-sin-cupos">
           <h2>Por ahora no hay horarios libres{especialidad ? ` de ${especialidad}` : ""}</h2>
-          <p>Le avisamos apenas se libere un cupo, o puede escribirnos para pedir una cita en otra fecha.</p>
+          <p>Le avisamos apenas se libere un cupo, o puede hacer una petición para pedir una cita en otra fecha.</p>
           <div className="acciones-admin">
             <Link className="btn btn--primary" to={enlaceEspera}>
               Avisarme cuando haya cupo
             </Link>
             <Link className="btn btn--outline" to={enlaceCarta}>
-              Escribir carta de petición
+              Hacer una petición
             </Link>
           </div>
         </section>
@@ -343,7 +343,7 @@ export default function PasoHorario({
 
         <p className="agendar-nota">
           ¿Ningún horario le sirve? <Link to={enlaceEspera}>Pida que le avisemos si hay cupo</Link> o{" "}
-          <Link to={enlaceCarta}>escríbanos una carta de petición</Link>.
+          <Link to={enlaceCarta}>haga una petición</Link>.
         </p>
       </div>
     </>

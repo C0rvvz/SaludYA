@@ -337,7 +337,7 @@ export default function AdminCitaDetallePage() {
                   >
                     Sí, cancelar la cita
                   </button>
-                  <button className="btn btn--outline" onClick={() => setPanel(null)}>
+                  <button className="btn btn--outline btn--texto-peligro" onClick={() => setPanel(null)}>
                     No, volver
                   </button>
                 </div>
@@ -418,8 +418,8 @@ export default function AdminCitaDetallePage() {
                 >
                   Guardar registro
                 </button>
-                <button className="btn btn--outline" onClick={() => setPanel(null)}>
-                  Cancelar
+                <button className="btn btn--outline btn--texto-peligro" onClick={() => setPanel(null)}>
+                  No, volver
                 </button>
               </div>
             </section>

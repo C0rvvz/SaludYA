@@ -1,7 +1,7 @@
 """Acceso a datos de la lista de espera — HU-19, HU-31, HU-32 (paciente) y HU-45, HU-53 a HU-61 (personal)."""
 
 import uuid
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from sqlalchemy import and_, case, exists, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -82,12 +82,23 @@ def en_espera_para_ofrecer(db: Session) -> list[SolicitudEspera]:
     )
 
 
+def desde_para_jornada(jornada: Jornada, desde: datetime) -> datetime:
+    """
+    Si pidió "En la mañana" y la mañana de ese día ya pasó, se busca desde
+    la mañana del día siguiente (no el cupo más cercano de ese mismo día).
+    """
+    if jornada == Jornada.MANANA and desde.time() >= MEDIODIA:
+        return datetime.combine(desde.date() + timedelta(days=1), time.min, tzinfo=desde.tzinfo)
+    return desde
+
+
 def _compatibles(db: Session, solicitud: SolicitudEspera, desde: datetime):
     """
     HU-31 criterio 2 / HU-55 criterio 1: horarios libres que coinciden con
     la solicitud (especialidad, sedes, jornada y modalidad) y que empiezan
     después de `desde` (hora de Colombia), del más próximo al más lejano.
     """
+    desde = desde_para_jornada(solicitud.jornada, desde)
     query = (
         db.query(Disponibilidad)
         .join(Disponibilidad.especialista)

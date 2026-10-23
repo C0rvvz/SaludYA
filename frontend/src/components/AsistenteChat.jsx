@@ -16,8 +16,8 @@ import "../styles/eli.css";
  *
  * El paciente escribe (o dicta) libremente, o toca una respuesta rápida,
  * y el resultado llega dentro del mismo chat: la cita que Eli propone se
- * ve como tarjeta con "Agendar esa cita", "Elegir otra fecha" y "Escribir
- * carta de petición"; la cita ya agendada (o cancelada, cambiada...) como
+ * ve como tarjeta con "Agendar esa cita", "Elegir otra fecha" y "Hacer
+ * una petición"; la cita ya agendada (o cancelada, cambiada...) como
  * comprobante, y una urgencia como aviso destacado con botón para llamar.
  * Pensado para adultos mayores: letra grande, mensajes cortos y
  * respuestas rápidas para tocar en vez de escribir.
@@ -107,8 +107,8 @@ function Propuesta({ propuesta: p }) {
         </span>
       </div>
       <p className="eli-burbuja__nota">
-        ¿No le sirve? Elija <strong>otra fecha</strong> o envíe una <strong>carta de petición</strong> para una cita a
-        su medida.
+        ¿No le sirve? Elija <strong>otra fecha</strong> o haga una <strong>petición</strong> para una cita a su
+        medida.
       </p>
     </>
   );
@@ -271,7 +271,7 @@ export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCita
       <div className="eli-lanzador">
         {/* Cada 12 s el botón vibra y aparece esta nube (decorativa: el botón ya dice qué hace). */}
         <p className="eli-lanzador__nube" aria-hidden="true">
-          ¿Necesita ayuda para agendar, escribir una carta de petición o con cualquier otro trámite?{" "}
+          ¿Necesita ayuda para agendar, hacer una petición o con cualquier otro trámite?{" "}
           <strong>Yo le ayudo.</strong>
         </p>
         <button type="button" className="eli-lanzador__boton" onClick={onAbrir}>
@@ -365,7 +365,7 @@ export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCita
               to={`/solicitudes?tipo=formal&especialidad=${propuesta.especialidad_id}`}
               onClick={onCerrar}
             >
-              Escribir carta de petición
+              Hacer una petición
             </Link>
           </div>
         )}

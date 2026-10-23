@@ -1,4 +1,4 @@
-/* ============ "Avisarme si hay cupo" y "Carta de petición" ============
+/* ============ "Avisarme si hay cupo" y "Hacer una petición" ============
    Mismo esquema en las dos: título con su explicación y, debajo, dos
    columnas (lo que ya pidió · el formulario). En celular, una columna. */
 
@@ -73,7 +73,7 @@
   color: var(--color-ink-soft);
 }
 
-/* --- Formulario (pedir aviso / escribir carta) --- */
+/* --- Formulario (pedir aviso / nueva petición) --- */
 .formulario-paciente {
   display: flex;
   flex-direction: column;
@@ -270,7 +270,56 @@
   border-color: #fff;
 }
 
-/* --- Una carta enviada --- */
+/* El cupo que acaba de quitar: gris, con "Me arrepentí" mientras dure la reserva */
+.cupo-quitado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #f5f6f7;
+}
+
+.cupo-quitado p {
+  margin: 0;
+}
+
+.cupo-quitado .cupo-quitado__titulo {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.cupo-quitado .cupo-quitado__texto {
+  color: var(--color-ink-soft);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.cupo-quitado__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.cupo-quitado__recuperar {
+  border: 1.5px solid var(--color-navy);
+  background: var(--color-surface);
+  color: var(--color-navy);
+  white-space: normal; /* en celular, que no se salga de la tarjeta */
+}
+
+.cupo-quitado__recuperar svg {
+  flex-shrink: 0;
+}
+
+.cupo-quitado .cupo-quitado__hasta {
+  color: var(--color-ink-soft);
+  font-size: 0.9375rem;
+}
+
+/* --- Una petición enviada --- */
 .tarjeta-carta {
   gap: 10px;
   padding: 22px;
@@ -292,6 +341,158 @@
 .tarjeta-carta__cita a {
   color: inherit;
   font-weight: 600;
+}
+
+/* "Novedad: su EPS la está revisando" */
+.tarjeta-carta .tarjeta-carta__novedad {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-navy);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* "Peticiones que ya envié" con "Recargar estado" a la derecha */
+.lista-peticiones__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lista-peticiones__cabeza .rotulo {
+  margin: 0;
+}
+
+.pagina-paciente__lista .lista-peticiones__revisado {
+  margin-top: -6px;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+}
+
+/* --- Todo el detalle de una petición ("Ver todo el detalle") --- */
+.detalle-peticion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detalle-peticion[hidden] {
+  display: none;
+}
+
+.detalle-peticion__datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #f5f6f7;
+}
+
+.detalle-peticion__datos div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.detalle-peticion__datos dt,
+.detalle-peticion .detalle-peticion__rotulo {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.detalle-peticion__datos dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detalle-peticion__bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detalle-peticion .detalle-peticion__texto {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-surface);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* "Qué ha pasado con su petición": puntos unidos por una línea */
+.linea-peticion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linea-peticion li {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.linea-peticion li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  bottom: -10px;
+  left: 6px;
+  width: 2px;
+  background: var(--color-line);
+}
+
+.linea-peticion__punto {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.linea-peticion li.is-en-curso .linea-peticion__punto {
+  background: var(--color-surface); /* todavía en curso: el punto va vacío */
+}
+
+.linea-peticion__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.linea-peticion__texto span {
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+}
+
+.boton-detalle {
+  align-self: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: var(--text-base);
+}
+
+.boton-detalle span {
+  font-size: 0.8125rem;
 }
 
 /* --- Celular y tableta --- */
@@ -323,17 +524,35 @@
     font-size: 4rem;
   }
 
+  /* Tarjeta y recuadro dentro de ella: menos relleno para que el texto no quede tan angosto */
+  .tarjeta-aviso,
+  .tarjeta-carta {
+    padding: 20px;
+  }
+
+  .oferta-cupo,
+  .cupo-quitado {
+    padding: 18px;
+  }
+
   .tarjeta-aviso__posicion {
     font-size: var(--text-base);
   }
 
   .formulario-paciente__enviar,
   .boton-quitar-aviso,
-  .oferta-cupo__acciones .btn {
+  .oferta-cupo__acciones .btn,
+  .cupo-quitado__recuperar {
     width: 100%;
   }
 
   .opciones-fila .opcion-radio {
     flex: 1 1 200px;
+  }
+}
+
+@media (max-width: 520px) {
+  .detalle-peticion__datos {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

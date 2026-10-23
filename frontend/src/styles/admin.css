@@ -1018,6 +1018,33 @@
   background: var(--color-error-soft);
 }
 
+/* Usuarios: la pregunta a la izquierda y "Sí, …" / "No, volver" a la derecha */
+.panel-admin--fila {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.panel-admin--fila > p {
+  flex: 1 1 420px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.panel-admin--fila.panel-admin--peligro {
+  border-color: var(--color-error-line);
+}
+
+.panel-admin--fila.panel-admin--peligro > p {
+  color: #5c1f16;
+}
+
+.panel-admin--fila .acciones-admin {
+  flex-wrap: nowrap;
+}
+
 /* --- Detalle de una cita / revisión --- */
 .admin-volver {
   display: inline-flex;

@@ -7,7 +7,7 @@ import "../../styles/admin.css";
 // Solo aparecen las secciones que el rol puede usar. Cada una dice debajo,
 // en pocas palabras, para qué sirve: nadie tiene que entrar a adivinarlo.
 const SECCIONES = [
-  { to: "/admin/dashboard", texto: "Dashboard", ayuda: "Indicadores del día y del mes", permiso: "ver_reportes" },
+  { to: "/admin/dashboard", texto: "Resumen", ayuda: "Indicadores del día y del mes", permiso: "ver_reportes" },
   { to: "/admin/reportes", texto: "Reportes", ayuda: "Indicadores por periodo", permiso: "ver_reportes" },
   { to: "/admin/citas", texto: "Gestión de citas", ayuda: "Consulta y seguimiento", permiso: "ver_citas" },
   {
@@ -17,7 +17,7 @@ const SECCIONES = [
     permiso: "gestionar_citas",
   },
   { to: "/admin/lista-espera", texto: "Lista de espera", ayuda: "Pacientes en espera de cupo", permiso: "ver_citas" },
-  { to: "/admin/solicitudes", texto: "Solicitudes", ayuda: "Cartas y derechos de petición", permiso: "ver_citas" },
+  { to: "/admin/solicitudes", texto: "Solicitudes", ayuda: "Peticiones de los pacientes", permiso: "ver_citas" },
   { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];

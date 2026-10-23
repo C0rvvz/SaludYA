@@ -139,7 +139,7 @@ describe("Agendar cita", () => {
       "href",
       "/lista-espera?especialidad=esp-1"
     );
-    expect(screen.getByRole("link", { name: "escríbanos una carta de petición" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "haga una petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );
@@ -149,7 +149,7 @@ describe("Agendar cita", () => {
     expect(screen.getByRole("button", { name: "Continuar con Cardiología" })).toBeEnabled();
   });
 
-  it("sin horarios libres: lo dice y ofrece el aviso de cupo o la carta", async () => {
+  it("sin horarios libres: lo dice y ofrece el aviso de cupo o la petición", async () => {
     backendFalso({ ...CATALOGO, "GET /disponibilidad/buscar": [] });
     const usuario = abrir("/panel", { paciente: true });
     const cardiologia = await screen.findByRole("button", { name: /Cardiología/ });
@@ -157,12 +157,13 @@ describe("Agendar cita", () => {
     await usuario.click(cardiologia);
     await usuario.click(screen.getByRole("button", { name: "Continuar con Cardiología" }));
 
-    expect(await esperarTexto("Por ahora no hay horarios libres de Cardiología")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Avisarme cuando haya cupo" })).toHaveAttribute(
+    const sinCupos = (await screen.findByRole("heading", { name: "Por ahora no hay horarios libres de Cardiología" })).closest("section");
+    expect(within(sinCupos).getByRole("link", { name: "Avisarme cuando haya cupo" })).toHaveAttribute(
       "href",
       "/lista-espera?especialidad=esp-1"
     );
-    expect(screen.getByRole("link", { name: "Escribir carta de petición" })).toHaveAttribute(
+    // El mismo nombre que en el menú, pero con la especialidad ya elegida.
+    expect(within(sinCupos).getByRole("link", { name: "Hacer una petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );
@@ -541,7 +542,7 @@ describe("Asistente conversacional (HU-33)", () => {
     expect(screen.queryByRole("dialog", { name: /Eli, su guía de SaludYA/ })).not.toBeInTheDocument();
   });
 
-  it("la cita que Eli propone se ve como tarjeta, con 'Agendar esa cita', 'Elegir otra fecha' y la carta", async () => {
+  it("la cita que Eli propone se ve como tarjeta, con 'Agendar esa cita', 'Elegir otra fecha' y la petición", async () => {
     const PROPUESTA = {
       especialidad: "Cardiología",
       especialidad_id: "esp-1",
@@ -567,7 +568,8 @@ describe("Asistente conversacional (HU-33)", () => {
     expect(screen.getByText(/2:30 p. m. · Sede Poblado · Presencial/)).toBeInTheDocument();
     // Con la propuesta, las respuestas rápidas son las del diseño (no "Sí, confirmo").
     expect(screen.queryByRole("button", { name: "Sí, confirmo" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Escribir carta de petición" })).toHaveAttribute(
+    const eli = screen.getByRole("dialog", { name: "Eli, su guía de SaludYA" });
+    expect(within(eli).getByRole("link", { name: "Hacer una petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );

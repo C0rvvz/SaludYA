@@ -196,8 +196,8 @@ function PanelProgramar({ paciente, programado, onListo, onCancelar }) {
         <button className="btn btn--primary" type="submit" disabled={enviando || !texto.trim() || !cuando}>
           {programado ? "Guardar cambios" : "Programar"}
         </button>
-        <button className="btn btn--outline" type="button" onClick={onCancelar}>
-          Volver
+        <button className="btn btn--outline btn--texto-peligro" type="button" onClick={onCancelar}>
+          No, volver
         </button>
       </div>
     </form>
