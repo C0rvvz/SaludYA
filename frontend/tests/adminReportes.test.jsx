@@ -223,16 +223,19 @@ describe("Usuarios del personal", () => {
     });
     const usuario = abrir("/admin/usuarios", { personal: true });
 
-    expect(await screen.findByLabelText("Rol de Ana Admin")).toBeDisabled(); // no cambia su propio rol
-    expect(screen.getAllByText("Nunca", { selector: "td" })).toHaveLength(2); // nunca han ingresado
+    // Nadie cambia su propio rol: en su fila se ve el rol, no el desplegable.
+    expect(await screen.findByText("Su cuenta")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Rol de Ana Admin")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Sin accesos", { selector: "td" })).toHaveLength(2); // nunca han ingresado
+    expect(screen.getByLabelText(/Contraseña inicial/)).toHaveAttribute("minLength", "12");
 
-    await usuario.type(screen.getByLabelText("Nombre"), "Nueva Persona");
+    await usuario.type(screen.getByLabelText("Nombre completo"), "Nueva Persona");
     await usuario.type(screen.getByLabelText("Correo institucional"), "nueva@saludya.co");
     await usuario.selectOptions(screen.getByLabelText("Rol"), "call_center");
     await usuario.type(screen.getByLabelText(/Contraseña inicial/), "clave-larga-123");
     await usuario.click(screen.getByRole("button", { name: "Crear cuenta" }));
     expect(await esperarTexto("Cuenta creada para Nueva Persona.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Nombre")).toHaveValue("");
+    expect(screen.getByLabelText("Nombre completo")).toHaveValue("");
 
     // Cambiar el rol o desactivar pide confirmación, con el nombre y el correo.
     await usuario.selectOptions(screen.getByLabelText("Rol de Carlos Agenda"), "call_center");
@@ -244,17 +247,17 @@ describe("Usuarios del personal", () => {
     await usuario.selectOptions(screen.getByLabelText("Rol de Carlos Agenda"), "coordinador_medico");
     await usuario.click(screen.getByRole("button", { name: "Sí, cambiar el rol" }));
     expect(await esperarTexto("Rol de Carlos Agenda actualizado.")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Desactivar" }));
-    expect(screen.getByText(/Perderá el acceso de inmediato/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Desactivar la cuenta de Carlos Agenda" }));
+    expect(screen.getByText(/El acceso se revocará de inmediato/)).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Sí, desactivar" }));
     expect(await esperarTexto("Cuenta de Carlos Agenda desactivada.")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Activar" }));
+    await usuario.click(screen.getByRole("button", { name: "Activar la cuenta de Inactiva" }));
     await usuario.click(screen.getByRole("button", { name: "Sí, activar" }));
     expect(await esperarTexto("Cuenta de Inactiva activada.")).toBeInTheDocument();
 
-    await usuario.click(screen.getAllByRole("button", { name: "Cambiar contraseña" })[1]);
+    await usuario.click(screen.getByRole("button", { name: "Cambiar la contraseña de Carlos Agenda" }));
     await usuario.click(screen.getByRole("button", { name: "Cancelar" }));
-    await usuario.click(screen.getAllByRole("button", { name: "Cambiar contraseña" })[1]);
+    await usuario.click(screen.getByRole("button", { name: "Cambiar la contraseña de Carlos Agenda" }));
     const guardar = screen.getByRole("button", { name: "Guardar" });
     expect(guardar).toBeDisabled();
     await usuario.type(screen.getByLabelText("Nueva contraseña de Carlos Agenda"), "corta-pero-10");

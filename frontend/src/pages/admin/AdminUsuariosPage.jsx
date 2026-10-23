@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { actualizarUsuario, crearUsuario, listarUsuarios } from "../../api/admin";
+import { BotonIcono, IconoLlave } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
 import { usePersonal } from "../../context/personal";
+import { iniciales } from "../../utils/avatar";
 
 /**
  * Cuentas del personal (solo administradores). Las cuentas no se borran:
@@ -17,6 +19,9 @@ const ROLES = [
 
 const NOMBRE_ROL = Object.fromEntries(ROLES);
 
+// Debe coincidir con MIN_LONGITUD_PASSWORD del backend (personal_service.py).
+const MIN_CLAVE = 12;
+
 const NUEVO = { nombre: "", correo: "", rol: "agendamiento", password: "" };
 
 /**
@@ -29,7 +34,7 @@ function confirmacionPara(usuario, cambios) {
   if ("rol" in cambios) {
     return {
       pregunta: `¿Cambiar el rol de ${quien} de ${NOMBRE_ROL[usuario.rol]} a ${NOMBRE_ROL[cambios.rol]}?`,
-      detalle: "Sus permisos cambian de inmediato.",
+      detalle: "Sus permisos cambian de inmediato y su sesión abierta se cierra.",
       boton: "Sí, cambiar el rol",
       exito: `Rol de ${usuario.nombre} actualizado.`,
     };
@@ -43,7 +48,7 @@ function confirmacionPara(usuario, cambios) {
       }
     : {
         pregunta: `¿Desactivar la cuenta de ${quien}?`,
-        detalle: "Perderá el acceso de inmediato. La cuenta no se borra: la auditoría conserva lo que hizo.",
+        detalle: "El acceso se revocará de inmediato. La cuenta se conserva para efectos de auditoría.",
         boton: "Sí, desactivar",
         exito: `Cuenta de ${usuario.nombre} desactivada.`,
         peligro: true,
@@ -113,10 +118,14 @@ export default function AdminUsuariosPage() {
 
   return (
     <>
-      <h1 className="admin-titulo">Usuarios del personal</h1>
-      <p className="admin-subtitulo">
-        Cree las cuentas del personal y asigne su rol. Una cuenta desactivada pierde el acceso de inmediato.
-      </p>
+      <div className="admin-encabezado">
+        <div>
+          <h1 className="admin-titulo">Usuarios del personal</h1>
+          <p className="admin-subtitulo">
+            Creación de cuentas y asignación de roles. Al desactivar una cuenta, el acceso se revoca de inmediato.
+          </p>
+        </div>
+      </div>
 
       {aviso && <div className={`alert alert--${aviso.tipo}`}>{aviso.texto}</div>}
 
@@ -146,46 +155,59 @@ export default function AdminUsuariosPage() {
         </div>
       )}
 
-      <form className="filters-card filtros-admin" onSubmit={crear}>
-        <div className="field">
-          <label htmlFor="nombre">Nombre</label>
-          <input id="nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} required />
+      <form className="card" onSubmit={crear} aria-labelledby="titulo-nueva-cuenta">
+        <h2 className="admin-card__titulo" id="titulo-nueva-cuenta">
+          Nueva cuenta
+        </h2>
+        <div className="nueva-cuenta">
+          <div className="field">
+            <label htmlFor="nombre">Nombre completo</label>
+            <input
+              id="nombre"
+              value={nuevo.nombre}
+              placeholder="Ej. Juliana Restrepo"
+              onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="correo_nuevo">Correo institucional</label>
+            <input
+              id="correo_nuevo"
+              type="email"
+              value={nuevo.correo}
+              placeholder="Ej. nombre@clinica.co"
+              onChange={(e) => setNuevo({ ...nuevo, correo: e.target.value })}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="rol">Rol</label>
+            <select id="rol" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })}>
+              {ROLES.map(([valor, texto]) => (
+                <option key={valor} value={valor}>
+                  {texto}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="clave_nueva">Contraseña inicial</label>
+            <input
+              id="clave_nueva"
+              type="password"
+              autoComplete="new-password"
+              minLength={MIN_CLAVE}
+              placeholder={`Mínimo ${MIN_CLAVE} caracteres`}
+              value={nuevo.password}
+              onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })}
+              required
+            />
+          </div>
+          <button className="btn btn--primary" type="submit" disabled={ocupado}>
+            Crear cuenta
+          </button>
         </div>
-        <div className="field">
-          <label htmlFor="correo_nuevo">Correo institucional</label>
-          <input
-            id="correo_nuevo"
-            type="email"
-            value={nuevo.correo}
-            onChange={(e) => setNuevo({ ...nuevo, correo: e.target.value })}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="rol">Rol</label>
-          <select id="rol" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })}>
-            {ROLES.map(([valor, texto]) => (
-              <option key={valor} value={valor}>
-                {texto}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="clave_nueva">Contraseña inicial (mín. 10 caracteres)</label>
-          <input
-            id="clave_nueva"
-            type="password"
-            autoComplete="new-password"
-            minLength={10}
-            value={nuevo.password}
-            onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })}
-            required
-          />
-        </div>
-        <button className="btn btn--primary" type="submit" disabled={ocupado}>
-          Crear cuenta
-        </button>
       </form>
 
       <div className="tabla-contenedor">
@@ -200,76 +222,99 @@ export default function AdminUsuariosPage() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
-              <tr key={u.id}>
-                <td>
-                  <strong>{u.nombre}</strong>
-                  <span className="texto-suave">{u.correo}</span>
-                </td>
-                <td>
-                  <select
-                    aria-label={`Rol de ${u.nombre}`}
-                    value={u.rol}
-                    disabled={ocupado || u.id === yo.id}
-                    onChange={(e) => pedirConfirmacion(u, { rol: e.target.value })}
-                  >
-                    {ROLES.map(([valor, texto]) => (
-                      <option key={valor} value={valor}>
-                        {texto}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <span className={`badge ${u.activo ? "badge--success" : "badge--neutral"}`}>
-                    {u.activo ? "Activa" : "Desactivada"}
-                  </span>
-                </td>
-                <td>{u.ultimo_acceso_en ? <FechaHora valor={u.ultimo_acceso_en} /> : "Nunca"}</td>
-                <td>
-                  <div className="acciones-tabla">
-                    {u.id !== yo.id && (
-                      <button
-                        className={`btn btn--compacto ${u.activo ? "btn--peligro-outline" : "btn--outline"}`}
+            {usuarios.map((u) => {
+              const esYo = u.id === yo.id;
+              return (
+                <tr key={u.id}>
+                  <td>
+                    <span className="celda-persona">
+                      <span className="celda-persona__iniciales" aria-hidden="true">
+                        {iniciales(u.nombre)}
+                      </span>
+                      <span className="celda-persona__textos">
+                        <span className="celda-persona__nombre">{u.nombre}</span>
+                        <span className="celda-persona__dato">{u.correo}</span>
+                      </span>
+                    </span>
+                  </td>
+                  <td>
+                    {esYo ? (
+                      // Nadie cambia su propio rol: lo hace otra persona administradora.
+                      <span className="celda-doble">
+                        <span>{NOMBRE_ROL[u.rol]}</span>
+                        <span className="celda-doble__dato">Su cuenta</span>
+                      </span>
+                    ) : (
+                      <select
+                        aria-label={`Rol de ${u.nombre}`}
+                        value={u.rol}
                         disabled={ocupado}
-                        onClick={() => pedirConfirmacion(u, { activo: !u.activo })}
+                        onChange={(e) => pedirConfirmacion(u, { rol: e.target.value })}
                       >
-                        {u.activo ? "Desactivar" : "Activar"}
-                      </button>
+                        {ROLES.map(([valor, texto]) => (
+                          <option key={valor} value={valor}>
+                            {texto}
+                          </option>
+                        ))}
+                      </select>
                     )}
+                  </td>
+                  <td>
+                    <span className={`badge ${u.activo ? "badge--success" : "badge--neutral"}`}>
+                      {u.activo ? "Activa" : "Inactiva"}
+                    </span>
+                  </td>
+                  <td>{u.ultimo_acceso_en ? <FechaHora valor={u.ultimo_acceso_en} /> : "Sin accesos"}</td>
+                  <td>
                     {claveDe === u.id ? (
-                      <>
+                      <div className="acciones-tabla">
                         <input
                           type="password"
                           aria-label={`Nueva contraseña de ${u.nombre}`}
-                          placeholder="Nueva contraseña"
+                          placeholder={`Mínimo ${MIN_CLAVE} caracteres`}
                           autoComplete="new-password"
-                          minLength={10}
+                          minLength={MIN_CLAVE}
                           value={clave}
                           onChange={(e) => setClave(e.target.value)}
                         />
-                        <button className="btn btn--primary btn--compacto" disabled={ocupado || clave.length < 10} onClick={() => cambiarClave(u)}>
+                        <button
+                          className="btn btn--primary btn--compacto"
+                          disabled={ocupado || clave.length < MIN_CLAVE}
+                          onClick={() => cambiarClave(u)}
+                        >
                           Guardar
                         </button>
                         <button className="btn btn--outline btn--compacto" onClick={() => setClaveDe(null)}>
                           Cancelar
                         </button>
-                      </>
+                      </div>
                     ) : (
-                      <button
-                        className="btn btn--outline btn--compacto"
-                        onClick={() => {
-                          setClaveDe(u.id);
-                          setClave("");
-                        }}
-                      >
-                        Cambiar contraseña
-                      </button>
+                      <div className="acciones-tabla">
+                        <BotonIcono
+                          nombre={`Cambiar la contraseña de ${u.nombre}`}
+                          onClick={() => {
+                            setClaveDe(u.id);
+                            setClave("");
+                          }}
+                        >
+                          <IconoLlave />
+                        </BotonIcono>
+                        {!esYo && (
+                          <button
+                            className={`btn btn--compacto ${u.activo ? "btn--peligro-outline" : "btn--outline"}`}
+                            disabled={ocupado}
+                            aria-label={`${u.activo ? "Desactivar" : "Activar"} la cuenta de ${u.nombre}`}
+                            onClick={() => pedirConfirmacion(u, { activo: !u.activo })}
+                          >
+                            {u.activo ? "Desactivar" : "Activar"}
+                          </button>
+                        )}
+                      </div>
                     )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarAuditoria } from "../../api/admin";
+import { IconoBuscar } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
 
 /**
@@ -72,21 +73,28 @@ export default function AdminAuditoriaPage() {
 
   return (
     <>
-      <h1 className="admin-titulo">Auditoría</h1>
-      <p className="admin-subtitulo">
-        Trazabilidad de las acciones de pacientes, personal y del sistema sobre las citas. Los registros no se
-        pueden modificar ni borrar.
-      </p>
+      <div className="admin-encabezado">
+        <div>
+          <h1 className="admin-titulo">Auditoría</h1>
+          <p className="admin-subtitulo">
+            Registro de las acciones realizadas por pacientes, personal y sistema sobre las citas. Los registros no
+            pueden modificarse ni eliminarse.
+          </p>
+        </div>
+      </div>
 
-      <div className="filters-card filtros-admin">
+      <div className="filtros-admin filtros-admin--auditoria">
         <div className="field">
           <label htmlFor="texto">Buscar</label>
-          <input
-            id="texto"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Paciente, responsable o comprobante"
-          />
+          <div className="campo-con-icono">
+            <IconoBuscar />
+            <input
+              id="texto"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Ej. paciente, responsable o comprobante"
+            />
+          </div>
         </div>
         <div className="field">
           <label htmlFor="accion">Acción</label>
@@ -125,9 +133,9 @@ export default function AdminAuditoriaPage() {
           <thead>
             <tr>
               <th>Fecha y hora</th>
-              <th>Usuario responsable</th>
-              <th>Acción realizada</th>
-              <th>Cita relacionada</th>
+              <th>Responsable</th>
+              <th>Acción</th>
+              <th>Cita</th>
               <th>Estado anterior</th>
               <th>Estado nuevo</th>
             </tr>
@@ -138,18 +146,24 @@ export default function AdminAuditoriaPage() {
                 <td>
                   <FechaHora valor={r.fecha} />
                 </td>
-                <td>{r.actor_nombre}</td>
+                <td className="celda-persona__nombre">{r.actor_nombre}</td>
                 <td>
-                  {r.descripcion}
-                  {r.detalle && <span className="texto-suave">“{r.detalle}”</span>}
+                  <span className="celda-doble">
+                    <span>{r.descripcion}</span>
+                    {r.detalle && <span className="celda-doble__dato">“{r.detalle}”</span>}
+                  </span>
                 </td>
                 <td>
-                  {r.cita_id ? (
-                    <Link to={`/admin/citas/${r.cita_id}`}>{r.numero_comprobante ?? "Ver cita"}</Link>
-                  ) : (
-                    "—"
-                  )}
-                  {r.paciente_nombre && <span className="texto-suave">{r.paciente_nombre}</span>}
+                  <span className="celda-doble">
+                    {r.cita_id ? (
+                      <Link className="admin-comprobante admin-comprobante--enlace" to={`/admin/citas/${r.cita_id}`}>
+                        {r.numero_comprobante ?? "Ver cita"}
+                      </Link>
+                    ) : (
+                      <span>—</span>
+                    )}
+                    {r.paciente_nombre && <span className="celda-doble__dato">{r.paciente_nombre}</span>}
+                  </span>
                 </td>
                 <td>{r.estado_anterior ?? "—"}</td>
                 <td>{r.estado_nuevo ?? "—"}</td>
@@ -157,7 +171,7 @@ export default function AdminAuditoriaPage() {
             ))}
           </tbody>
         </table>
-        {!cargando && visibles.length === 0 && <p className="empty-state">No hay registros con esos filtros.</p>}
+        {!cargando && visibles.length === 0 && <p className="tabla-vacia">No hay registros con esos filtros.</p>}
       </div>
     </>
   );

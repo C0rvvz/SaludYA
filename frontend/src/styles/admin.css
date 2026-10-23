@@ -864,6 +864,11 @@
   padding-left: 36px;
 }
 
+/* Auditoría: el buscador más ancho que los dos desplegables */
+.filtros-admin--auditoria {
+  grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(170px, 1fr));
+}
+
 /* El periodo del Dashboard y Reportes, compacto y a la derecha del título */
 .selector-periodo {
   display: flex;
@@ -1033,6 +1038,11 @@
   color: var(--color-ink-soft);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.8125rem;
+}
+
+.admin-comprobante--enlace {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .admin-comprobante--fuerte {
@@ -1209,6 +1219,20 @@
 .opcion-admin__detalle {
   color: var(--color-ink-soft);
   font-size: 0.75rem;
+}
+
+/* Nueva cuenta del personal: cuatro campos y el botón en una fila */
+.nueva-cuenta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .nueva-cuenta {
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  }
 }
 
 /* Confirmación dentro de una fila ("¿Cancelar este recordatorio?") */
