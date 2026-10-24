@@ -35,6 +35,14 @@ class PersonalOut(BaseModel):
     ultimo_acceso_en: datetime | None
 
 
+class RolOut(BaseModel):
+    """Qué puede hacer cada rol (se muestra en Usuarios para elegir el rol con criterio)."""
+
+    rol: RolPersonal
+    nombre: str
+    permisos: list[str]
+
+
 class LoginPersonalResponse(BaseModel):
     access_token: str
     expira_en_minutos: int
@@ -135,6 +143,7 @@ class RegistroAuditoriaOut(BaseModel):
     fecha: datetime
     actor_tipo: str
     actor_nombre: str
+    actor_correo: str | None
     accion: str
     descripcion: str
     detalle: str | None
@@ -143,6 +152,10 @@ class RegistroAuditoriaOut(BaseModel):
     paciente_nombre: str | None
     estado_anterior: str | None
     estado_nuevo: str | None
+    # Cuenta del personal afectada (crear, desactivar, cambiar el rol...), como era en ese momento.
+    cuenta_nombre: str | None
+    cuenta_correo: str | None
+    cuenta_rol: str | None
 
 
 class ObservacionOut(BaseModel):

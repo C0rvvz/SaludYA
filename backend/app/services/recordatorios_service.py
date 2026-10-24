@@ -46,14 +46,15 @@ def enlace_confirmacion(cita: Cita) -> str:
     return f"{settings.frontend_url}/confirmar-asistencia?token={citas_service.token_de_confirmacion(cita)}"
 
 
-def mensaje_recordatorio(cita: Cita) -> str:
+def mensaje_recordatorio(cita: Cita, enlace: str | None = None) -> str:
+    """`enlace`: ENLACE ("[enlace]") en las plantillas que ve el personal; el real se pone al enviar."""
     franja = cita.disponibilidad
     return (
         f"Recordatorio SaludYA: tiene cita de {franja.especialista.especialidad.nombre} "
         f"con {franja.especialista.nombre} el {fecha_legible(franja.fecha)} a las "
         f"{hora_legible(franja.hora)}, {franja.sede.nombre} ({franja.modalidad.value}). "
         f"Comprobante {cita.numero_comprobante}. "
-        f"Confirme su asistencia aquí: {enlace_confirmacion(cita)}"
+        f"Confirme su asistencia aquí: {enlace or enlace_confirmacion(cita)}"
     )
 
 

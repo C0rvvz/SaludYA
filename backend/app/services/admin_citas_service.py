@@ -13,7 +13,7 @@ from collections import defaultdict
 
 from sqlalchemy.orm import Session
 
-from app.core.permisos import Permiso, tiene_permiso
+from app.core.permisos import PERMISOS_POR_ROL, Permiso
 from app.models.cita import Cita
 from app.models.observacion import Observacion
 from app.models.personal import Personal
@@ -32,17 +32,16 @@ RESULTADOS_CONTACTO = {
 
 def acciones_para(cita: Cita, personal: Personal) -> dict[str, bool]:
     """HU-43, criterio 2: las acciones permitidas según el estado de la cita y el rol."""
-    gestiona = tiene_permiso(personal.rol, Permiso.GESTIONAR_CITAS)
+    permisos = PERMISOS_POR_ROL[personal.rol]
     activa = citas_service.esta_activa(cita)
     return {
-        "confirmar": gestiona and activa and cita.asistencia_confirmada_en is None,
-        "reprogramar": gestiona and activa,
-        "cancelar": gestiona and activa,
-        "recordatorio": gestiona and activa,
-        "contactar": gestiona,
-        "registrar_resultado": tiene_permiso(personal.rol, Permiso.REGISTRAR_ATENCION)
-        and citas_service.puede_registrar_resultado(cita),
-        "observar": tiene_permiso(personal.rol, Permiso.OBSERVACIONES),
+        "confirmar": Permiso.CONFIRMAR_ASISTENCIA in permisos and activa and cita.asistencia_confirmada_en is None,
+        "reprogramar": Permiso.REPROGRAMAR_CANCELAR in permisos and activa,
+        "cancelar": Permiso.REPROGRAMAR_CANCELAR in permisos and activa,
+        "recordatorio": Permiso.RECORDATORIOS in permisos and activa,
+        "contactar": Permiso.RECORDATORIOS in permisos,
+        "registrar_resultado": Permiso.REGISTRAR_ATENCION in permisos and citas_service.puede_registrar_resultado(cita),
+        "observar": Permiso.OBSERVACIONES in permisos,
     }
 
 

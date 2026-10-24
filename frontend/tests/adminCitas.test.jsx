@@ -89,7 +89,12 @@ function detalle(cambios = {}) {
 
 describe("Ingreso del personal", () => {
   it("inicia sesión y ve solo las secciones de su rol", async () => {
-    const AGENDAMIENTO = { ...PERSONAL, rol: "agendamiento", rol_texto: "Agendamiento", permisos: ["ver_citas", "gestionar_citas", "observaciones"] };
+    const AGENDAMIENTO = {
+      ...PERSONAL,
+      rol: "agendamiento",
+      rol_texto: "Agendamiento",
+      permisos: ["confirmar_asistencia", "lista_espera", "observaciones", "reprogramar_cancelar", "ver_citas"],
+    };
     const llamadas = backendFalso({
       "POST /admin/auth/login": ({ cuerpo }) =>
         cuerpo.password === "clave-correcta"
@@ -111,9 +116,12 @@ describe("Ingreso del personal", () => {
     expect(sessionStorage.getItem(TOKEN_PERSONAL)).toBe("tk-personal");
 
     const menu = screen.getByRole("navigation", { name: "Secciones de administración" });
+    // Solo lo de su función: la lista de espera sí; recordatorios, peticiones, reportes y usuarios no.
     expect(within(menu).queryByText("Reportes")).not.toBeInTheDocument();
     expect(within(menu).queryByText("Usuarios")).not.toBeInTheDocument();
-    expect(within(menu).getByText("Recordatorios")).toBeInTheDocument();
+    expect(within(menu).queryByText("Recordatorios")).not.toBeInTheDocument();
+    expect(within(menu).queryByText("Solicitudes")).not.toBeInTheDocument();
+    expect(within(menu).getByText("Lista de espera")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/admin/auth/login")[1].cuerpo).toEqual({
       correo: "agenda@saludya.co",
       password: "clave-correcta",

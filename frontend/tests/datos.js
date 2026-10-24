@@ -26,12 +26,16 @@ export const PACIENTE = {
   correo: "laura@correo.co",
 };
 
+// Los del administrador (en el backend: core/permisos.py).
 export const TODOS_LOS_PERMISOS = [
   "asignar_prioridad",
-  "gestionar_citas",
+  "confirmar_asistencia",
   "gestionar_usuarios",
+  "lista_espera",
   "observaciones",
+  "recordatorios",
   "registrar_atencion",
+  "reprogramar_cancelar",
   "revisar_solicitudes",
   "ver_auditoria",
   "ver_citas",

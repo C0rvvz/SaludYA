@@ -11,6 +11,7 @@ Cuentas
   GET   /admin/usuarios                   (administrador)
   POST  /admin/usuarios                   (administrador)
   PATCH /admin/usuarios/{id}              (administrador)
+  GET   /admin/roles                      (administrador) qué puede hacer cada rol
 
 Gestión de citas
   GET   /admin/citas                      HU-34, HU-43 (lista con filtros)
@@ -24,7 +25,7 @@ Gestión de citas
   POST  /admin/pacientes/{id}/observaciones  HU-41
 
 Auditoría
-  GET   /admin/auditoria                  HU-80 a HU-85
+  GET   /admin/auditoria                  HU-80 a HU-85 (citas) y cambios a las cuentas del personal
 
 Dashboard y Reportes
   GET   /admin/reportes?periodo=mes       HU-44, HU-48 a HU-52, HU-68 a HU-75
@@ -71,7 +72,7 @@ from app.models.auditoria import RegistroAuditoria
 from app.models.cita import Cita, EstadoCita
 from app.models.observacion import Observacion
 from app.models.paciente import Paciente
-from app.models.personal import Personal
+from app.models.personal import Personal, RolPersonal
 from app.models.sesion import Sesion
 from app.repositories import (
     auditoria_repository,
@@ -99,6 +100,7 @@ from app.schemas.admin import (
     ResultadoAtencionRequest,
     ResumenAsistenciaOut,
     RiesgoOut,
+    RolOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
 from app.schemas.lista_espera import (
@@ -138,6 +140,7 @@ from app.services import (
     solicitudes_service,
 )
 from app.services.auditoria_service import Actor
+from app.utils.privacidad import ocultar_enlaces_con_token
 from app.utils.tiempo import hoy_en_colombia
 from app.services.exceptions import (
     CitaNoEncontradaError,
@@ -200,9 +203,10 @@ def _registro_out(r: RegistroAuditoria) -> RegistroAuditoriaOut:
         fecha=r.fecha,
         actor_tipo=r.actor_tipo.value,
         actor_nombre=r.actor_nombre,
+        actor_correo=r.actor_correo,
         accion=r.accion,
         descripcion=r.descripcion,
-        detalle=r.detalle,
+        detalle=ocultar_enlaces_con_token(r.detalle),  # registros anteriores a ocultarlo al guardar
         cita_id=r.cita_id,
         # El número se asigna al generar el comprobante, justo después
         # de agendar: si el registro no lo alcanzó a guardar, se toma de la cita.
@@ -210,6 +214,9 @@ def _registro_out(r: RegistroAuditoria) -> RegistroAuditoriaOut:
         paciente_nombre=r.paciente.nombre if r.paciente else None,
         estado_anterior=r.estado_anterior,
         estado_nuevo=r.estado_nuevo,
+        cuenta_nombre=r.cuenta_nombre,
+        cuenta_correo=r.cuenta_correo,
+        cuenta_rol=r.cuenta_rol,
     )
 
 
@@ -368,14 +375,24 @@ def listar_usuarios(
     return [_personal_out(p) for p in personal_repository.listar(db)]
 
 
+@router.get("/roles", response_model=list[RolOut])
+def roles(_: Personal = Depends(requiere(Permiso.GESTIONAR_USUARIOS))):
+    return [
+        RolOut(rol=rol, nombre=NOMBRE_ROL[rol], permisos=sorted(p.value for p in PERMISOS_POR_ROL[rol]))
+        for rol in RolPersonal
+    ]
+
+
 @router.post("/usuarios", response_model=PersonalOut, status_code=status.HTTP_201_CREATED)
 def crear_usuario(
     datos: CrearPersonalRequest,
-    _: Personal = Depends(requiere(Permiso.GESTIONAR_USUARIOS)),
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_USUARIOS)),
     db: Session = Depends(get_db),
 ):
     try:
-        return _personal_out(personal_service.crear(db, datos.nombre, datos.correo, datos.rol, datos.password))
+        return _personal_out(
+            personal_service.crear(db, datos.nombre, datos.correo, datos.rol, datos.password, quien_crea=admin)
+        )
     except PersonalInvalidoError as e:
         raise _http(e)
 
@@ -437,7 +454,7 @@ def detalle_cita(
 @router.post("/citas/{cita_id}/confirmar", response_model=CitaAdminDetalleOut)
 def confirmar(
     cita_id: uuid.UUID,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.CONFIRMAR_ASISTENCIA)),
     db: Session = Depends(get_db),
 ):
     """HU-38: el personal confirma la asistencia (p. ej., después de llamar al paciente)."""
@@ -452,7 +469,7 @@ def confirmar(
 def cancelar(
     cita_id: uuid.UUID,
     datos: CancelarCitaRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.REPROGRAMAR_CANCELAR)),
     db: Session = Depends(get_db),
 ):
     """HU-40: cancelar con motivo; libera el cupo y queda en el historial del paciente."""
@@ -467,7 +484,7 @@ def cancelar(
 def reprogramar(
     cita_id: uuid.UUID,
     datos: ReprogramarCitaRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.REPROGRAMAR_CANCELAR)),
     db: Session = Depends(get_db),
 ):
     """HU-39: devuelve el detalle de la cita NUEVA (con su propio comprobante)."""
@@ -484,7 +501,7 @@ def reprogramar(
 @router.post("/citas/{cita_id}/recordatorio", response_model=CitaAdminDetalleOut)
 def enviar_recordatorio(
     cita_id: uuid.UUID,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """HU-36: envía el recordatorio por el canal del paciente y lo registra."""
@@ -499,7 +516,7 @@ def enviar_recordatorio(
 def registrar_contacto(
     cita_id: uuid.UUID,
     datos: ContactoRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """HU-37: registra el resultado de la llamada al paciente."""
@@ -556,12 +573,16 @@ def auditoria(
     cita_id: uuid.UUID | None = Query(default=None),
     paciente_id: uuid.UUID | None = Query(default=None),
     accion: str | None = Query(default=None, max_length=40),
+    categoria: Literal["citas", "cuentas"] | None = Query(default=None),
     _: Personal = Depends(requiere(Permiso.VER_AUDITORIA)),
     db: Session = Depends(get_db),
 ):
-    """HU-80 a HU-85: quién hizo qué, sobre qué cita, cuándo, y el estado antes y después."""
+    """
+    HU-80 a HU-85: quién hizo qué, sobre qué cita, cuándo, y el estado antes
+    y después. `categoria=cuentas`: solo los cambios a cuentas del personal.
+    """
     registros = auditoria_repository.listar(
-        db, cita_id=cita_id, paciente_id=paciente_id, acciones=[accion] if accion else None
+        db, cita_id=cita_id, paciente_id=paciente_id, acciones=[accion] if accion else None, categoria=categoria
     )
     return [_registro_out(r) for r in registros]
 
@@ -590,7 +611,7 @@ def _programado_out(r) -> RecordatorioProgramadoOut:
         cita_id=r.cita_id,
         canal=r.canal,
         plantilla=r.plantilla,
-        texto=r.texto,
+        texto=ocultar_enlaces_con_token(r.texto),  # programados antes de usar "[enlace]"
         programado_para=r.programado_para,
         estado=r.estado,
         intentos=r.intentos,
@@ -601,7 +622,7 @@ def _programado_out(r) -> RecordatorioProgramadoOut:
 
 @router.get("/recordatorios", response_model=list[PacienteRecordatoriosOut])
 def centro_recordatorios(
-    _: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    _: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """HU-63 / HU-67: pacientes con su canal preferido, último envío y estado (HU-62 filtra en pantalla)."""
@@ -612,7 +633,7 @@ def centro_recordatorios(
 def plantillas_recordatorio(
     paciente_id: uuid.UUID,
     cita_id: uuid.UUID | None = None,
-    _: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    _: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """HU-66: las plantillas con el texto listo para ese paciente y esa cita."""
@@ -624,7 +645,7 @@ def plantillas_recordatorio(
 
 @router.get("/recordatorios/programados", response_model=list[RecordatorioProgramadoOut])
 def recordatorios_programados(
-    _: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    _: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     return [_programado_out(r) for r in centro_recordatorios_service.listar_programados(db)]
@@ -637,7 +658,7 @@ def recordatorios_programados(
 )
 def programar_recordatorio(
     datos: ProgramarRecordatorioRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """HU-64 (mensaje escrito) y HU-65 (llamada: canal "llamada")."""
@@ -655,7 +676,7 @@ def programar_recordatorio(
 def editar_recordatorio(
     programado_id: uuid.UUID,
     datos: EditarRecordatorioRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """Cambiar un recordatorio que todavía no sale (o que falló); vuelve a quedar pendiente."""
@@ -672,7 +693,7 @@ def editar_recordatorio(
 @router.post("/recordatorios/programados/{programado_id}/cancelar", response_model=RecordatorioProgramadoOut)
 def cancelar_recordatorio(
     programado_id: uuid.UUID,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     try:
@@ -684,7 +705,7 @@ def cancelar_recordatorio(
 @router.post("/recordatorios/programados/{programado_id}/reintentar", response_model=RecordatorioProgramadoOut)
 def reintentar_recordatorio(
     programado_id: uuid.UUID,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.RECORDATORIOS)),
     db: Session = Depends(get_db),
 ):
     """Envía ya uno que falló; si vuelve a fallar, queda pendiente y se reintenta solo."""
@@ -700,7 +721,7 @@ def reintentar_recordatorio(
 @router.get("/lista-espera", response_model=ListaEsperaAdminOut)
 def lista_espera(
     dia: date | None = Query(default=None, description="HU-45: día consultado (por defecto, hoy)"),
-    _: Personal = Depends(requiere(Permiso.VER_CITAS)),
+    _: Personal = Depends(requiere(Permiso.LISTA_ESPERA, Permiso.ASIGNAR_PRIORIDAD)),
     db: Session = Depends(get_db),
 ):
     """Solicitudes que estuvieron en la lista ese día, en el orden de la lista."""
@@ -710,7 +731,7 @@ def lista_espera(
 @router.get("/lista-espera/{solicitud_id}/horarios", response_model=list[HorarioCompatibleOut])
 def horarios_lista_espera(
     solicitud_id: uuid.UUID,
-    _: Personal = Depends(requiere(Permiso.VER_CITAS)),
+    _: Personal = Depends(requiere(Permiso.LISTA_ESPERA)),
     db: Session = Depends(get_db),
 ):
     """HU-55: el cupo ya ofrecido y los horarios libres que se ajustan a sus preferencias."""
@@ -739,7 +760,7 @@ def prioridad_lista_espera(
 def confirmar_desde_lista_espera(
     solicitud_id: uuid.UUID,
     datos: ConfirmarDesdeListaRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.LISTA_ESPERA)),
     db: Session = Depends(get_db),
 ):
     """HU-59: le confirma al paciente la cita en el horario elegido."""
@@ -754,7 +775,7 @@ def confirmar_desde_lista_espera(
 def cancelar_desde_lista_espera(
     solicitud_id: uuid.UUID,
     datos: CancelarDesdeListaRequest,
-    personal: Personal = Depends(requiere(Permiso.GESTIONAR_CITAS)),
+    personal: Personal = Depends(requiere(Permiso.LISTA_ESPERA)),
     db: Session = Depends(get_db),
 ):
     """HU-60: saca al paciente de la lista o, si ya tenía la cita asignada, la cancela."""
@@ -790,7 +811,7 @@ def _revision(db: Session, solicitud_id: uuid.UUID) -> RevisionClinicaOut:
 
 
 @router.get("/solicitudes", response_model=list[SolicitudCitaAdminOut])
-def solicitudes(_: Personal = Depends(requiere(Permiso.VER_CITAS)), db: Session = Depends(get_db)):
+def solicitudes(_: Personal = Depends(requiere(Permiso.REVISAR_SOLICITUDES)), db: Session = Depends(get_db)):
     """HU-76 / HU-77: las pendientes primero."""
     return [solicitudes_service.solicitud_out(s) for s in solicitud_cita_repository.listar(db)]
 
@@ -798,7 +819,7 @@ def solicitudes(_: Personal = Depends(requiere(Permiso.VER_CITAS)), db: Session 
 @router.get("/solicitudes/{solicitud_id}", response_model=RevisionClinicaOut)
 def revision_clinica(
     solicitud_id: uuid.UUID,
-    _: Personal = Depends(requiere(Permiso.VER_CITAS)),
+    _: Personal = Depends(requiere(Permiso.REVISAR_SOLICITUDES)),
     db: Session = Depends(get_db),
 ):
     return _revision(db, solicitud_id)

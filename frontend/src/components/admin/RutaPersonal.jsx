@@ -2,9 +2,9 @@ import { Navigate } from "react-router-dom";
 import { usePersonal } from "../../context/personal";
 
 /**
- * Protege las páginas del apartado de administración. Con `permiso`,
- * además oculta la sección a los roles que no lo tienen (el backend de
- * todas formas lo rechazaría con 403).
+ * Protege las páginas del apartado de administración. Con `permiso`
+ * (uno o una lista: basta con alguno), además oculta la sección a los
+ * roles que no lo tienen (el backend de todas formas lo rechazaría con 403).
  */
 export default function RutaPersonal({ permiso, children }) {
   const { personal, cargando, tienePermiso } = usePersonal();

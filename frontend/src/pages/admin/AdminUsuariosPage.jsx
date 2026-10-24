@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { actualizarUsuario, crearUsuario, listarUsuarios } from "../../api/admin";
+import { actualizarUsuario, crearUsuario, listarRoles, listarUsuarios } from "../../api/admin";
 import { BotonIcono, IconoLlave } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
 import { usePersonal } from "../../context/personal";
@@ -18,6 +18,74 @@ const ROLES = [
 ];
 
 const NOMBRE_ROL = Object.fromEntries(ROLES);
+
+// Cada permiso en palabras de quien administra, en el orden de la tabla "¿Qué puede hacer cada rol?".
+const QUE_PUEDE = [
+  ["ver_citas", "Ver las citas y el historial del paciente"],
+  ["observaciones", "Dejar observaciones"],
+  ["confirmar_asistencia", "Confirmar asistencia"],
+  ["recordatorios", "Recordatorios, mensajes programados y llamadas"],
+  ["reprogramar_cancelar", "Reprogramar y cancelar citas"],
+  ["lista_espera", "Lista de espera: asignar la cita y retirar"],
+  ["asignar_prioridad", "Prioridad médica en la lista de espera"],
+  ["revisar_solicitudes", "Revisar y decidir las peticiones"],
+  ["registrar_atencion", "Registrar si fue atendido o no asistió"],
+  ["ver_reportes", "Resumen y reportes"],
+  ["ver_auditoria", "Auditoría"],
+  ["gestionar_usuarios", "Crear y editar cuentas del personal"],
+];
+
+/** Mínimo privilegio a la vista: qué permite cada rol, para elegirlo con criterio. */
+function TablaRoles({ roles }) {
+  return (
+    <section className="card" aria-labelledby="titulo-roles">
+      <div className="admin-card__cabeza">
+        <h2 className="admin-card__titulo" id="titulo-roles">
+          ¿Qué puede hacer cada rol?
+        </h2>
+        <span className="admin-card__dato">Cada rol tiene solo lo que su función necesita.</span>
+      </div>
+      <div className="tabla-contenedor">
+        <table className="tabla tabla-roles">
+          <thead>
+            <tr>
+              <th scope="col">Puede…</th>
+              {roles.map((r) => (
+                <th scope="col" key={r.rol}>
+                  {r.nombre}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {QUE_PUEDE.map(([permiso, texto]) => (
+              <tr key={permiso}>
+                <th scope="row">{texto}</th>
+                {roles.map((r) =>
+                  r.permisos.includes(permiso) ? (
+                    <td key={r.rol}>
+                      <span className="tabla-roles__si" aria-hidden="true">
+                        ✓
+                      </span>
+                      <span className="sr-only">Sí</span>
+                    </td>
+                  ) : (
+                    <td key={r.rol}>
+                      <span className="tabla-roles__no" aria-hidden="true">
+                        —
+                      </span>
+                      <span className="sr-only">No</span>
+                    </td>
+                  )
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
 
 // Debe coincidir con MIN_LONGITUD_PASSWORD del backend (personal_service.py).
 const MIN_CLAVE = 12;
@@ -58,6 +126,7 @@ function confirmacionPara(usuario, cambios) {
 export default function AdminUsuariosPage() {
   const { personal: yo } = usePersonal();
   const [usuarios, setUsuarios] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [nuevo, setNuevo] = useState(NUEVO);
   const [aviso, setAviso] = useState(null);
   const [ocupado, setOcupado] = useState(false);
@@ -75,6 +144,10 @@ export default function AdminUsuariosPage() {
 
   useEffect(() => {
     cargar();
+    // La tabla de roles es informativa: si no carga, simplemente no se muestra.
+    listarRoles()
+      .then(setRoles)
+      .catch(() => setRoles([]));
   }, [cargar]);
 
   async function ejecutar(accion, texto) {
@@ -318,6 +391,8 @@ export default function AdminUsuariosPage() {
           </tbody>
         </table>
       </div>
+
+      {roles.length > 0 && <TablaRoles roles={roles} />}
     </>
   );
 }

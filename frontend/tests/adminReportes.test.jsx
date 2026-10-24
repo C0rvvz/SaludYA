@@ -205,6 +205,28 @@ describe("Auditoría", () => {
     expect(llamadasA(llamadas, "GET", "/admin/auditoria").at(-1).query).toEqual({ accion: "cancelar" });
   });
 
+  it("los cambios a cuentas del personal dicen quién (nombre, rol y correo) y a qué cuenta", async () => {
+    const DESACTIVO = {
+      id: "a3", fecha: "2026-10-02T15:40:00-05:00", actor_tipo: "personal", actor_nombre: "Juan Diego Arango (Administrador)",
+      actor_correo: "juan@saludya.co", accion: "desactivar_cuenta", descripcion: "Desactivó la cuenta de Carlos Call",
+      detalle: null, cita_id: null, numero_comprobante: null, paciente_nombre: null,
+      estado_anterior: "Activa", estado_nuevo: "Inactiva",
+      cuenta_nombre: "Carlos Call", cuenta_correo: "carlos@saludya.co", cuenta_rol: "Call center",
+    };
+    const llamadas = backendFalso({ "GET /admin/auditoria": [DESACTIVO] });
+    const usuario = abrir("/admin/auditoria", { personal: true });
+    const fila = (await screen.findByText("Desactivó la cuenta de Carlos Call")).closest("tr");
+    expect(within(fila).getByText("Juan Diego Arango (Administrador)")).toBeInTheDocument();
+    expect(within(fila).getByText("juan@saludya.co")).toBeInTheDocument();
+    expect(within(fila).getByText("carlos@saludya.co · Call center")).toBeInTheDocument();
+
+    await usuario.selectOptions(screen.getByLabelText("Registros"), "cuentas");
+    expect(llamadasA(llamadas, "GET", "/admin/auditoria").at(-1).query).toEqual({ categoria: "cuentas" });
+    // Con "Cuentas del personal", la acción solo ofrece las de cuentas.
+    expect(within(screen.getByLabelText("Acción")).queryByRole("option", { name: "Cancelar" })).not.toBeInTheDocument();
+    expect(within(screen.getByLabelText("Acción")).getByRole("option", { name: "Desactivar cuenta" })).toBeInTheDocument();
+  });
+
   it("si no carga, lo dice", async () => {
     backendFalso({ "GET /admin/auditoria": error(403, "No tiene permiso.") });
     abrir("/admin/auditoria", { personal: true });
@@ -218,6 +240,10 @@ describe("Usuarios del personal", () => {
   it("crear, cambiar rol, desactivar y cambiar contraseña", async () => {
     const llamadas = backendFalso({
       "GET /admin/usuarios": [PERSONAL, OTRO, { ...OTRO, id: "per-3", nombre: "Inactiva", activo: false }],
+      "GET /admin/roles": [
+        { rol: "call_center", nombre: "Call center", permisos: ["confirmar_asistencia", "recordatorios", "ver_citas"] },
+        { rol: "agendamiento", nombre: "Agendamiento", permisos: ["reprogramar_cancelar", "ver_citas"] },
+      ],
       "POST /admin/usuarios": { id: "per-4" },
       "PATCH /admin/usuarios/:id": ({ cuerpo }) => (cuerpo.password === "corta-pero-10" ? error(400, "No permitido.") : {}),
     });
@@ -228,6 +254,12 @@ describe("Usuarios del personal", () => {
     expect(screen.queryByLabelText("Rol de Ana Admin")).not.toBeInTheDocument();
     expect(screen.getAllByText("Sin accesos", { selector: "td" })).toHaveLength(2); // nunca han ingresado
     expect(screen.getByLabelText(/Contraseña inicial/)).toHaveAttribute("minLength", "12");
+
+    // "¿Qué puede hacer cada rol?": una fila por cosa que se puede hacer, una columna por rol.
+    const roles = (await screen.findByRole("heading", { name: "¿Qué puede hacer cada rol?" })).closest("section");
+    const fila = within(roles).getByRole("row", { name: /Recordatorios, mensajes programados y llamadas/ });
+    // ✓ y — son decorativos; el lector de pantalla lee "Sí" o "No".
+    expect(within(fila).getAllByRole("cell").map((c) => c.textContent)).toEqual(["✓Sí", "—No"]);
 
     await usuario.type(screen.getByLabelText("Nombre completo"), "Nueva Persona");
     await usuario.type(screen.getByLabelText("Correo institucional"), "nueva@saludya.co");

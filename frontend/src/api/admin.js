@@ -22,6 +22,11 @@ export function listarUsuarios() {
   return conPersonal("/admin/usuarios");
 }
 
+// Qué puede hacer cada rol (para elegir el rol con criterio al crear o editar una cuenta).
+export function listarRoles() {
+  return conPersonal("/admin/roles");
+}
+
 export function crearUsuario(datos) {
   return conPersonal("/admin/usuarios", { method: "POST", body: datos });
 }

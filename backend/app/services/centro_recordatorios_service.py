@@ -10,7 +10,9 @@ Centro de recordatorios — HU-62 a HU-67.
   cancelarlo o reintentarlo si falló); la tarea de fondo lo envía a su
   hora, con reintentos automáticos (enviar_programados_vencidos).
 - HU-66: plantillas Recordatorio estándar, Confirmación urgente y Cupo
-  liberado, rellenadas con los datos de la cita.
+  liberado, rellenadas con los datos de la cita. El enlace para confirmar
+  lleva un token que sirve de llave: en la plantilla, en lo programado y
+  en la auditoría queda "[enlace]", y el real se pone solo al enviar.
 
 SUPUESTO: el canal preferido es el que el paciente eligió en su cita más
 reciente (la última que agendó).
@@ -45,6 +47,7 @@ from app.services.admin_citas_service import descripcion_contacto
 from app.services.auditoria_service import SISTEMA, Actor
 from app.services.exceptions import ProgramacionInvalidaError
 from app.services.recordatorios_service import NOMBRE_CANAL, enlace_confirmacion, mensaje_recordatorio
+from app.utils.privacidad import ENLACE
 from app.utils.tiempo import ZONA_COLOMBIA, fecha_legible, hora_legible
 
 # Acciones de la auditoría que cuentan como un envío al paciente.
@@ -84,12 +87,12 @@ def texto_de_plantilla(clave: str, paciente: Paciente, cita: Cita | None) -> str
     if cita is None:
         return None
     if clave == "recordatorio_estandar":
-        return mensaje_recordatorio(cita)
+        return mensaje_recordatorio(cita, ENLACE)
     franja = cita.disponibilidad
     return (
         f"SaludYA - URGENTE: {paciente.nombre}, su cita de {franja.especialista.especialidad.nombre} "
         f"es el {fecha_legible(franja.fecha)} a las {hora_legible(franja.hora)} y aún no ha "
-        f"confirmado su asistencia. Confírmela aquí: {enlace_confirmacion(cita)}. "
+        f"confirmado su asistencia. Confírmela aquí: {ENLACE}. "
         "Si no puede asistir, cancélela para liberar el cupo."
     )
 
@@ -298,9 +301,15 @@ def reintentar(db: Session, personal: Personal, programado_id: uuid.UUID) -> Rec
     return programado
 
 
+def _con_enlace(texto: str, cita: Cita | None) -> str:
+    """Lo que le llega al paciente: "[enlace]" pasa a ser el enlace real (el de su cita, o Mis citas)."""
+    real = enlace_confirmacion(cita) if cita is not None else f"{settings.frontend_url}/mis-citas"
+    return texto.replace(ENLACE, real)
+
+
 def _enviar(db: Session, programado: RecordatorioProgramado, actor: Actor, ahora: datetime) -> bool:
     """Un intento de envío. Si falla, queda pendiente hasta agotar RECORDATORIO_MAX_INTENTOS."""
-    salio = enviar_por_canal(programado.paciente, programado.canal, programado.texto)
+    salio = enviar_por_canal(programado.paciente, programado.canal, _con_enlace(programado.texto, programado.cita))
     programado.intentos += 1
     if salio:
         programado.estado = EstadoProgramacion.ENVIADO

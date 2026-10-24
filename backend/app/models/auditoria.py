@@ -4,8 +4,10 @@ de HU-36, HU-37, HU-38, HU-40 y HU-43).
 
 Cada acción sobre una cita queda aquí: quién la hizo (paciente,
 personal o el sistema), qué hizo, sobre qué cita y paciente, y el
-estado antes y después. Es de solo escritura: nunca se modifica ni se
-borra un registro.
+estado antes y después. También los cambios a las cuentas del personal
+(crear, desactivar, activar, cambiar el rol o la contraseña), con la
+cuenta afectada. Es de solo escritura: nunca se modifica ni se borra un
+registro.
 
 El nombre del responsable y los estados se guardan como texto en el
 momento de la acción (HU-84: "la relación debe conservarse aunque
@@ -46,6 +48,7 @@ class RegistroAuditoria(Base):
     )
     actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     actor_nombre: Mapped[str] = mapped_column(String(150), nullable=False)
+    actor_correo: Mapped[str | None] = mapped_column(String(150), nullable=True)  # solo del personal
 
     # --- HU-82: acción realizada ---
     accion: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
@@ -64,6 +67,14 @@ class RegistroAuditoria(Base):
     # --- HU-83: estado anterior y nuevo (texto visible en ese momento) ---
     estado_anterior: Mapped[str | None] = mapped_column(String(60), nullable=True)
     estado_nuevo: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
+    # --- Cuenta del personal afectada (nombre, correo y rol en ese momento) ---
+    cuenta_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("personal.id"), nullable=True, index=True
+    )
+    cuenta_nombre: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    cuenta_correo: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    cuenta_rol: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     cita: Mapped["Cita | None"] = relationship()
     paciente: Mapped["Paciente | None"] = relationship()

@@ -4,8 +4,9 @@ import { iniciales } from "../../utils/avatar";
 import { IconoSalir } from "../Iconos";
 import "../../styles/admin.css";
 
-// Solo aparecen las secciones que el rol puede usar. Cada una dice debajo,
-// en pocas palabras, para qué sirve: nadie tiene que entrar a adivinarlo.
+// Solo aparecen las secciones que el rol puede usar (mínimo privilegio: ver
+// core/permisos.py en el backend). Cada una dice debajo, en pocas palabras,
+// para qué sirve: nadie tiene que entrar a adivinarlo.
 const SECCIONES = [
   { to: "/admin/dashboard", texto: "Resumen", ayuda: "Indicadores del día y del mes", permiso: "ver_reportes" },
   { to: "/admin/reportes", texto: "Reportes", ayuda: "Indicadores por periodo", permiso: "ver_reportes" },
@@ -14,10 +15,20 @@ const SECCIONES = [
     to: "/admin/recordatorios",
     texto: "Recordatorios",
     ayuda: "Mensajes y llamadas programados",
-    permiso: "gestionar_citas",
+    permiso: "recordatorios",
   },
-  { to: "/admin/lista-espera", texto: "Lista de espera", ayuda: "Pacientes en espera de cupo", permiso: "ver_citas" },
-  { to: "/admin/solicitudes", texto: "Solicitudes", ayuda: "Peticiones de los pacientes", permiso: "ver_citas" },
+  {
+    to: "/admin/lista-espera",
+    texto: "Lista de espera",
+    ayuda: "Pacientes en espera de cupo",
+    permiso: ["lista_espera", "asignar_prioridad"],
+  },
+  {
+    to: "/admin/solicitudes",
+    texto: "Solicitudes",
+    ayuda: "Peticiones de los pacientes",
+    permiso: "revisar_solicitudes",
+  },
   { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];

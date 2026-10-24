@@ -112,11 +112,11 @@ def get_current_personal(
     return personal
 
 
-def requiere(permiso: Permiso) -> Callable[..., Personal]:
-    """Dependencia: personal autenticado CON el permiso indicado (si no, 403)."""
+def requiere(*permisos: Permiso) -> Callable[..., Personal]:
+    """Dependencia: personal autenticado con ALGUNO de los permisos indicados (si no, 403)."""
 
     def dependencia(personal: Personal = Depends(get_current_personal)) -> Personal:
-        if not tiene_permiso(personal.rol, permiso):
+        if not any(tiene_permiso(personal.rol, permiso) for permiso in permisos):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Su rol no tiene permiso para realizar esta acción.",

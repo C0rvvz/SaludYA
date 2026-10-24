@@ -98,7 +98,7 @@ export default function App() {
               <Route
                 path="recordatorios"
                 element={
-                  <RutaPersonal permiso="gestionar_citas">
+                  <RutaPersonal permiso="recordatorios">
                     <AdminRecordatoriosPage />
                   </RutaPersonal>
                 }
@@ -106,13 +106,27 @@ export default function App() {
               <Route
                 path="lista-espera"
                 element={
-                  <RutaPersonal permiso="ver_citas">
+                  <RutaPersonal permiso={["lista_espera", "asignar_prioridad"]}>
                     <AdminListaEsperaPage />
                   </RutaPersonal>
                 }
               />
-              <Route path="solicitudes" element={<AdminSolicitudesPage />} />
-              <Route path="solicitudes/:id" element={<AdminRevisionPage />} />
+              <Route
+                path="solicitudes"
+                element={
+                  <RutaPersonal permiso="revisar_solicitudes">
+                    <AdminSolicitudesPage />
+                  </RutaPersonal>
+                }
+              />
+              <Route
+                path="solicitudes/:id"
+                element={
+                  <RutaPersonal permiso="revisar_solicitudes">
+                    <AdminRevisionPage />
+                  </RutaPersonal>
+                }
+              />
               <Route path="citas" element={<AdminCitasPage />} />
               <Route path="citas/:id" element={<AdminCitaDetallePage />} />
               <Route

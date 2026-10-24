@@ -164,8 +164,8 @@ function Estado({ s }) {
 
 export default function AdminListaEsperaPage() {
   const { tienePermiso } = usePersonal();
-  const gestiona = tienePermiso("gestionar_citas");
-  const asignaPrioridad = tienePermiso("asignar_prioridad");
+  const gestiona = tienePermiso("lista_espera"); // asignar la cita y retirar
+  const asignaPrioridad = tienePermiso("asignar_prioridad"); // el coordinador médico solo ve la lista y la prioridad
   const [dia, setDia] = useState(hoy);
   const [soloEsperando, setSoloEsperando] = useState(true);
   const [orden, setOrden] = useState("lista");

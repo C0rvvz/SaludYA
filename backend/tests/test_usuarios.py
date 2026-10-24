@@ -49,7 +49,8 @@ def test_crear_y_editar_usuarios(cliente, fabrica):
     nuevo = {"nombre": "Laura Call", "correo": "laura@saludya.co", "rol": "call_center", "password": "una-clave-larga-2026"}
     r = cliente.post("/admin/usuarios", headers=encabezado(admin), json=nuevo)
     assert r.status_code == 201, r.text
-    assert "gestionar_citas" in r.json()["permisos"]
+    # Call center: solo lo de su función (mínimo privilegio).
+    assert r.json()["permisos"] == ["confirmar_asistencia", "observaciones", "recordatorios", "ver_citas"]
 
     assert cliente.post("/admin/usuarios", headers=encabezado(admin), json=nuevo).status_code == 400  # correo repetido
     corta = nuevo | {"correo": "otra@saludya.co", "password": "corta"}
@@ -66,6 +67,37 @@ def test_crear_y_editar_usuarios(cliente, fabrica):
     assert "laura@saludya.co" in [u["correo"] for u in lista]
     assert cliente.patch(f"/admin/usuarios/{admin.id}x", headers=encabezado(admin), json={}).status_code == 422
     assert cliente.patch(f"/admin/usuarios/{fabrica.paciente().id}", headers=encabezado(admin), json={}).status_code == 400
+
+
+def test_los_cambios_a_las_cuentas_quedan_en_la_auditoria(cliente, fabrica):
+    admin = fabrica.personal()
+    nuevo = {"nombre": "Carlos Call", "correo": "carlos@saludya.co", "rol": "call_center", "password": "una-clave-larga-2026"}
+    cuenta = cliente.post("/admin/usuarios", headers=encabezado(admin), json=nuevo).json()
+    ruta = f"/admin/usuarios/{cuenta['id']}"
+    cliente.patch(ruta, headers=encabezado(admin), json={"rol": "agendamiento"})
+    cliente.patch(ruta, headers=encabezado(admin), json={"activo": False})
+    cliente.patch(ruta, headers=encabezado(admin), json={"activo": True, "password": "otra-clave-larga-2026"})
+
+    registros = cliente.get("/admin/auditoria?categoria=cuentas", headers=encabezado(admin)).json()
+    mios = [r for r in registros if r["cuenta_correo"] == "carlos@saludya.co"][::-1]  # del más antiguo al más reciente
+    assert [(r["accion"], r["cuenta_rol"], r["estado_anterior"], r["estado_nuevo"]) for r in mios] == [
+        ("crear_cuenta", "Call center", None, None),
+        ("cambiar_rol", "Call center", "Call center", "Agendamiento"),  # el rol que tenía cuando se cambió
+        ("desactivar_cuenta", "Agendamiento", "Activa", "Inactiva"),
+        ("activar_cuenta", "Agendamiento", "Inactiva", "Activa"),
+        ("cambiar_clave", "Agendamiento", None, None),
+    ]
+    desactivada = mios[2]
+    # Quién (nombre, rol y correo) desactivó a quién (nombre, correo), legible.
+    assert desactivada["descripcion"] == "Desactivó la cuenta de Carlos Call"
+    assert desactivada["actor_nombre"] == f"{admin.nombre} (Administrador)"
+    assert desactivada["actor_correo"] == admin.correo
+    assert desactivada["cuenta_nombre"] == "Carlos Call"
+    # La contraseña nunca queda en la auditoría.
+    assert not any("clave-larga" in str(valor) for r in mios for valor in r.values())
+
+    citas = cliente.get("/admin/auditoria?categoria=citas", headers=encabezado(admin)).json()
+    assert all(r["cuenta_nombre"] is None for r in citas)
 
 
 def test_siempre_queda_un_administrador_activo(cliente, fabrica):

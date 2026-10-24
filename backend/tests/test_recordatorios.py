@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from app.models.cita import EstadoCita
 from app.models.recordatorio_programado import EstadoProgramacion, RecordatorioProgramado
 from app.services import centro_recordatorios_service, recordatorios_service
+from app.utils.privacidad import ocultar_enlaces_con_token
 from app.utils.tiempo import ahora_colombia
 from tests.conftest import encabezado
 
@@ -99,6 +100,34 @@ def test_plantillas(cliente, fabrica):
 
     ajeno = cliente.get(f"/admin/recordatorios/plantillas?paciente_id={cita.id}", headers=encabezado(admin))
     assert ajeno.status_code == 400
+
+
+def test_el_token_del_enlace_solo_le_llega_al_paciente(cliente, db, fabrica, monkeypatch):
+    """El enlace para confirmar sirve de llave: el personal y la auditoría ven "[enlace]"."""
+    admin = fabrica.personal()
+    paciente = fabrica.paciente()
+    cita = fabrica.cita(paciente)
+    plantillas = cliente.get(
+        f"/admin/recordatorios/plantillas?paciente_id={paciente.id}&cita_id={cita.id}", headers=encabezado(admin)
+    ).json()
+    texto = next(p["texto"] for p in plantillas if p["clave"] == "recordatorio_estandar")
+    assert "token=" not in texto and "[enlace]" in texto
+
+    programado = _programar(cliente, admin, paciente, cita_id=str(cita.id), texto=texto).json()
+    registro = db.get(RecordatorioProgramado, programado["id"])
+    registro.programado_para = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db.commit()
+    enviados = []
+    monkeypatch.setattr(centro_recordatorios_service, "enviar_por_canal", lambda _p, _c, msg: enviados.append(msg) or True)
+    assert centro_recordatorios_service.enviar_programados_vencidos(db) == 1
+    assert "/confirmar-asistencia?token=" in enviados[0]  # al paciente sí le llega el enlace real
+
+    auditoria = cliente.get(f"/admin/auditoria?cita_id={cita.id}", headers=encabezado(admin)).json()
+    assert auditoria and not any("token=" in str(r["detalle"]) for r in auditoria)
+    # Los registros guardados antes de este cambio también se muestran sin el token.
+    assert ocultar_enlaces_con_token("Confirme aquí: http://x.co/confirmar-asistencia?token=abc.def-1 gracias") == (
+        "Confirme aquí: [enlace] gracias"
+    )
 
 
 def test_programar_editar_cancelar_un_recordatorio(cliente, fabrica):

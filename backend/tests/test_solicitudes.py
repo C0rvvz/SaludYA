@@ -122,7 +122,10 @@ def test_solo_quien_revisa_decide_y_los_indicadores_cuentan(cliente, fabrica):
         json={"respuesta": "No corresponde"},
     )
     assert r.status_code == 403  # HU-79: la revisión clínica es del coordinador médico
-    assert cliente.get(f"/admin/solicitudes/{agendamiento.id}", headers=encabezado(agendamiento)).status_code == 404
+    # Mínimo privilegio: tampoco ve las peticiones (traen datos clínicos), solo quien las revisa.
+    assert cliente.get(f"/admin/solicitudes/{solicitud['id']}", headers=encabezado(agendamiento)).status_code == 403
+    coordinador = fabrica.personal(RolPersonal.COORDINADOR_MEDICO)
+    assert cliente.get(f"/admin/solicitudes/{coordinador.id}", headers=encabezado(coordinador)).status_code == 404
 
     admin = fabrica.personal()
     indicadores = cliente.get("/admin/reportes?periodo=anio", headers=encabezado(admin)).json()["solicitudes"]

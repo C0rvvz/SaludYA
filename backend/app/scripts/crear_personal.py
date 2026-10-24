@@ -45,6 +45,7 @@ def main() -> int:
 
     db = SessionLocal()
     try:
+        # Sin quien_crea: la auditoría la registra como creada desde la consola del servidor.
         personal = personal_service.crear(
             db, args.nombre, args.correo, RolPersonal(args.rol), password
         )

@@ -65,7 +65,8 @@ export default function PersonalProvider({ children }) {
       cargando,
       iniciarSesion,
       cerrarSesion,
-      tienePermiso: (permiso) => Boolean(personal?.permisos.includes(permiso)),
+      // Con una lista de permisos, basta con tener alguno.
+      tienePermiso: (permiso) => [].concat(permiso).some((p) => Boolean(personal?.permisos.includes(p))),
     }),
     [personal, cargando, iniciarSesion, cerrarSesion]
   );

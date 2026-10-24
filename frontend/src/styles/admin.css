@@ -866,7 +866,7 @@
 
 /* Auditoría: el buscador más ancho que los dos desplegables */
 .filtros-admin--auditoria {
-  grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(170px, 1fr));
+  grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(160px, 1fr));
 }
 
 /* El periodo del Dashboard y Reportes, compacto y a la derecha del título */
@@ -1260,6 +1260,31 @@
   .nueva-cuenta {
     grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   }
+}
+
+/* Usuarios: "¿Qué puede hacer cada rol?" */
+.tabla-roles tbody th {
+  padding: 10px 14px;
+  border-top: 1px solid var(--admin-separador);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: normal;
+}
+
+.tabla-roles td,
+.tabla-roles thead th:not(:first-child) {
+  text-align: center;
+}
+
+.tabla-roles__si {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.tabla-roles__no {
+  color: var(--color-line-strong);
 }
 
 /* Confirmación dentro de una fila ("¿Cancelar este recordatorio?") */

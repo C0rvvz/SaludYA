@@ -12,10 +12,18 @@ def listar(
     cita_id: uuid.UUID | None = None,
     paciente_id: uuid.UUID | None = None,
     acciones: list[str] | None = None,
+    categoria: str | None = None,
     limite: int = 200,
 ) -> list[RegistroAuditoria]:
-    """De lo más reciente a lo más antiguo (HU-80: orden cronológico)."""
+    """
+    De lo más reciente a lo más antiguo (HU-80: orden cronológico).
+    `categoria`: "cuentas" (cambios a cuentas del personal) o "citas" (todo lo demás).
+    """
     query = db.query(RegistroAuditoria)
+    if categoria == "cuentas":
+        query = query.filter(RegistroAuditoria.cuenta_id.isnot(None))
+    elif categoria == "citas":
+        query = query.filter(RegistroAuditoria.cuenta_id.is_(None))
     if cita_id is not None:
         query = query.filter(RegistroAuditoria.cita_id == cita_id)
     if paciente_id is not None:

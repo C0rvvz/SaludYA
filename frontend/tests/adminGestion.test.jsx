@@ -142,13 +142,14 @@ describe("Revisión clínica", () => {
     await usuario.click(within(panel).getByRole("button", { name: "Aprobar y asignar cita" }));
     expect(await esperarTexto("Ese horario ya no está disponible.")).toBeInTheDocument();
 
+    // Quien no revisa peticiones no las ve (traen datos clínicos).
     backendFalso({
       "GET /admin/auth/me": { ...PERSONAL, permisos: ["ver_citas"] },
       "GET /admin/solicitudes/:id": revision(),
     });
     abrir("/admin/solicitudes/s1", { personal: true });
-    expect(await esperarTexto("Dolor persistente.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Aprobar y asignar cita" })).not.toBeInTheDocument();
+    expect(await esperarTexto("Su rol no tiene acceso a esta sección.")).toBeInTheDocument();
+    expect(screen.queryByText("Dolor persistente.")).not.toBeInTheDocument();
   });
 
   it("errores al cargar la revisión o los horarios", async () => {
@@ -300,15 +301,26 @@ describe("Lista de espera del personal", () => {
     await usuario.selectOptions(screen.getByLabelText("Mostrar"), "todas");
     expect(screen.getByText("No hubo solicitudes en la lista este día.")).toBeInTheDocument();
 
+    // Agendamiento: asigna y retira, pero la prioridad médica solo se ve.
     backendFalso({
-      "GET /admin/auth/me": { ...PERSONAL, permisos: ["ver_citas"] },
+      "GET /admin/auth/me": { ...PERSONAL, permisos: ["lista_espera", "ver_citas"] },
       "GET /admin/lista-espera": LISTA,
-      "GET /admin/lista-espera/:id/horarios": error(500, "x"),
     });
     abrir("/admin/lista-espera", { personal: true });
     expect(await esperarTexto("Mario Ruiz")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Asignar cita a Mario Ruiz" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Prioridad de Mario Ruiz")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Normal").length).toBeGreaterThan(0);
+
+    // Coordinador médico: solo la prioridad, sin asignar ni retirar.
+    backendFalso({
+      "GET /admin/auth/me": { ...PERSONAL, permisos: ["asignar_prioridad", "ver_citas"] },
+      "GET /admin/lista-espera": LISTA,
+    });
+    abrir("/admin/lista-espera", { personal: true });
+    expect(await screen.findByLabelText("Prioridad de Mario Ruiz")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Asignar cita/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText("Normal").length).toBeGreaterThan(0); // la prioridad se ve, no se edita
+    expect(screen.queryByRole("button", { name: /^Retirar/ })).not.toBeInTheDocument();
 
     backendFalso({ "GET /admin/lista-espera": error(500, "No cargó la lista.") });
     abrir("/admin/lista-espera", { personal: true });
