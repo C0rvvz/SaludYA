@@ -28,6 +28,7 @@ class MotivoCierre(str, enum.Enum):
     OTRA_SESION = "otra_sesion"  # inició sesión en otra pestaña o dispositivo
     INACTIVIDAD = "inactividad"
     CUENTA_MODIFICADA = "cuenta_modificada"  # desactivada, o le cambiaron el rol o la contraseña
+    CERRADA_POR_ADMIN = "cerrada_admin"  # un administrador la cerró desde "Seguridad"
 
 
 class Sesion(Base):

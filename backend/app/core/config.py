@@ -11,6 +11,9 @@ aquí mismo cuando lleguemos a las partes que las necesiten — no se
 agregan antes para no dejar configuración "muerta" sin usar.
 """
 
+import base64
+import binascii
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -52,6 +55,13 @@ class Settings(BaseSettings):
     # aprueban (1x0000000000000000000000000000000AA). Vacía = sin
     # verificación: solo se permite en desarrollo (ver _llaves_obligatorias).
     turnstile_secret: str = ""
+
+    # --- Cifrado de los datos médicos (RNF-23, ver core/cifrado.py) ---
+    # Llave AES-256 (32 bytes en base64). Vacía = llave de desarrollo derivada
+    # de JWT_SECRET: solo se permite en desarrollo (ver _llave_jwt_robusta).
+    clave_cifrado_datos: str = ""
+    # Llaves anteriores, separadas por coma: solo para leer lo cifrado antes de cambiarla.
+    claves_cifrado_anteriores: str = ""
 
     # --- Sesiones (RNF-17 sesión única, RNF-24 inactividad) ---
     # La sesión se cierra tras estos minutos sin ninguna actividad; el JWT
@@ -144,6 +154,16 @@ class Settings(BaseSettings):
         # Sin la verificación de robots, los ingresos quedan expuestos a bots.
         if not self.es_desarrollo and not self.turnstile_secret:
             raise ValueError("TURNSTILE_SECRET es obligatoria fuera de desarrollo.")
+        # RNF-23: sin su propia llave, los datos médicos no quedarían bien protegidos.
+        if not self.es_desarrollo and not self.clave_cifrado_datos:
+            raise ValueError("CLAVE_CIFRADO_DATOS es obligatoria fuera de desarrollo.")
+        for llave in [self.clave_cifrado_datos, *self.claves_cifrado_anteriores.split(",")]:
+            if llave.strip():
+                try:
+                    if len(base64.b64decode(llave.strip(), validate=True)) != 32:
+                        raise ValueError
+                except (binascii.Error, ValueError):
+                    raise ValueError("Las llaves de cifrado deben ser de 32 bytes (AES-256), escritas en base64.")
         return self
 
 

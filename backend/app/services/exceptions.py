@@ -129,3 +129,7 @@ class SesionCerradaError(Exception):
 
 class DemasiadosIntentosError(Exception):
     """Demasiadas peticiones de inicio de sesión desde la misma conexión en poco tiempo."""
+
+
+class SesionNoCerrableError(Exception):
+    """El administrador intentó cerrar una sesión que ya se cerró, o la suya propia (panel "Seguridad")."""

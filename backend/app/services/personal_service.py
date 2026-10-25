@@ -77,6 +77,13 @@ def _validar_password(password: str, correo: str) -> None:
         raise PersonalInvalidoError("Esa contraseña es muy fácil de adivinar. Elija otra.")
 
 
+def acaba_de_bloquearse(correo: str) -> bool:
+    """Si el último intento fallido fue el que bloqueó la cuenta (para registrarlo una sola vez)."""
+    with _lock:
+        fallidos, bloqueado_hasta = _intentos.get(_normalizar_correo(correo), (0, None))
+    return fallidos == _MAX_INTENTOS and bloqueado_hasta is not None
+
+
 def autenticar(db: Session, correo: str, password: str) -> Personal:
     correo = _normalizar_correo(correo)
     with _lock:

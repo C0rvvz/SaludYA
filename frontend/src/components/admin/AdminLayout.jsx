@@ -30,6 +30,7 @@ const SECCIONES = [
     permiso: "revisar_solicitudes",
   },
   { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
+  { to: "/admin/seguridad", texto: "Seguridad", ayuda: "Accesos y alertas", permiso: "seguridad" },
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];
 

@@ -37,6 +37,7 @@ export const TODOS_LOS_PERMISOS = [
   "registrar_atencion",
   "reprogramar_cancelar",
   "revisar_solicitudes",
+  "seguridad",
   "ver_auditoria",
   "ver_citas",
   "ver_reportes",

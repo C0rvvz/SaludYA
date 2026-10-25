@@ -18,10 +18,11 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.cifrado import TextoCifrado
 from app.core.database import Base
 
 
@@ -53,7 +54,8 @@ class RegistroAuditoria(Base):
     # --- HU-82: acción realizada ---
     accion: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     descripcion: Mapped[str] = mapped_column(String(300), nullable=False)
-    detalle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Cifrado (RNF-23): copia motivos de peticiones, cancelaciones y observaciones.
+    detalle: Mapped[str | None] = mapped_column(TextoCifrado("auditoria.detalle"), nullable=True)
 
     # --- HU-84: solicitud (cita) relacionada ---
     cita_id: Mapped[uuid.UUID | None] = mapped_column(

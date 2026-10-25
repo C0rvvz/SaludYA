@@ -2,7 +2,8 @@
 Sesiones del servidor — RNF-17 (HU-91) y RNF-24 (HU-93).
 
 - abrir(): al iniciar sesión cierra las demás sesiones abiertas de esa
-  persona (una sola sesión a la vez: la nueva gana) y crea la nueva.
+  persona (una sola sesión a la vez: la nueva gana) y crea la nueva. El
+  ingreso, y la sesión que reemplazó, quedan en los eventos de seguridad.
 - validar(): en cada petición, la sesión del token debe seguir abierta y
   haber tenido actividad hace menos de SESION_INACTIVIDAD_MINUTOS; si no,
   se cierra y se rechaza la petición con el motivo.
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.sesion import MotivoCierre, Sesion
+from app.services import seguridad_service
 from app.services.exceptions import SesionCerradaError
 
 # Mensajes que ve la persona al volver a la pantalla de ingreso.
@@ -24,6 +26,7 @@ MENSAJES_CIERRE = {
     MotivoCierre.INACTIVIDAD: "Su sesión se cerró por seguridad después de 2 minutos sin actividad. Ingrese de nuevo.",
     MotivoCierre.SALIO: "Su sesión ya fue cerrada. Ingrese de nuevo.",
     MotivoCierre.CUENTA_MODIFICADA: "Su cuenta fue modificada por un administrador. Ingrese de nuevo.",
+    MotivoCierre.CERRADA_POR_ADMIN: "Un administrador cerró su sesión por seguridad. Ingrese de nuevo.",
 }
 
 # La última actividad se guarda como mucho cada tantos segundos: así no se
@@ -44,9 +47,18 @@ def _cerrar(sesion: Sesion, motivo: MotivoCierre, cuando: datetime) -> None:
     sesion.motivo_cierre = motivo.value
 
 
-def abrir(db: Session, tipo: str, sujeto_id: uuid.UUID, ip: str | None, dispositivo: str | None) -> Sesion:
+def abrir(
+    db: Session,
+    tipo: str,
+    sujeto_id: uuid.UUID,
+    ip: str | None,
+    dispositivo: str | None,
+) -> Sesion:
     ahora = _ahora()
+    en_uso = []  # las que seguían con actividad: las abandonadas no cuentan como "otra sesión"
     for anterior in _abiertas(db, tipo, sujeto_id).with_for_update():
+        if ahora - anterior.ultima_actividad_en <= timedelta(minutes=settings.sesion_inactividad_minutos):
+            en_uso.append(anterior)
         _cerrar(anterior, MotivoCierre.OTRA_SESION, ahora)
     sesion = Sesion(
         tipo=tipo,
@@ -59,6 +71,19 @@ def abrir(db: Session, tipo: str, sujeto_id: uuid.UUID, ip: str | None, disposit
     db.add(sesion)
     db.commit()
     db.refresh(sesion)
+
+    nombre, identificador = seguridad_service.quien_es(db, tipo, sujeto_id)
+    quien = {"ip": ip, "sujeto_id": sujeto_id, "sujeto_nombre": nombre, "identificador": identificador,
+             "dispositivo": dispositivo}
+    donde = "al panel del personal" if tipo == "personal" else "al portal del paciente"
+    seguridad_service.registrar(db, "ingreso_exitoso", seguridad_service.INFO, tipo, f"Ingresó {donde}", **quien)
+    for anterior in en_uso:
+        otra_conexion = anterior.ip != ip
+        seguridad_service.registrar(
+            db, "sesion_reemplazada", seguridad_service.MEDIA if otra_conexion else seguridad_service.INFO, tipo,
+            "Ingresó en otra pestaña o equipo y se cerró su sesión anterior",
+            detalle=f"Sesión anterior desde {anterior.ip or 'una conexión desconocida'}", **quien,
+        )
     return sesion
 
 

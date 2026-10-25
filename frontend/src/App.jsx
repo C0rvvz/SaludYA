@@ -18,6 +18,7 @@ import AdminCitaDetallePage from "./pages/admin/AdminCitaDetallePage";
 import AdminAuditoriaPage from "./pages/admin/AdminAuditoriaPage";
 import AdminUsuariosPage from "./pages/admin/AdminUsuariosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminSeguridadPage from "./pages/admin/AdminSeguridadPage";
 import AdminReportesPage from "./pages/admin/AdminReportesPage";
 import AdminRecordatoriosPage from "./pages/admin/AdminRecordatoriosPage";
 import AdminListaEsperaPage from "./pages/admin/AdminListaEsperaPage";
@@ -134,6 +135,14 @@ export default function App() {
                 element={
                   <RutaPersonal permiso="ver_auditoria">
                     <AdminAuditoriaPage />
+                  </RutaPersonal>
+                }
+              />
+              <Route
+                path="seguridad"
+                element={
+                  <RutaPersonal permiso="seguridad">
+                    <AdminSeguridadPage />
                   </RutaPersonal>
                 }
               />

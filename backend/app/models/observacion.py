@@ -8,10 +8,11 @@ escribieron. Solo las ve el personal (nunca el paciente).
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Text
+from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.cifrado import TextoCifrado
 from app.core.database import Base
 
 
@@ -30,7 +31,7 @@ class Observacion(Base):
     personal_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("personal.id"), nullable=False
     )
-    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    texto: Mapped[str] = mapped_column(TextoCifrado("observaciones.texto"), nullable=False)  # RNF-23
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

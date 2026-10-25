@@ -86,6 +86,15 @@ export function listarAuditoria(filtros = {}) {
   return conPersonal(conFiltros("/admin/auditoria", filtros));
 }
 
+// --- Seguridad (solo administradores): eventos, alertas y sesiones activas ---
+export function obtenerSeguridad(horas) {
+  return conPersonal(`/admin/seguridad?horas=${horas}`);
+}
+
+export function cerrarSesionRemota(sesionId) {
+  return conPersonal(`/admin/seguridad/sesiones/${sesionId}/cerrar`, { method: "POST" });
+}
+
 // --- Dashboard y Reportes (HU-44, HU-48 a HU-52, HU-68 a HU-75) ---
 export function obtenerReporte(periodo) {
   return conPersonal(`/admin/reportes?periodo=${periodo}`);

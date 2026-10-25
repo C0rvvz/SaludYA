@@ -42,7 +42,8 @@ from app.schemas.auth import (
     ValidarOTPRequest,
     ValidarOTPResponse,
 )
-from app.services import auth_service, sesion_service
+from app.repositories import paciente_repository
+from app.services import auth_service, seguridad_service, sesion_service
 from app.services.exceptions import (
     OtpExpiradoError,
     OtpIncorrectoError,
@@ -55,6 +56,18 @@ from app.services.exceptions import (
 router = APIRouter(prefix="/auth/paciente", tags=["Autenticación"])
 
 _LIMITE_INGRESO = Depends(limitar(limite_intentos.INGRESO_PACIENTE))
+
+
+def _registrar_fallo(
+    db: Session, request: Request, tipo: str, severidad: str, numero_documento: str, descripcion: str
+) -> None:
+    """Panel "Seguridad": el intento fallido, con el documento enmascarado (solo los últimos 4 dígitos)."""
+    paciente = paciente_repository.obtener_por_numero_documento(db, numero_documento)
+    seguridad_service.registrar(
+        db, tipo, severidad, "paciente", descripcion, request=request,
+        sujeto_id=paciente.id if paciente else None, sujeto_nombre=paciente.nombre if paciente else None,
+        identificador=seguridad_service.documento_enmascarado(numero_documento),
+    )
 
 
 def _codigo_demo(otp: CodigoOTP) -> str | None:
@@ -73,10 +86,14 @@ def _enmascarar_telefono(telefono: str) -> str:
     # Más estricto: con muchos intentos se podría averiguar qué documentos están registrados.
     dependencies=[Depends(limitar(limite_intentos.IDENTIFICAR_PACIENTE, limite_intentos.INGRESO_PACIENTE))],
 )
-def identificar_paciente(datos: IdentificarPacienteRequest, db: Session = Depends(get_db)):
+def identificar_paciente(datos: IdentificarPacienteRequest, request: Request, db: Session = Depends(get_db)):
     try:
         auth_service.identificar_paciente(db, datos.numero_documento)
     except PacienteNoRegistradoError as e:
+        _registrar_fallo(
+            db, request, "documento_no_registrado", seguridad_service.INFO, datos.numero_documento,
+            "Intentó ingresar con un documento que no está registrado",
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
     return IdentificarPacienteResponse(registrado=True, mensaje="Documento registrado.")
@@ -117,8 +134,16 @@ def validar_otp(datos: ValidarOTPRequest, request: Request, db: Session = Depend
     except OtpExpiradoError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except OtpIncorrectoError as e:
+        _registrar_fallo(
+            db, request, "codigo_incorrecto", seguridad_service.MEDIA, datos.numero_documento,
+            "Escribió mal el código de verificación",
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except OtpIntentosSuperadosError as e:
+        _registrar_fallo(
+            db, request, "codigo_bloqueado", seguridad_service.ALTA, datos.numero_documento,
+            "El código de verificación se bloqueó por demasiados intentos",
+        )
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
     # --- HU-03, criterio 3: código correcto -> se emite el JWT que da acceso ---

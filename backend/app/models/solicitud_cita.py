@@ -13,10 +13,11 @@ import enum
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.cifrado import TextoCifrado
 from app.core.database import Base
 from app.models.cita import CanalContacto
 
@@ -56,7 +57,7 @@ class SolicitudCita(Base):
     )
     tipo_cita: Mapped[TipoCita] = mapped_column(_enum(TipoCita, "tipo_cita"), nullable=False)
     fecha_deseada: Mapped[date] = mapped_column(Date, nullable=False)  # HU-76, criterio 4
-    motivo: Mapped[str] = mapped_column(Text, nullable=False)
+    motivo: Mapped[str] = mapped_column(TextoCifrado("solicitudes_cita.motivo"), nullable=False)  # RNF-23
     canal: Mapped[CanalContacto] = mapped_column(_enum(CanalContacto, "canal_contacto"), nullable=False)
     estado: Mapped[EstadoSolicitudCita] = mapped_column(
         _enum(EstadoSolicitudCita, "estado_solicitud_cita"),
@@ -75,7 +76,8 @@ class SolicitudCita(Base):
         UUID(as_uuid=True), ForeignKey("personal.id"), nullable=True
     )
     prioritaria: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
-    respuesta: Mapped[str | None] = mapped_column(Text, nullable=True)  # lo que se le explica al paciente
+    # Lo que se le explica al paciente (cifrado, RNF-23).
+    respuesta: Mapped[str | None] = mapped_column(TextoCifrado("solicitudes_cita.respuesta"), nullable=True)
     enviada_eps_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     respuesta_eps_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cita_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("citas.id"), nullable=True)

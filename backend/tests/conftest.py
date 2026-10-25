@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from app.core import limite_intentos  # noqa: E402
 from app.core.database import engine, get_db  # noqa: E402
 from app.core.security import TIPO_PACIENTE, TIPO_PERSONAL, crear_access_token, hash_password  # noqa: E402
+from app.services import seguridad_service  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Cita, Disponibilidad, Eps, Especialista, Paciente, Personal, Sesion  # noqa: E402
 from app.models.cita import CanalContacto, EstadoCita  # noqa: E402
@@ -109,9 +110,10 @@ def db():
 
 @pytest.fixture(autouse=True)
 def _limites_de_intentos_limpios():
-    """Los límites de intentos por IP viven en memoria: cada prueba empieza de cero."""
+    """Los límites de intentos por IP (y los eventos agrupados) viven en memoria: cada prueba empieza de cero."""
     for limite in limite_intentos.TODOS:
         limite.reiniciar()
+    seguridad_service.reiniciar()
 
 
 @pytest.fixture

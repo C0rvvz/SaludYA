@@ -27,6 +27,10 @@ Gestión de citas
 Auditoría
   GET   /admin/auditoria                  HU-80 a HU-85 (citas) y cambios a las cuentas del personal
 
+Seguridad (tipo SIEM / SOC)
+  GET   /admin/seguridad?horas=24         eventos, alertas, sesiones activas y controles
+  POST  /admin/seguridad/sesiones/{id}/cerrar   cerrar a distancia una sesión que no se reconoce
+
 Dashboard y Reportes
   GET   /admin/reportes?periodo=mes       HU-44, HU-48 a HU-52, HU-68 a HU-75
 
@@ -103,6 +107,7 @@ from app.schemas.admin import (
     RolOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
+from app.schemas.seguridad import PanelSeguridadOut
 from app.schemas.lista_espera import (
     CancelarDesdeListaRequest,
     ConfirmarDesdeListaRequest,
@@ -135,6 +140,7 @@ from app.services import (
     personal_service,
     recordatorios_service,
     reportes_service,
+    seguridad_service,
     riesgo_service,
     sesion_service,
     solicitudes_service,
@@ -155,6 +161,7 @@ from app.services.exceptions import (
     ProgramacionInvalidaError,
     ReprogramacionInvalidaError,
     ResultadoNoRegistrableError,
+    SesionNoCerrableError,
     SolicitudInvalidaError,
 )
 
@@ -331,6 +338,38 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
 # --- Cuentas del personal ---
 
 
+def _registrar_ingreso_fallido(db: Session, request: Request, correo: str, bloqueada: bool) -> None:
+    """
+    Panel "Seguridad": el intento fallido, con el correo que se escribió (la
+    persona no ve si la cuenta existe; el administrador sí). Si con este
+    intento la cuenta quedó bloqueada, también eso.
+    """
+    correo = correo.strip().lower()
+    cuenta = personal_repository.obtener_por_correo(db, correo)
+    quien = {
+        "request": request,
+        "sujeto_id": cuenta.id if cuenta else None,
+        "sujeto_nombre": seguridad_service.nombre_personal(cuenta) if cuenta else None,
+        "identificador": correo,
+    }
+    if bloqueada:
+        seguridad_service.registrar(
+            db, "ingreso_bloqueado", seguridad_service.MEDIA, "personal",
+            "Intentó ingresar con la cuenta bloqueada", **quien,
+        )
+        return
+    seguridad_service.registrar(
+        db, "ingreso_fallido", seguridad_service.MEDIA, "personal",
+        "Contraseña incorrecta" if cuenta else "Correo que no corresponde a ninguna cuenta",
+        detalle=None if cuenta is None or cuenta.activo else "La cuenta está desactivada", **quien,
+    )
+    if personal_service.acaba_de_bloquearse(correo):
+        seguridad_service.registrar(
+            db, "cuenta_bloqueada", seguridad_service.ALTA, "personal",
+            "La cuenta quedó bloqueada 15 minutos por 5 intentos fallidos seguidos", **quien,
+        )
+
+
 @router.post(
     "/auth/login",
     response_model=LoginPersonalResponse,
@@ -339,10 +378,10 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
 def iniciar_sesion(datos: LoginPersonalRequest, request: Request, db: Session = Depends(get_db)):
     try:
         personal = personal_service.autenticar(db, datos.correo, datos.password)
-    except CredencialesInvalidasError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    except CuentaBloqueadaError as e:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
+    except (CredencialesInvalidasError, CuentaBloqueadaError) as e:
+        _registrar_ingreso_fallido(db, request, datos.correo, bloqueada=isinstance(e, CuentaBloqueadaError))
+        codigo = status.HTTP_429_TOO_MANY_REQUESTS if isinstance(e, CuentaBloqueadaError) else status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(status_code=codigo, detail=str(e))
 
     # RNF-17: la sesión nueva cierra cualquier otra abierta de esta cuenta.
     sesion = sesion_service.abrir(
@@ -585,6 +624,32 @@ def auditoria(
         db, cita_id=cita_id, paciente_id=paciente_id, acciones=[accion] if accion else None, categoria=categoria
     )
     return [_registro_out(r) for r in registros]
+
+
+# --- Seguridad (tipo SIEM / SOC) ---
+
+
+@router.get("/seguridad", response_model=PanelSeguridadOut)
+def seguridad(
+    horas: int = Query(default=24, ge=1, le=720),
+    _: Personal = Depends(requiere(Permiso.SEGURIDAD)),
+    db: Session = Depends(get_db),
+):
+    """Lo que pasó en las últimas `horas`: cifras, alertas, eventos; y quién está conectado ahora."""
+    return seguridad_service.panel(db, horas)
+
+
+@router.post("/seguridad/sesiones/{sesion_id}/cerrar", status_code=status.HTTP_204_NO_CONTENT)
+def cerrar_sesion_a_distancia(
+    sesion_id: uuid.UUID,
+    admin: Personal = Depends(requiere(Permiso.SEGURIDAD)),
+    sesion_actual: Sesion = Depends(sesion_del_personal),
+    db: Session = Depends(get_db),
+):
+    try:
+        seguridad_service.cerrar_sesion(db, admin, sesion_actual, sesion_id)
+    except SesionNoCerrableError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # --- Dashboard y Reportes ---

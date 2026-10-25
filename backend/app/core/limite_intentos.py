@@ -14,9 +14,12 @@ import threading
 import time
 from collections import defaultdict, deque
 
-from fastapi import Header, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.integrations import verificacion_humana
+from app.services import seguridad_service
 from app.services.exceptions import DemasiadosIntentosError
 
 
@@ -61,9 +64,20 @@ INGRESO_PERSONAL = LimiteIntentos(maximo=10, ventana_segundos=15 * 60)
 TODOS = (IDENTIFICAR_PACIENTE, INGRESO_PACIENTE, INGRESO_PERSONAL)
 
 
-def exigir_humano(request: Request, x_verificacion: str | None = Header(default=None)) -> None:
+def _ambito(request: Request) -> str:
+    return "personal" if request.url.path.startswith("/admin") else "paciente"
+
+
+def exigir_humano(
+    request: Request, x_verificacion: str | None = Header(default=None), db: Session = Depends(get_db)
+) -> None:
     """Dependencia de FastAPI: la casilla "No soy un robot" (token de Turnstile en X-Verificacion)."""
     if not verificacion_humana.es_humano(x_verificacion, ip_de(request)):
+        seguridad_service.registrar(
+            db, "verificacion_fallida", seguridad_service.MEDIA, _ambito(request),
+            "Petición sin la verificación «No soy un robot»", request=request,
+            detalle=f"{request.method} {request.url.path}", agrupar=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Marque la casilla «No soy un robot» antes de continuar.",
@@ -73,12 +87,17 @@ def exigir_humano(request: Request, x_verificacion: str | None = Header(default=
 def limitar(*limites: LimiteIntentos):
     """Dependencia de FastAPI: rechaza con 429 si la IP superó alguno de los límites."""
 
-    def dependencia(request: Request) -> None:
+    def dependencia(request: Request, db: Session = Depends(get_db)) -> None:
         ip = ip_de(request)
         try:
             for limite in limites:
                 limite.registrar(ip)
         except DemasiadosIntentosError as e:
+            seguridad_service.registrar(
+                db, "limite_intentos", seguridad_service.MEDIA, _ambito(request),
+                "Conexión frenada por exceso de intentos de ingreso", request=request,
+                detalle=f"{request.method} {request.url.path}", agrupar=True,
+            )
             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
     return dependencia

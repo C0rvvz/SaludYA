@@ -21,6 +21,7 @@ from app.models.recordatorio_programado import RecordatorioProgramado
 from app.models.lista_espera import OfertaEspera, SolicitudEspera, solicitud_espera_sedes
 from app.models.solicitud_cita import SolicitudCita
 from app.models.sesion import Sesion
+from app.models.evento_seguridad import EventoSeguridad
 
 __all__ = [
     "Eps",
@@ -42,4 +43,5 @@ __all__ = [
     "solicitud_espera_sedes",
     "SolicitudCita",
     "Sesion",
+    "EventoSeguridad",
 ]

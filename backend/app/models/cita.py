@@ -19,6 +19,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, Sm
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.cifrado import TextoCifrado
 from app.core.database import Base
 
 
@@ -94,7 +95,9 @@ class Cita(Base):
 
     # --- HU-21: cancelación ---
     cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    motivo_cancelacion: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    motivo_cancelacion: Mapped[str | None] = mapped_column(  # cifrado: puede hablar de su salud (RNF-23)
+        TextoCifrado("citas.motivo_cancelacion"), nullable=True
+    )
 
     # --- HU-20: reprogramación ---
     # En la cita original: cuándo se reprogramó. En la nueva: de cuál viene.
@@ -120,7 +123,9 @@ class Cita(Base):
 
     # --- HU-71: el paciente califica la atención de una cita atendida (1 a 5) ---
     calificacion: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
-    comentario_calificacion: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    comentario_calificacion: Mapped[str | None] = mapped_column(  # cifrado (RNF-23)
+        TextoCifrado("citas.comentario_calificacion"), nullable=True
+    )
     calificada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     paciente: Mapped["Paciente"] = relationship(back_populates="citas")

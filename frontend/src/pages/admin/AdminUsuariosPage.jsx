@@ -32,6 +32,7 @@ const QUE_PUEDE = [
   ["registrar_atencion", "Registrar si fue atendido o no asistió"],
   ["ver_reportes", "Resumen y reportes"],
   ["ver_auditoria", "Auditoría"],
+  ["seguridad", "Seguridad: accesos, alertas y cerrar sesiones"],
   ["gestionar_usuarios", "Crear y editar cuentas del personal"],
 ];
 

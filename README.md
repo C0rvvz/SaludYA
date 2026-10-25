@@ -51,6 +51,12 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
    python -c "import secrets; print(secrets.token_urlsafe(48))"
    ```
 
+   Y la llave para cifrar los datos médicos (`CLAVE_CIFRADO_DATOS`). Guárdela en un lugar seguro: sin ella no se pueden leer esos datos.
+
+   ```bash
+   python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+   ```
+
 2. **Base de datos y API.** Las migraciones se aplican solas al arrancar la API.
 
    ```bash
@@ -175,6 +181,7 @@ Todas están explicadas en [.env.example](.env.example). Las principales:
 | --- | --- |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciales de PostgreSQL |
 | `JWT_SECRET` | Firma de las sesiones. Debe ser larga y aleatoria |
+| `CLAVE_CIFRADO_DATOS` | Llave AES-256 (32 bytes en base64) que cifra los datos médicos en la base de datos (RNF-23). Obligatoria fuera de desarrollo |
 | `WHATSAPP_MODE` | `mock` (solo log) o `real` (WhatsApp Cloud API) |
 | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Credenciales de Meta para el modo real |
 | `IA_API_KEY`, `IA_BASE_URL`, `IA_MODELO` | Asistente conversacional. Sin llave, el chat avisa que no está disponible |

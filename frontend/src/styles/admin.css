@@ -1262,6 +1262,102 @@
   }
 }
 
+/* --- Seguridad --- */
+.filtros-admin--seguridad {
+  grid-template-columns: minmax(240px, 2fr) minmax(200px, 1fr);
+}
+
+/* La severidad dentro de una celda de dos líneas: del ancho de su texto */
+.celda-doble .badge {
+  align-self: flex-start;
+}
+
+.seguridad-vacio {
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+}
+
+.alertas-seguridad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alerta-seguridad {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-borde);
+  border-left: 4px solid var(--color-line-strong);
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.alerta-seguridad > p {
+  margin: 0;
+}
+
+.alerta-seguridad--alta {
+  border-left-color: var(--color-error);
+  background: #fdf7f6;
+}
+
+.alerta-seguridad--media {
+  border-left-color: var(--color-warning-ink);
+}
+
+.alerta-seguridad__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.alerta-seguridad__accion {
+  color: var(--color-ink);
+}
+
+.alerta-seguridad .alerta-seguridad__meta {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.controles-seguridad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 12px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.controles-seguridad li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.controles-seguridad__marca {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 /* Usuarios: "¿Qué puede hacer cada rol?" */
 .tabla-roles tbody th {
   padding: 10px 14px;
@@ -1449,6 +1545,14 @@ blockquote.revision__motivo::after {
 @media (max-width: 1280px) {
   .filtros-admin--busqueda {
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+}
+
+/* Auditoría y Seguridad: en pantallas angostas los filtros se acomodan solos (sin salirse) */
+@media (max-width: 1100px) {
+  .filtros-admin--auditoria,
+  .filtros-admin--seguridad {
+    grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
   }
 }
 
