@@ -1,5 +1,7 @@
 """Registro e ingreso del paciente con código por WhatsApp — HU-01 a HU-08."""
 
+import time
+
 import pytest
 
 from app.core.config import settings
@@ -155,6 +157,23 @@ def test_tres_intentos_fallidos_invalidan_el_codigo(cliente, fabrica, db):
     assert _validar(cliente, paciente, incorrecto).status_code == 400
     assert _validar(cliente, paciente, incorrecto).status_code == 429
     assert _validar(cliente, paciente, codigo).status_code == 400  # invalidado: hay que pedir otro
+
+
+def test_el_pin_se_envia_en_menos_de_5_segundos_y_si_falla_se_avisa(cliente, fabrica, db, monkeypatch):
+    """RNF-22: el PIN se genera y se envía en menos de 5 s; si WhatsApp no responde, se avisa."""
+    paciente = fabrica.paciente()
+    datos = {"numero_documento": paciente.numero_documento}
+    monkeypatch.setattr(otp_service, "enviar_mensaje_whatsapp", lambda *a: False)
+    r = cliente.post("/auth/paciente/otp/enviar", json=datos)
+    assert r.status_code == 503
+    assert "No pudimos enviarle el código" in r.json()["detail"]
+    assert db.query(CodigoOTP).filter_by(paciente_id=paciente.id).count() == 0  # no quedó un código que no llegó
+
+    monkeypatch.undo()
+    empezo = time.monotonic()
+    r = cliente.post("/auth/paciente/otp/enviar", json=datos)  # sin esperar el minuto entre envíos
+    assert r.status_code == 201, r.text
+    assert time.monotonic() - empezo < 5
 
 
 def test_reenviar_genera_un_codigo_nuevo(cliente, fabrica, db, monkeypatch):

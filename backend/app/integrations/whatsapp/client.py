@@ -76,7 +76,7 @@ def _enviar_real(telefono: str, mensaje: str) -> bool:
         "text": {"body": mensaje},
     }
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=settings.whatsapp_timeout_segundos) as client:  # RNF-22
             response = client.post(url, headers=headers, json=payload)
             response.raise_for_status()
         return True

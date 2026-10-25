@@ -6,7 +6,9 @@ nuevo, que es exactamente lo que pide HU-04. La Parte 5 solo necesita
 decidir si expone un endpoint con otro nombre o reutiliza este mismo.
 """
 
+import logging
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -17,12 +19,15 @@ from app.models.codigo_otp import CanalOTP, CodigoOTP, EstadoOTP
 from app.models.paciente import Paciente
 from app.repositories import otp_repository
 from app.services.exceptions import (
+    EnvioCodigoFallidoError,
     OtpExpiradoError,
     OtpIncorrectoError,
     OtpIntentosSuperadosError,
     OtpNoEncontradoError,
     ReenvioMuyProntoError,
 )
+
+logger = logging.getLogger("saludya.otp")
 
 
 def _generar_codigo() -> str:
@@ -72,7 +77,17 @@ def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:
         f"Tu código de verificación de SaludYA es: {codigo}. "
         f"Vence en {settings.otp_expire_minutes} minutos. No lo compartas con nadie."
     )
-    enviar_mensaje_whatsapp(paciente.telefono_whatsapp, mensaje)
+    empezo = time.monotonic()
+    if not enviar_mensaje_whatsapp(paciente.telefono_whatsapp, mensaje):
+        # No le llegó: el código no sirve y tampoco debe hacerlo esperar el
+        # minuto entre envíos para pedir otro.
+        db.delete(nuevo_otp)
+        db.commit()
+        raise EnvioCodigoFallidoError(
+            "No pudimos enviarle el código por WhatsApp. Intente de nuevo en unos segundos."
+        )
+    # RNF-22: cuánto tardó el envío del PIN queda en el log.
+    logger.info("Código de verificación enviado en %.0f ms", (time.monotonic() - empezo) * 1000)
 
     return nuevo_otp
 

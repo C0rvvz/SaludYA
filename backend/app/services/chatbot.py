@@ -15,6 +15,7 @@ en PostgreSQL, así que:
 import json
 import logging
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -22,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 from openai.types.chat import ChatCompletionMessage
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.paciente import Paciente
 from app.services import herramientas_ia, ia, urgencias
 from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError
@@ -118,9 +120,11 @@ _UNA_ACCION_POR_MENSAJE = {
 def _ciclo(db: Session, paciente: Paciente, conv: _Conversacion) -> str:
     sistema = {"role": "system", "content": ia.instrucciones_sistema(paciente.nombre)}
     escrituras = 0
+    # RNF-18: un solo plazo para todo el mensaje, aunque el modelo necesite varios pasos.
+    hasta = datetime.now(timezone.utc) + timedelta(seconds=settings.ia_presupuesto_segundos)
 
     for _ in range(_MAX_PASOS):
-        mensaje = ia.completar([sistema, *conv.mensajes])
+        mensaje = ia.completar([sistema, *conv.mensajes], hasta=hasta)
         conv.mensajes.append(_para_historial(mensaje))
 
         if not mensaje.tool_calls:
@@ -193,6 +197,7 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
         conv.estado.turno += 1
         conv.mensajes.append({"role": "user", "content": texto})
 
+        empezo = time.monotonic()
         try:
             respuesta = _ciclo(db, paciente, conv)
         except AsistenteNoDisponibleError:
@@ -210,6 +215,8 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
             }
             raise
 
+        # RNF-18: cuánto tardó cada respuesta queda en el log (sin el texto del paciente).
+        logger.info("Eli respondió en %.1f s", time.monotonic() - empezo)
         _recortar(conv)
         eventos = conv.estado.eventos[eventos_antes:]
         estado = conv.estado

@@ -4,8 +4,10 @@ segundo plano, generación de horarios y scripts de administración.
 """
 
 import asyncio
+import random
 import uuid
 from datetime import datetime, time, timedelta, timezone
+from time import monotonic
 
 import jwt
 import pytest
@@ -15,8 +17,9 @@ from app.core.config import settings
 from app.main import app, lifespan
 from app.models import Especialista, Personal
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
+from app.routers import catalogo
 from app.scripts import crear_personal, generar_disponibilidad
-from app.services import disponibilidad_service, tareas_periodicas
+from app.services import disponibilidad_service, ips_simulada_service, tareas_periodicas
 from app.utils.tiempo import hoy_en_colombia
 from tests.conftest import encabezado
 
@@ -52,6 +55,34 @@ def test_disponibilidad_de_un_especialista_y_busqueda_combinada(cliente, fabrica
     assert ciudad == []
 
 
+def test_las_busquedas_responden_en_menos_de_2_segundos(cliente, db):
+    """RNF-20, con mucha más agenda que la real: 60 días hábiles de todos los especialistas."""
+    for semilla in range(3):  # la red crece con especialistas que llegan por la IPS
+        ips_simulada_service.sincronizar(db, None, random.Random(semilla))
+    disponibilidad_service.generar_franjas(db, dias=60)
+    assert db.query(Disponibilidad).count() > 4000
+
+    especialidad = db.query(Especialista).first().especialidad_id
+    for consulta in ("/disponibilidad/buscar", f"/disponibilidad/buscar?especialidad_id={especialidad}"):
+        empezo = monotonic()
+        r = cliente.get(consulta)
+        assert r.status_code == 200 and r.json()
+        assert monotonic() - empezo < 2, consulta
+
+
+def test_la_cache_del_catalogo_reutiliza_la_respuesta_unos_segundos(cliente, fabrica, monkeypatch):
+    """RNF-21: con cientos de pacientes a la vez, la misma búsqueda sale de memoria por unos segundos."""
+    monkeypatch.setattr(settings, "cache_catalogo_segundos", 60)
+    catalogo.vaciar_cache()
+    consulta = f"/disponibilidad/buscar?especialidad_id={fabrica.especialidad_id}&fecha={hoy_en_colombia() + timedelta(days=20)}"
+    assert cliente.get(consulta).json() == []
+    fabrica.franja(fecha=hoy_en_colombia() + timedelta(days=20))
+    assert cliente.get(consulta).json() == []  # todavía la guardada
+    catalogo.vaciar_cache()
+    assert len(cliente.get(consulta).json()) == 1  # vencida la caché, se ve el horario nuevo
+    catalogo.vaciar_cache()
+
+
 # --- Estado de la API ---
 
 def test_estado_de_la_api(cliente, monkeypatch):
@@ -68,10 +99,13 @@ def test_estado_de_la_api(cliente, monkeypatch):
 
 
 def test_get_db_entrega_y_cierra_la_sesion():
-    generador = database.get_db()
-    sesion = next(generador)
-    assert sesion.is_active
-    generador.close()
+    async def usar():
+        generador = database.get_db()
+        sesion = await generador.__anext__()
+        assert sesion.is_active
+        await generador.aclose()
+
+    asyncio.run(usar())
 
 
 def test_el_arranque_lanza_las_tareas_solo_si_estan_activas(monkeypatch):

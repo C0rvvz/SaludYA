@@ -137,3 +137,7 @@ class SesionNoCerrableError(Exception):
 
 class EspecialistaInvalidoError(Exception):
     """Datos de un especialista o de su horario que no se pueden guardar (p. ej. turnos que se cruzan)."""
+
+
+class EnvioCodigoFallidoError(Exception):
+    """El código de verificación no se pudo enviar por WhatsApp (RNF-22)."""

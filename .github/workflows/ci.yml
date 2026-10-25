@@ -1,0 +1,82 @@
+# Integración continua — RNF-15 (HU-95).
+#
+# En cada push a main y en cada pull request se comprueba que el proyecto
+# sigue sano: las pruebas del backend (contra un PostgreSQL de verdad, con
+# todas las migraciones) y el lint, las pruebas y el build del frontend.
+# Si algo falla, GitHub lo marca en rojo y no se debería unir el cambio.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (pruebas)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: saludya
+          POSTGRES_PASSWORD: saludya-ci
+          POSTGRES_DB: saludya
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U saludya -d saludya"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Valores solo para las pruebas de CI: no son secretos de ningún ambiente real.
+      DATABASE_URL: postgresql+psycopg2://saludya:saludya-ci@localhost:5432/saludya
+      JWT_SECRET: solo-para-las-pruebas-de-ci-nunca-en-produccion
+      APP_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+      - name: Pruebas
+        run: pytest -q
+
+  frontend:
+    name: Frontend (lint, pruebas y build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Pruebas
+        run: npm test
+      - name: Build
+        run: npm run build

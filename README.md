@@ -142,6 +142,23 @@ npm run lint
 npm run build
 ```
 
+### Integración continua (GitHub Actions)
+
+En cada push a `main` y en cada pull request, [.github/workflows/ci.yml](.github/workflows/ci.yml) corre las pruebas del backend contra un PostgreSQL con todas las migraciones, y el lint, las pruebas y el build del frontend (RNF-15).
+
+### Rendimiento
+
+- **Eli (RNF-18):** cada mensaje del paciente tiene un plazo total de 9 s (`IA_PRESUPUESTO_SEGUNDOS`), compartido entre todas las llamadas al modelo y sus respaldos; si se acaba, Eli avisa que se está demorando. El log registra cuánto tardó cada respuesta.
+- **Búsquedas (RNF-20):** una prueba comprueba que buscar horarios responde en menos de 2 s con más de 4.000 horarios.
+- **PIN por WhatsApp (RNF-22):** se espera a Meta como máximo 4 s (`WHATSAPP_TIMEOUT_SEGUNDOS`); si no llega, se avisa y se puede pedir otro sin esperar el minuto.
+- **500 usuarios a la vez (RNF-21):** prueba de carga con pacientes que recorren "Agendar" (no deja datos):
+
+```bash
+docker compose exec api python -m app.scripts.prueba_carga --usuarios 500 --segundos 60 --procesos 6
+```
+
+Cumple si no falla ninguna petición y el 95 % responde en menos de 2 s. Resultado en un portátil (servidor de desarrollo, un solo proceso): 23.448 peticiones en 60 s (360 por segundo), 0 fallidas, p95 de 0,013 s.
+
 ## Calidad del código (SonarQube)
 
 SonarQube analiza el código del backend y del frontend (errores, vulnerabilidades, mantenibilidad, duplicación) junto con la cobertura de las pruebas. Corre en Docker, solo en este equipo.

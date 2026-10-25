@@ -5,7 +5,7 @@ directamente contra la base de pruebas.
 """
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import httpx
@@ -193,17 +193,18 @@ def _mensaje(texto=None, *llamadas):
 @pytest.fixture
 def modelo(monkeypatch):
     """Respuestas que dará el modelo, en orden; guarda lo que se le envió."""
-    respuestas, enviados = [], []
+    respuestas, enviados, plazos = [], [], []
 
-    def completar(mensajes, usar_tools=True):
+    def completar(mensajes, usar_tools=True, hasta=None):
         enviados.append(mensajes)
+        plazos.append(hasta)
         respuesta = respuestas.pop(0)
         if isinstance(respuesta, Exception):
             raise respuesta
         return respuesta
 
     monkeypatch.setattr(ia, "completar", completar)
-    return SimpleNamespace(respuestas=respuestas, enviados=enviados)
+    return SimpleNamespace(respuestas=respuestas, enviados=enviados, plazos=plazos)
 
 
 def test_conversacion_con_funciones(cliente, fabrica, modelo):
@@ -325,10 +326,11 @@ def proveedor(monkeypatch):
     monkeypatch.setattr(settings, "ia_modelo", "principal")
     monkeypatch.setattr(settings, "ia_modelos_respaldo", "respaldo-1, respaldo-2")
     ia._pausados.clear()
-    llamadas, respuestas = [], []
+    llamadas, respuestas, tiempos = [], [], []
 
-    def crear(model, **_):
+    def crear(model, timeout=None, **_):
         llamadas.append(model)
+        tiempos.append(timeout)
         respuesta = respuestas.pop(0)
         if isinstance(respuesta, Exception):
             raise respuesta
@@ -336,7 +338,7 @@ def proveedor(monkeypatch):
 
     cliente_falso = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=crear)))
     monkeypatch.setattr(ia, "_cliente", lambda: cliente_falso)
-    yield SimpleNamespace(llamadas=llamadas, respuestas=respuestas)
+    yield SimpleNamespace(llamadas=llamadas, respuestas=respuestas, tiempos=tiempos)
     ia._pausados.clear()
 
 
@@ -368,6 +370,29 @@ def test_errores_del_proveedor(proveedor):
     with pytest.raises(AsistenteNoDisponibleError):
         ia.completar([])
     assert proveedor.llamadas[-1] == "principal"  # una llave inválida no se arregla cambiando de modelo
+
+
+def test_eli_responde_en_menos_de_10_segundos(proveedor):
+    """RNF-18: cada intento usa solo el tiempo que queda del plazo; si ya no alcanza, se le avisa al paciente."""
+    ahora = datetime.now(timezone.utc)
+    proveedor.respuestas.append(openai.APITimeoutError(request=httpx.Request("POST", "https://ia.test")))
+    proveedor.respuestas.append(_mensaje("Hola"))
+    assert ia.completar([], hasta=ahora + timedelta(seconds=5)).content == "Hola"
+    assert all(t <= 5 for t in proveedor.tiempos)  # nunca más de lo que queda
+    with pytest.raises(AsistenteNoDisponibleError, match="demorando"):
+        ia.completar([], hasta=ahora + timedelta(seconds=1))  # ya no alcanza ni un intento
+    proveedor.respuestas += [openai.APITimeoutError(request=httpx.Request("POST", "https://ia.test"))] * 3
+    with pytest.raises(AsistenteNoDisponibleError, match="demorando"):
+        ia.completar([], hasta=datetime.now(timezone.utc) + timedelta(seconds=9))
+
+
+def test_un_solo_plazo_para_todo_el_mensaje(cliente, fabrica, modelo):
+    """RNF-18: el chat comparte un solo plazo de 9 s entre todos los pasos de un mismo mensaje."""
+    modelo.respuestas += [_mensaje(None, ("buscar_especialidades", {})), _mensaje("Listo.")]
+    cliente.post("/chat", headers=encabezado(fabrica.paciente()), json={"mensaje": "¿Qué especialidades hay?"})
+    primero, segundo = modelo.plazos
+    assert primero == segundo
+    assert timedelta(0) < primero - datetime.now(timezone.utc) <= timedelta(seconds=9)
 
 
 def test_sin_llave_el_asistente_no_esta_disponible(monkeypatch):

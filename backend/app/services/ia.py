@@ -257,6 +257,10 @@ def _cliente() -> OpenAI:
     )
 
 
+# Con menos de este tiempo, un intento no alcanza a responder: se le avisa al paciente.
+_MINIMO_POR_INTENTO = 1.5
+DEMORA = "El asistente se está demorando más de lo normal. Escriba de nuevo su mensaje en un momento."
+
 # Modelo -> momento hasta el que no se usa, tras responder "límite de
 # solicitudes" (429). Evita gastar una llamada, y segundos del paciente,
 # en un modelo que ya sabemos que no tiene cupo.
@@ -272,10 +276,14 @@ def _modelos_en_orden() -> list[str]:
     return disponibles or modelos
 
 
-def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMessage:
+def completar(mensajes: list[dict], usar_tools: bool = True, hasta: datetime | None = None) -> ChatCompletionMessage:
     """
     Envía la conversación al modelo y devuelve su mensaje de respuesta,
     que puede traer texto, tool_calls, o ambos. No ejecuta nada.
+
+    `hasta`: el momento límite para responderle al paciente (RNF-18: menos
+    de 10 s por mensaje; chatbot.py lo comparte entre todas las llamadas de
+    un mismo mensaje). Cada intento usa solo el tiempo que queda.
 
     parallel_tool_calls=False: una sola acción por turno, para que cada
     escritura se valide y se confirme por separado. Algunos proveedores
@@ -286,10 +294,12 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
     if usar_tools:
         extra = {"tools": TOOLS, "tool_choice": "auto", "parallel_tool_calls": False}
 
+    if hasta is None:
+        hasta = datetime.now(timezone.utc) + timedelta(seconds=settings.ia_presupuesto_segundos)
     ultimo_error: openai.OpenAIError | None = None
-    limite = datetime.now(timezone.utc) + timedelta(seconds=2 * settings.ia_timeout_segundos)
     for modelo in _modelos_en_orden():
-        if ultimo_error is not None and datetime.now(timezone.utc) >= limite:
+        restante = (hasta - datetime.now(timezone.utc)).total_seconds()
+        if restante < _MINIMO_POR_INTENTO:
             # El paciente ya esperó demasiado: mejor avisarle que seguir probando.
             break
         try:
@@ -297,6 +307,7 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
                 model=modelo,
                 messages=mensajes,
                 temperature=0.2,
+                timeout=min(settings.ia_timeout_segundos, restante),
                 **extra,
             )
             return respuesta.choices[0].message
@@ -321,6 +332,8 @@ def completar(mensajes: list[dict], usar_tools: bool = True) -> ChatCompletionMe
         raise AsistenteNoDisponibleError(
             "El asistente está recibiendo muchas solicitudes. Intente de nuevo en un minuto."
         ) from ultimo_error
+    if ultimo_error is None or isinstance(ultimo_error, openai.APITimeoutError):
+        raise AsistenteNoDisponibleError(DEMORA) from ultimo_error
     raise AsistenteNoDisponibleError(
         "El asistente no está disponible en este momento. Intente de nuevo en unos minutos."
     ) from ultimo_error

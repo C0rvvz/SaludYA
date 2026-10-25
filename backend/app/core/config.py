@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # Versión de la Graph API de Meta. Cada versión dura unos dos años;
     # al vencer, Meta pasa las llamadas a la más antigua vigente.
     whatsapp_api_version: str = "v26.0"
+    # RNF-22: el PIN se genera y se envía en menos de 5 s. Lo máximo que se
+    # espera a Meta; si no responde a tiempo, se le avisa al paciente.
+    whatsapp_timeout_segundos: float = 4.0
 
     # --- JWT (HU-03: se emite tras validar el OTP correctamente) ---
     # SUPUESTO: la duración no está definida en ninguna fuente; 60
@@ -55,6 +58,18 @@ class Settings(BaseSettings):
     # aprueban (1x0000000000000000000000000000000AA). Vacía = sin
     # verificación: solo se permite en desarrollo (ver _llaves_obligatorias).
     turnstile_secret: str = ""
+
+    # --- Caché del catálogo público (RNF-20 y RNF-21, ver routers/catalogo.py) ---
+    # Segundos que se reutiliza una misma respuesta del catálogo y la búsqueda
+    # de horarios. 0 = sin caché (así corren las pruebas).
+    cache_catalogo_segundos: float = 2.0
+
+    # --- Conexiones a PostgreSQL (RNF-21, ver core/database.py) ---
+    # pool_size + max_overflow deben cubrir los 40 hilos de FastAPI. Con
+    # varios procesos (uvicorn --workers N), N x 40 no debe pasar de
+    # max_connections de PostgreSQL (100 por defecto).
+    db_pool_size: int = 20
+    db_max_overflow: int = 20
 
     # --- Cifrado de los datos médicos (RNF-23, ver core/cifrado.py) ---
     # Llave AES-256 (32 bytes en base64). Vacía = llave de desarrollo derivada
@@ -110,9 +125,12 @@ class Settings(BaseSettings):
     # Se usan solo si el anterior responde "alta demanda", límite de
     # solicitudes o no responde a tiempo. Vacío = sin respaldo.
     ia_modelos_respaldo: str = ""
-    # Las respuestas normales tardan 1-9 s. Por mensaje, se deja de
-    # probar modelos de respaldo tras 2x este valor en total.
-    ia_timeout_segundos: float = 15.0
+    # RNF-18: Eli responde cada mensaje del paciente en menos de 10 s. Este
+    # es el tiempo total por mensaje (todas las llamadas al modelo y los
+    # respaldos); si se acaba, se le avisa al paciente en vez de hacerlo esperar.
+    ia_presupuesto_segundos: float = 9.0
+    # Máximo para un solo intento con un modelo (dentro del presupuesto).
+    ia_timeout_segundos: float = 8.0
 
     @property
     def codigo_otp_en_pantalla(self) -> bool:

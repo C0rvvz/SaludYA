@@ -45,6 +45,7 @@ from app.schemas.auth import (
 from app.repositories import paciente_repository
 from app.services import auth_service, seguridad_service, sesion_service
 from app.services.exceptions import (
+    EnvioCodigoFallidoError,
     OtpExpiradoError,
     OtpIncorrectoError,
     OtpIntentosSuperadosError,
@@ -113,6 +114,8 @@ def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ReenvioMuyProntoError as e:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
+    except EnvioCodigoFallidoError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
     return EnviarOTPResponse(
         enviado=True,
@@ -176,6 +179,8 @@ def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ReenvioMuyProntoError as e:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
+    except EnvioCodigoFallidoError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
     # --- HU-04, criterio 4: informar que se generó un nuevo código ---
     return ReenviarOTPResponse(

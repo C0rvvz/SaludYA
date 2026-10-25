@@ -29,6 +29,7 @@ _URL_DESARROLLO = make_url(os.environ["DATABASE_URL"])
 _URL_PRUEBAS = _URL_DESARROLLO.set(database=f"{_URL_DESARROLLO.database}_test")
 os.environ["DATABASE_URL"] = _URL_PRUEBAS.render_as_string(hide_password=False)
 os.environ["TAREAS_PERIODICAS_ACTIVAS"] = "false"
+os.environ["CACHE_CATALOGO_SEGUNDOS"] = "0"  # cada prueba ve sus datos al instante (la caché se prueba aparte)
 os.environ["WHATSAPP_MODE"] = "mock"
 os.environ["IA_API_KEY"] = ""
 os.environ["TURNSTILE_SECRET"] = ""  # "No soy un robot" apagado: se prueba aparte (test_seguridad.py)
