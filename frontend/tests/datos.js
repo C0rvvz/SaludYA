@@ -30,6 +30,7 @@ export const PACIENTE = {
 export const TODOS_LOS_PERMISOS = [
   "asignar_prioridad",
   "confirmar_asistencia",
+  "gestionar_especialistas",
   "gestionar_usuarios",
   "lista_espera",
   "observaciones",

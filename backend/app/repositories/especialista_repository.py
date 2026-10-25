@@ -18,10 +18,11 @@ from app.models.especialista import Especialista, especialista_modalidades
 def listar_especialistas(
     db: Session, especialidad_id: uuid.UUID | None = None
 ) -> list[Especialista]:
+    """Los que atienden hoy en la red (activos): los inactivos no se ofrecen a los pacientes."""
     query = db.query(Especialista).options(
         joinedload(Especialista.especialidad),
         joinedload(Especialista.sedes),
-    )
+    ).filter(Especialista.activo.is_(True))
     # --- HU-09, criterios 3 y 4: filtrar por especialidad cuando se indique ---
     if especialidad_id is not None:
         query = query.filter(Especialista.especialidad_id == especialidad_id)

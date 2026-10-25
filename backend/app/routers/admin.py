@@ -27,6 +27,13 @@ Gestión de citas
 Auditoría
   GET   /admin/auditoria                  HU-80 a HU-85 (citas) y cambios a las cuentas del personal
 
+Especialistas e IPS simulada (RNF: base de datos de especialistas actualizada)
+  GET   /admin/especialistas                    todos, con su horario, y las actualizaciones de la IPS
+  POST  /admin/especialistas                    agregar uno con su horario semanal
+  PUT   /admin/especialistas/{id}/horario       cambiar su horario
+  PATCH /admin/especialistas/{id}/estado        activar o desactivar
+  POST  /admin/especialistas/sincronizar-ips    simular ahora la actualización de la IPS
+
 Seguridad (tipo SIEM / SOC)
   GET   /admin/seguridad?horas=24         eventos, alertas, sesiones activas y controles
   POST  /admin/seguridad/sesiones/{id}/cerrar   cerrar a distancia una sesión que no se reconoce
@@ -107,6 +114,14 @@ from app.schemas.admin import (
     RolOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
+from app.schemas.especialistas import (
+    CrearEspecialistaRequest,
+    EspecialistaAdminOut,
+    EspecialistasAdminOut,
+    EstadoEspecialistaRequest,
+    HorarioRequest,
+    SincronizacionIpsOut,
+)
 from app.schemas.seguridad import PanelSeguridadOut
 from app.schemas.lista_espera import (
     CancelarDesdeListaRequest,
@@ -137,6 +152,8 @@ from app.services import (
     lista_espera_service,
     citas_service,
     comprobante_service,
+    especialistas_service,
+    ips_simulada_service,
     personal_service,
     recordatorios_service,
     reportes_service,
@@ -155,6 +172,7 @@ from app.services.exceptions import (
     CuentaBloqueadaError,
     DisponibilidadNoEncontradaError,
     EnvioFallidoError,
+    EspecialistaInvalidoError,
     HorarioYaNoDisponibleError,
     ListaEsperaInvalidaError,
     PersonalInvalidoError,
@@ -624,6 +642,81 @@ def auditoria(
         db, cita_id=cita_id, paciente_id=paciente_id, acciones=[accion] if accion else None, categoria=categoria
     )
     return [_registro_out(r) for r in registros]
+
+
+# --- Especialistas e IPS simulada ---
+
+
+def _especialista_out(db: Session, especialista) -> EspecialistaAdminOut:
+    return EspecialistaAdminOut(**especialistas_service.datos(db, especialista))
+
+
+@router.get("/especialistas", response_model=EspecialistasAdminOut)
+def especialistas(
+    _: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)), db: Session = Depends(get_db)
+):
+    return EspecialistasAdminOut(
+        especialistas=especialistas_service.listar(db),
+        sincronizaciones=ips_simulada_service.historial(db),
+        proxima_automatica=ips_simulada_service.proxima_automatica(db),
+        dias_entre_actualizaciones=ips_simulada_service.CADA_DIAS,
+    )
+
+
+@router.post("/especialistas", response_model=EspecialistaAdminOut, status_code=status.HTTP_201_CREATED)
+def crear_especialista(
+    datos: CrearEspecialistaRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        especialista = especialistas_service.crear(
+            db, Actor.de_personal(admin), datos.tratamiento, datos.nombre, datos.especialidad_id,
+            datos.registro_medico, especialistas_service.turnos_desde(datos.turnos),
+        )
+    except EspecialistaInvalidoError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _especialista_out(db, especialista)
+
+
+@router.put("/especialistas/{especialista_id}/horario", response_model=EspecialistaAdminOut)
+def cambiar_horario_especialista(
+    especialista_id: uuid.UUID,
+    datos: HorarioRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        especialista = especialistas_service.cambiar_horario(
+            db, Actor.de_personal(admin), especialista_id, especialistas_service.turnos_desde(datos.turnos)
+        )
+    except EspecialistaInvalidoError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _especialista_out(db, especialista)
+
+
+@router.patch("/especialistas/{especialista_id}/estado", response_model=EspecialistaAdminOut)
+def cambiar_estado_especialista(
+    especialista_id: uuid.UUID,
+    datos: EstadoEspecialistaRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        especialista = especialistas_service.cambiar_estado(db, Actor.de_personal(admin), especialista_id, datos.activo)
+    except EspecialistaInvalidoError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _especialista_out(db, especialista)
+
+
+@router.post("/especialistas/sincronizar-ips", response_model=SincronizacionIpsOut)
+def sincronizar_ips(
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)), db: Session = Depends(get_db)
+):
+    """Simula ahora la actualización que la IPS manda cada 10 días."""
+    return ips_simulada_service.sincronizar(db, admin)
 
 
 # --- Seguridad (tipo SIEM / SOC) ---

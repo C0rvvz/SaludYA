@@ -11,7 +11,7 @@ from app.models.paciente import Paciente
 from app.models.codigo_otp import CodigoOTP
 from app.models.especialidad import Especialidad
 from app.models.sede import Sede
-from app.models.especialista import Especialista, especialista_sedes, especialista_modalidades
+from app.models.especialista import Especialista, TurnoEspecialista, especialista_sedes, especialista_modalidades
 from app.models.disponibilidad import Disponibilidad
 from app.models.cita import Cita
 from app.models.personal import Personal
@@ -22,6 +22,7 @@ from app.models.lista_espera import OfertaEspera, SolicitudEspera, solicitud_esp
 from app.models.solicitud_cita import SolicitudCita
 from app.models.sesion import Sesion
 from app.models.evento_seguridad import EventoSeguridad
+from app.models.sincronizacion_ips import SincronizacionIps
 
 __all__ = [
     "Eps",
@@ -30,6 +31,7 @@ __all__ = [
     "Especialidad",
     "Sede",
     "Especialista",
+    "TurnoEspecialista",
     "especialista_sedes",
     "especialista_modalidades",
     "Disponibilidad",
@@ -44,4 +46,5 @@ __all__ = [
     "SolicitudCita",
     "Sesion",
     "EventoSeguridad",
+    "SincronizacionIps",
 ]

@@ -11,7 +11,8 @@ Mínimo privilegio: cada rol tiene solo lo que su función necesita.
   - Call center: recordatorios, mensajes programados y llamadas; confirmar asistencia.
   - Agendamiento: confirmar asistencia, reprogramar, cancelar y la lista de espera.
   - Coordinador médico: atención, prioridad médica, peticiones y reportes.
-  - Administrador: todo, incluidas la auditoría, la seguridad y las cuentas del personal.
+  - Administrador: todo, incluidos los especialistas (y la IPS simulada), la
+    auditoría, la seguridad y las cuentas del personal.
 Todos ven las citas y dejan observaciones.
 """
 
@@ -33,6 +34,7 @@ class Permiso(str, enum.Enum):
     VER_REPORTES = "ver_reportes"  # HU-44, HU-48 a HU-52, HU-68 a HU-75 (Resumen y Reportes)
     VER_AUDITORIA = "ver_auditoria"  # HU-80 a HU-85
     SEGURIDAD = "seguridad"  # panel "Seguridad": eventos, alertas y cerrar sesiones a distancia
+    GESTIONAR_ESPECIALISTAS = "gestionar_especialistas"  # médicos, sus horarios y la actualización de la IPS
     GESTIONAR_USUARIOS = "gestionar_usuarios"
 
 

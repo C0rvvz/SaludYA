@@ -18,6 +18,7 @@ import AdminCitaDetallePage from "./pages/admin/AdminCitaDetallePage";
 import AdminAuditoriaPage from "./pages/admin/AdminAuditoriaPage";
 import AdminUsuariosPage from "./pages/admin/AdminUsuariosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminEspecialistasPage from "./pages/admin/AdminEspecialistasPage";
 import AdminSeguridadPage from "./pages/admin/AdminSeguridadPage";
 import AdminReportesPage from "./pages/admin/AdminReportesPage";
 import AdminRecordatoriosPage from "./pages/admin/AdminRecordatoriosPage";
@@ -125,6 +126,14 @@ export default function App() {
                 element={
                   <RutaPersonal permiso="revisar_solicitudes">
                     <AdminRevisionPage />
+                  </RutaPersonal>
+                }
+              />
+              <Route
+                path="especialistas"
+                element={
+                  <RutaPersonal permiso="gestionar_especialistas">
+                    <AdminEspecialistasPage />
                   </RutaPersonal>
                 }
               />

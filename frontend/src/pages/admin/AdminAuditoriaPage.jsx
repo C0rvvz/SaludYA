@@ -50,6 +50,14 @@ const ACCIONES_CUENTAS = {
   cambiar_nombre_cuenta: "Cambiar nombre de la cuenta",
 };
 
+const ACCIONES_ESPECIALISTAS = {
+  crear_especialista: "Agregar especialista",
+  editar_especialista: "Cambiar horario",
+  desactivar_especialista: "Desactivar especialista",
+  activar_especialista: "Activar especialista",
+  sincronizar_ips: "Actualización de la IPS",
+};
+
 const CATEGORIAS = [
   ["", "Todos"],
   ["citas", "Citas y pacientes"],
@@ -156,6 +164,15 @@ export default function AdminAuditoriaPage() {
             {categoria !== "cuentas" && (
               <optgroup label="Citas y pacientes">
                 {Object.entries(ACCIONES_CITAS).map(([valor, nombre]) => (
+                  <option key={valor} value={valor}>
+                    {nombre}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {categoria !== "cuentas" && (
+              <optgroup label="Especialistas e IPS">
+                {Object.entries(ACCIONES_ESPECIALISTAS).map(([valor, nombre]) => (
                   <option key={valor} value={valor}>
                     {nombre}
                   </option>

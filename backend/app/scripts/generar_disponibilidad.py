@@ -1,10 +1,10 @@
 """
-Genera franjas de disponibilidad futuras para los especialistas que ya
-existen en la base de datos (ver services/disponibilidad_service.py).
+Genera franjas de disponibilidad futuras para los especialistas activos,
+a partir de su horario semanal (ver services/disponibilidad_service.py).
 
-La API ya genera una tanda nueva sola cuando se acaban las franjas
-futuras (tarea de fondo en tareas_periodicas.py); este script sirve para
-generarlas a mano, por ejemplo más días de una vez.
+La API ya mantiene sola la agenda de los próximos 10 días hábiles (tarea
+de fondo en tareas_periodicas.py); este script sirve para generarla a
+mano, por ejemplo más días de una vez.
 
 Uso, dentro del contenedor:
 

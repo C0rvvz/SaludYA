@@ -133,3 +133,7 @@ class DemasiadosIntentosError(Exception):
 
 class SesionNoCerrableError(Exception):
     """El administrador intentó cerrar una sesión que ya se cerró, o la suya propia (panel "Seguridad")."""
+
+
+class EspecialistaInvalidoError(Exception):
+    """Datos de un especialista o de su horario que no se pueden guardar (p. ej. turnos que se cruzan)."""

@@ -6,8 +6,9 @@ Tareas de fondo que corren dentro de la API (ver main.py):
 - HU-64 / HU-65: enviar los recordatorios programados que llegaron a su hora.
 - HU-31: vencer los cupos ofrecidos sin respuesta y ofrecer cupos a la
   lista de espera.
-- Generar otra tanda de franjas de disponibilidad cuando se acaban las
-  futuras (ver disponibilidad_service.py).
+- Mantener la agenda de los próximos 10 días hábiles a partir del horario
+  de cada especialista, y cada 10 días la actualización (simulada) de la
+  IPS (ver disponibilidad_service.py e ips_simulada_service.py).
 
 Cada pasada usa su propia sesión de base de datos. Un error en una
 tarea no detiene la otra ni las pasadas siguientes.
@@ -22,6 +23,7 @@ from app.services import (
     centro_recordatorios_service,
     citas_service,
     disponibilidad_service,
+    ips_simulada_service,
     lista_espera_service,
     recordatorios_service,
 )
@@ -62,8 +64,11 @@ def _cierre_de_citas() -> None:
 def _reposicion_de_disponibilidad() -> None:
     db = SessionLocal()
     try:
-        tanda = disponibilidad_service.reponer_si_se_agoto(db)
-        if tanda and tanda.creadas:
+        sincronizacion = ips_simulada_service.sincronizar_si_corresponde(db)
+        if sincronizacion:
+            logger.info("Actualización de la IPS: %s", sincronizacion.detalle)
+        tanda = disponibilidad_service.generar_franjas(db)
+        if tanda.creadas:
             logger.info(
                 "Disponibilidad repuesta: %s franjas, del %s al %s",
                 tanda.creadas, tanda.desde, tanda.hasta,

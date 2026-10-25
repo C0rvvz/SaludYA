@@ -31,6 +31,7 @@ const QUE_PUEDE = [
   ["revisar_solicitudes", "Revisar y decidir las peticiones"],
   ["registrar_atencion", "Registrar si fue atendido o no asistió"],
   ["ver_reportes", "Resumen y reportes"],
+  ["gestionar_especialistas", "Especialistas, sus horarios y la IPS"],
   ["ver_auditoria", "Auditoría"],
   ["seguridad", "Seguridad: accesos, alertas y cerrar sesiones"],
   ["gestionar_usuarios", "Crear y editar cuentas del personal"],

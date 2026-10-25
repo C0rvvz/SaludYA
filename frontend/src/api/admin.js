@@ -86,6 +86,27 @@ export function listarAuditoria(filtros = {}) {
   return conPersonal(conFiltros("/admin/auditoria", filtros));
 }
 
+// --- Especialistas e IPS simulada (solo administradores) ---
+export function listarEspecialistasAdmin() {
+  return conPersonal("/admin/especialistas");
+}
+
+export function crearEspecialista(datos) {
+  return conPersonal("/admin/especialistas", { method: "POST", body: datos });
+}
+
+export function cambiarHorarioEspecialista(id, turnos) {
+  return conPersonal(`/admin/especialistas/${id}/horario`, { method: "PUT", body: { turnos } });
+}
+
+export function cambiarEstadoEspecialista(id, activo) {
+  return conPersonal(`/admin/especialistas/${id}/estado`, { method: "PATCH", body: { activo } });
+}
+
+export function sincronizarIps() {
+  return conPersonal("/admin/especialistas/sincronizar-ips", { method: "POST" });
+}
+
 // --- Seguridad (solo administradores): eventos, alertas y sesiones activas ---
 export function obtenerSeguridad(horas) {
   return conPersonal(`/admin/seguridad?horas=${horas}`);

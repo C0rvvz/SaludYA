@@ -1262,6 +1262,91 @@
   }
 }
 
+/* --- Especialistas --- */
+.campos-especialista {
+  grid-template-columns: minmax(110px, 0.6fr) minmax(220px, 2fr) repeat(2, minmax(180px, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .campos-especialista {
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  }
+}
+
+.editor-turnos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editor-turnos__titulo {
+  margin: 4px 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.card .editor-turnos .tabla-contenedor {
+  margin: 0; /* dentro del formulario: con su borde, no pegado a los bordes de la tarjeta */
+  border-width: 1px;
+  border-radius: 10px;
+}
+
+.tabla-turnos td {
+  padding: 8px 10px;
+}
+
+.tabla-turnos select,
+.tabla-turnos input {
+  width: 100%;
+  min-width: 96px;
+}
+
+.editor-turnos__agregar {
+  align-self: flex-start;
+}
+
+.filtros-admin--especialistas {
+  grid-template-columns: minmax(240px, 420px);
+}
+
+.horario-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.sincronizaciones {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.sincronizaciones li {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.35fr) 1fr;
+  gap: 4px 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--admin-separador);
+}
+
+.sincronizaciones li:first-child {
+  border-top: 0;
+}
+
+@media (max-width: 700px) {
+  .sincronizaciones li {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Seguridad --- */
 .filtros-admin--seguridad {
   grid-template-columns: minmax(240px, 2fr) minmax(200px, 1fr);

@@ -5,7 +5,7 @@ segundo plano, generación de horarios y scripts de administración.
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 import jwt
 import pytest
@@ -13,7 +13,7 @@ import pytest
 from app.core import database, security
 from app.core.config import settings
 from app.main import app, lifespan
-from app.models import Personal
+from app.models import Especialista, Personal
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.scripts import crear_personal, generar_disponibilidad
 from app.services import disponibilidad_service, tareas_periodicas
@@ -136,25 +136,27 @@ def test_sesion_vencida_y_token_del_tipo_equivocado(cliente, fabrica):
 
 # --- Generación de horarios ---
 
-def test_generar_franjas_y_reponer_solo_si_se_agotaron(db):
-    # La migración ya sembró los primeros días hábiles: con 15 se crean días nuevos.
-    tanda = disponibilidad_service.generar_franjas(db, dias=15)
+def test_la_agenda_sale_del_horario_de_cada_especialista(db):
+    tanda = disponibilidad_service.generar_franjas(db)
     assert tanda.creadas > 0
-    assert tanda.desde > hoy_en_colombia()
-    assert tanda.desde.weekday() < 5  # solo días hábiles
-    assert tanda.hasta.weekday() < 5
-    de_las_8 = db.query(Disponibilidad).filter(
-        Disponibilidad.fecha == tanda.hasta, Disponibilidad.hora == disponibilidad_service.HORAS_DEL_DIA[0]
-    ).first()
-    assert de_las_8.estado == EstadoDisponibilidad.RESERVADO  # demuestra HU-10, criterio 3
+    assert tanda.desde == hoy_en_colombia() + timedelta(days=1)
+    assert tanda.hasta.weekday() < 5  # termina en el décimo día hábil
 
-    otra = disponibilidad_service.generar_franjas(db, dias=15)
+    futuras = db.query(Disponibilidad).filter(Disponibilidad.fecha >= tanda.desde).all()
+    # Nadie queda a la misma hora en dos sedes o modalidades.
+    horas = [(f.especialista_id, f.fecha, f.hora) for f in futuras]
+    assert len(horas) == len(set(horas))
+    # Las horas salen de los turnos: el Dr. Carlos Ramírez atiende los lunes de 7:00 a 12:00, citas de 30 min.
+    carlos = db.query(Especialista).filter_by(nombre="Dr. Carlos Ramírez").one()
+    lunes = next(f.fecha for f in futuras if f.fecha.weekday() == 0)
+    del_lunes = sorted(f.hora for f in futuras if f.especialista_id == carlos.id and f.fecha == lunes)
+    assert del_lunes == [time(7, 0), time(7, 30)] + [time(h, m) for h in range(8, 12) for m in (0, 30)]
+    # Una parte ya aparece ocupada por otros pacientes de la IPS (HU-10, criterio 3), la mayoría libre.
+    ocupadas = sum(1 for f in futuras if f.estado == EstadoDisponibilidad.RESERVADO)
+    assert 0 < ocupadas < len(futuras) / 2
+
+    otra = disponibilidad_service.generar_franjas(db)
     assert otra.creadas == 0  # no se duplican
-    assert otra.omitidas == tanda.creadas + tanda.omitidas
-
-    assert disponibilidad_service.reponer_si_se_agoto(db) is None  # todavía hay
-    db.query(Disponibilidad).filter(Disponibilidad.fecha > hoy_en_colombia()).delete()
-    assert disponibilidad_service.reponer_si_se_agoto(db).creadas > 0
 
 
 # --- Tareas en segundo plano: usan su propia sesión; aquí, la de la prueba ---
@@ -182,7 +184,8 @@ def test_cada_tarea_corre_su_servicio(sesion_de_la_prueba, fabrica, monkeypatch)
         (tareas_periodicas.recordatorios_service, "enviar_recordatorios_pendientes"): 1,
         (tareas_periodicas.centro_recordatorios_service, "enviar_programados_vencidos"): 1,
         (tareas_periodicas.citas_service, "cerrar_citas_pasadas"): (1, 1),
-        (tareas_periodicas.disponibilidad_service, "reponer_si_se_agoto"):
+        (tareas_periodicas.ips_simulada_service, "sincronizar_si_corresponde"): None,
+        (tareas_periodicas.disponibilidad_service, "generar_franjas"):
             disponibilidad_service.Tanda(3, 0, hoy_en_colombia(), hoy_en_colombia()),
         (tareas_periodicas.lista_espera_service, "vencer_ofertas"): 1,
         (tareas_periodicas.lista_espera_service, "asignar_cupos"): 1,

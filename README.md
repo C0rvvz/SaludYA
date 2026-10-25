@@ -96,7 +96,7 @@ docker compose logs -f api
 
 ### Horarios disponibles
 
-La API genera franjas de disponibilidad futuras sola cuando se acaban. Para generar más días a mano:
+Cada especialista tiene un horario semanal (turnos por día, sede y modalidad) y la API mantiene sola su agenda de los próximos 10 días hábiles. Cada 10 días llega una actualización simulada de la IPS (especialistas nuevos y retiros); el administrador también la puede pedir y agregar especialistas en **Personal › Especialistas**. Para generar más días a mano:
 
 ```bash
 docker compose exec api python -m app.scripts.generar_disponibilidad --dias 10
