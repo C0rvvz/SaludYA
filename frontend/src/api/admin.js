@@ -103,6 +103,23 @@ export function cambiarEstadoEspecialista(id, activo) {
   return conPersonal(`/admin/especialistas/${id}/estado`, { method: "PATCH", body: { activo } });
 }
 
+// Sedes (RF-89)
+export function listarSedesAdmin() {
+  return conPersonal("/admin/sedes");
+}
+
+export function crearSede(datos) {
+  return conPersonal("/admin/sedes", { method: "POST", body: datos });
+}
+
+export function editarSede(id, datos) {
+  return conPersonal(`/admin/sedes/${id}`, { method: "PUT", body: datos });
+}
+
+export function cambiarEstadoSede(id, activa) {
+  return conPersonal(`/admin/sedes/${id}/estado`, { method: "PATCH", body: { activa } });
+}
+
 export function sincronizarIps() {
   return conPersonal("/admin/especialistas/sincronizar-ips", { method: "POST" });
 }

@@ -33,6 +33,10 @@ Especialistas e IPS simulada (RNF: base de datos de especialistas actualizada)
   PUT   /admin/especialistas/{id}/horario       cambiar su horario
   PATCH /admin/especialistas/{id}/estado        activar o desactivar
   POST  /admin/especialistas/sincronizar-ips    simular ahora la actualización de la IPS
+  GET   /admin/sedes                            RF-89: todas, con quién atiende y sus citas próximas
+  POST  /admin/sedes                            crear
+  PUT   /admin/sedes/{id}                       editar nombre, ciudad y dirección
+  PATCH /admin/sedes/{id}/estado                cerrar o volver a abrir
 
 Seguridad (tipo SIEM / SOC)
   GET   /admin/seguridad?horas=24         eventos, alertas, sesiones activas y controles
@@ -119,7 +123,10 @@ from app.schemas.especialistas import (
     EspecialistaAdminOut,
     EspecialistasAdminOut,
     EstadoEspecialistaRequest,
+    EstadoSedeRequest,
     HorarioRequest,
+    SedeAdminOut,
+    SedeRequest,
     SincronizacionIpsOut,
 )
 from app.schemas.seguridad import PanelSeguridadOut
@@ -154,6 +161,7 @@ from app.services import (
     comprobante_service,
     especialistas_service,
     ips_simulada_service,
+    sedes_service,
     personal_service,
     recordatorios_service,
     reportes_service,
@@ -179,6 +187,7 @@ from app.services.exceptions import (
     ProgramacionInvalidaError,
     ReprogramacionInvalidaError,
     ResultadoNoRegistrableError,
+    SedeInvalidaError,
     SesionNoCerrableError,
     SolicitudInvalidaError,
 )
@@ -717,6 +726,61 @@ def sincronizar_ips(
 ):
     """Simula ahora la actualización que la IPS manda cada 10 días."""
     return ips_simulada_service.sincronizar(db, admin)
+
+
+# --- Sedes (RF-89) ---
+
+
+def _sede_out(db: Session, sede) -> SedeAdminOut:
+    return SedeAdminOut(**sedes_service.datos(db, sede))
+
+
+@router.get("/sedes", response_model=list[SedeAdminOut])
+def sedes(_: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)), db: Session = Depends(get_db)):
+    return sedes_service.listar(db)
+
+
+@router.post("/sedes", response_model=SedeAdminOut, status_code=status.HTTP_201_CREATED)
+def crear_sede(
+    datos: SedeRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        sede = sedes_service.crear(db, Actor.de_personal(admin), datos.nombre, datos.ciudad, datos.direccion)
+    except SedeInvalidaError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _sede_out(db, sede)
+
+
+@router.put("/sedes/{sede_id}", response_model=SedeAdminOut)
+def editar_sede(
+    sede_id: uuid.UUID,
+    datos: SedeRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        sede = sedes_service.editar(db, Actor.de_personal(admin), sede_id, datos.nombre, datos.ciudad, datos.direccion)
+    except SedeInvalidaError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _sede_out(db, sede)
+
+
+@router.patch("/sedes/{sede_id}/estado", response_model=SedeAdminOut)
+def cambiar_estado_sede(
+    sede_id: uuid.UUID,
+    datos: EstadoSedeRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        sede = sedes_service.cambiar_estado(db, Actor.de_personal(admin), sede_id, datos.activa)
+    except SedeInvalidaError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _sede_out(db, sede)
 
 
 # --- Seguridad (tipo SIEM / SOC) ---

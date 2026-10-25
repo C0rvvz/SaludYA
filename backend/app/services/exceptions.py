@@ -141,3 +141,7 @@ class EspecialistaInvalidoError(Exception):
 
 class EnvioCodigoFallidoError(Exception):
     """El código de verificación no se pudo enviar por WhatsApp (RNF-22)."""
+
+
+class SedeInvalidaError(Exception):
+    """Datos de una sede que no se pueden guardar, o una sede que todavía tiene turnos (RF-89)."""

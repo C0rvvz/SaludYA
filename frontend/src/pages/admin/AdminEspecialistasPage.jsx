@@ -9,6 +9,7 @@ import {
 import { listarEspecialidades, listarSedes } from "../../api/catalogo";
 import { BotonIcono, IconoBuscar, IconoEditar, IconoQuitar } from "../../components/admin/IconosAdmin";
 import { CabezaTarjeta } from "../../components/admin/Reportes";
+import SedesDeLaRed from "../../components/admin/SedesDeLaRed";
 import FotoProfesional from "../../components/agendar/FotoProfesional";
 import { formatearFechaHora, formatearSoloFecha } from "../../utils/formato";
 import { DIAS, DURACIONES, ORIGEN_ESPECIALISTA, origenSincronizacion, resumenHorario } from "../../utils/especialistas";
@@ -24,6 +25,7 @@ import { DIAS, DURACIONES, ORIGEN_ESPECIALISTA, origenSincronizacion, resumenHor
  *     turnos de un día no se pueden cruzar: nadie está en dos sedes a la vez.
  *   - Cambiar su horario, desactivarlo o activarlo. Las citas ya agendadas
  *     siempre se conservan.
+ *   - Las sedes de la red (RF-89), al final: ver SedesDeLaRed.
  */
 
 const ESTADOS = [
@@ -314,15 +316,22 @@ export default function AdminEspecialistasPage() {
     []
   );
 
+  // Las sedes abiertas: las que se pueden usar en un horario.
+  const cargarSedes = useCallback(
+    () =>
+      listarSedes()
+        .then(setSedes)
+        .catch((err) => setError(err.message)),
+    []
+  );
+
   useEffect(() => {
     cargar();
-    Promise.all([listarEspecialidades(), listarSedes()])
-      .then(([e, s]) => {
-        setEspecialidades(e);
-        setSedes(s);
-      })
+    cargarSedes();
+    listarEspecialidades()
+      .then(setEspecialidades)
       .catch((err) => setError(err.message));
-  }, [cargar]);
+  }, [cargar, cargarSedes]);
 
   async function ejecutar(accion, mensaje) {
     setOcupado(true);
@@ -581,6 +590,13 @@ export default function AdminEspecialistasPage() {
         </table>
         {datos && visibles.length === 0 && <p className="tabla-vacia">No hay especialistas con esos filtros.</p>}
       </div>
+
+      <SedesDeLaRed
+        onCambio={() => {
+          cargarSedes();
+          cargar();
+        }}
+      />
     </>
   );
 }

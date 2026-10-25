@@ -93,7 +93,7 @@ def unirse(
     especialidad = especialidad_repository.obtener_por_id(db, especialidad_id)
     if especialidad is None:
         raise ListaEsperaInvalidaError("No existe esa especialidad.")
-    sedes = sede_repository.por_ids(db, set(sede_ids))
+    sedes = [s for s in sede_repository.por_ids(db, set(sede_ids)) if s.activa]
     if not sedes or len(sedes) != len(set(sede_ids)):
         raise ListaEsperaInvalidaError("Elija al menos una sede.")
     if repo.activa_de(db, paciente.id, especialidad_id):

@@ -11,3 +11,4 @@ class SedeOut(BaseModel):
     id: uuid.UUID
     nombre: str
     ciudad: str
+    direccion: str | None = None  # "Cómo llegar" la usa cuando existe

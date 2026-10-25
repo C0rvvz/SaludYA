@@ -161,3 +161,48 @@ def test_la_actualizacion_automatica_es_cada_10_dias(db):
     automatica = ips_simulada_service.sincronizar_si_corresponde(db)
     assert automatica is not None and automatica.origen == "automatica" and automatica.solicitada_por is None
     assert db.query(SincronizacionIps).count() == 2
+
+
+# --- Sedes (RF-89) ---
+
+def test_crear_editar_y_cerrar_una_sede(cliente, fabrica, catalogo, db):
+    admin = encabezado(fabrica.personal())
+    r = cliente.post("/admin/sedes", headers=admin, json={"nombre": "Sede Bello", "ciudad": "Bello", "direccion": "Cl. 50 # 49-20"})
+    assert r.status_code == 201, r.text
+    bello = r.json()
+    assert (bello["activa"], bello["especialistas"], bello["citas_proximas"]) == (True, [], 0)
+    assert cliente.post("/admin/sedes", headers=admin, json={"nombre": "sede bello", "ciudad": "Bello"}).status_code == 400
+
+    publica = next(s for s in cliente.get("/sedes").json() if s["id"] == bello["id"])
+    assert publica["direccion"] == "Cl. 50 # 49-20"  # "Cómo llegar" usa la dirección exacta
+
+    r = cliente.put(f"/admin/sedes/{bello['id']}", headers=admin, json={"nombre": "Sede Bello Centro", "ciudad": "Bello"})
+    assert (r.json()["nombre"], r.json()["direccion"]) == ("Sede Bello Centro", None)
+
+    # Con un especialista que atiende allí no se puede cerrar: primero se le cambia el horario.
+    nueva = cliente.post("/admin/especialistas", headers=admin, json=_nuevo(
+        catalogo, turnos=[_turno(0, bello["id"], "07:00", "09:00")]
+    )).json()
+    r = cliente.patch(f"/admin/sedes/{bello['id']}/estado", headers=admin, json={"activa": False})
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Antes de cerrar Sede Bello Centro, cambie el horario de: Dra. Prueba Uno."
+
+    cliente.put(f"/admin/especialistas/{nueva['id']}/horario", headers=admin,
+                json={"turnos": [_turno(0, catalogo[0]["Sede Poblado"], "07:00", "09:00")]})
+    r = cliente.patch(f"/admin/sedes/{bello['id']}/estado", headers=admin, json={"activa": False})
+    assert r.status_code == 200 and r.json()["activa"] is False
+    assert bello["id"] not in [s["id"] for s in cliente.get("/sedes").json()]  # ya no se ofrece
+    # Tampoco se puede usar en un horario.
+    cerrada = cliente.put(f"/admin/especialistas/{nueva['id']}/horario", headers=admin,
+                          json={"turnos": [_turno(1, bello["id"], "07:00", "09:00")]})
+    assert cerrada.status_code == 400 and "cerrada" in cerrada.json()["detail"]
+
+    acciones = [r["accion"] for r in cliente.get("/admin/auditoria", headers=admin).json()]
+    assert {"crear_sede", "editar_sede", "desactivar_sede"} <= set(acciones)
+    assert cliente.patch(f"/admin/sedes/{bello['id']}/estado", headers=admin, json={"activa": True}).json()["activa"]
+
+
+def test_solo_el_administrador_gestiona_sedes(cliente, fabrica):
+    coordinador = encabezado(fabrica.personal(RolPersonal.COORDINADOR_MEDICO))
+    assert cliente.get("/admin/sedes", headers=coordinador).status_code == 403
+    assert cliente.post("/admin/sedes", headers=coordinador, json={"nombre": "Sede X", "ciudad": "Y"}).status_code == 403

@@ -367,6 +367,13 @@
   overflow-wrap: anywhere;
 }
 
+/* La dirección de la sede, debajo de su nombre */
+.detalle-mi-cita__direccion {
+  display: block;
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
 .detalle-mi-cita__nota {
   padding: 14px 18px;
   border-radius: 14px;

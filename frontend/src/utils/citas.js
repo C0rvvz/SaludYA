@@ -55,7 +55,10 @@ export const ESTADO_CORTO = {
  * dirección: se busca por el barrio o municipio ("Poblado, Medellín").
  */
 export function enlaceComoLlegar(sede) {
-  const lugar = `${sede.nombre.replace(/^Sede\s+/i, "")}, ${sede.ciudad}`;
+  // Con la dirección exacta de la sede (si el personal la registró), el mapa llega a la puerta.
+  const lugar = sede.direccion
+    ? `${sede.direccion}, ${sede.ciudad}`
+    : `${sede.nombre.replace(/^Sede\s+/i, "")}, ${sede.ciudad}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
 }
 

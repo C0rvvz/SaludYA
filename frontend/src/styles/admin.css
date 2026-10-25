@@ -1347,6 +1347,10 @@
   }
 }
 
+.formulario-sede {
+  margin-bottom: 4px;
+}
+
 /* --- Seguridad --- */
 .filtros-admin--seguridad {
   grid-template-columns: minmax(240px, 2fr) minmax(200px, 1fr);

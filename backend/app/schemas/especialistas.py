@@ -57,6 +57,28 @@ class EspecialistaAdminOut(BaseModel):
     citas_proximas: int  # citas vigentes de hoy en adelante
 
 
+class SedeRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nombre: str = Field(min_length=3, max_length=100)
+    ciudad: str = Field(min_length=2, max_length=80)
+    direccion: str | None = Field(default=None, max_length=150)
+
+
+class EstadoSedeRequest(BaseModel):
+    activa: bool
+
+
+class SedeAdminOut(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    ciudad: str
+    direccion: str | None
+    activa: bool
+    especialistas: list[str]  # activos con turnos en esta sede
+    citas_proximas: int
+
+
 class SincronizacionIpsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

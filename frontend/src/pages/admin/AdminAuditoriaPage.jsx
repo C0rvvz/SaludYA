@@ -56,6 +56,10 @@ const ACCIONES_ESPECIALISTAS = {
   desactivar_especialista: "Desactivar especialista",
   activar_especialista: "Activar especialista",
   sincronizar_ips: "Actualización de la IPS",
+  crear_sede: "Agregar sede",
+  editar_sede: "Editar sede",
+  desactivar_sede: "Cerrar sede",
+  activar_sede: "Abrir sede",
 };
 
 const CATEGORIAS = [
@@ -171,7 +175,7 @@ export default function AdminAuditoriaPage() {
               </optgroup>
             )}
             {categoria !== "cuentas" && (
-              <optgroup label="Especialistas e IPS">
+              <optgroup label="Especialistas, sedes e IPS">
                 {Object.entries(ACCIONES_ESPECIALISTAS).map(([valor, nombre]) => (
                   <option key={valor} value={valor}>
                     {nombre}

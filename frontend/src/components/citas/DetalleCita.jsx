@@ -50,6 +50,7 @@ export default function DetalleCita({ cita, ocupado, actualizando, onAccion, onA
           <div>
             <Fila etiqueta="Sede">
               {cita.sede.nombre} · {cita.sede.ciudad}
+              {cita.sede.direccion && <span className="detalle-mi-cita__direccion">{cita.sede.direccion}</span>}
             </Fila>
             <Fila etiqueta="Modalidad">{capitalizar(cita.modalidad)}</Fila>
           </div>

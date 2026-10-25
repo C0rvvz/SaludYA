@@ -130,3 +130,46 @@ describe("Especialistas", () => {
     expect(llamadasA(llamadas, "PATCH", "/admin/especialistas/esp-a/estado")[0].cuerpo).toEqual({ activo: false });
   });
 });
+
+describe("Sedes de la red", () => {
+  const POBLADO = {
+    id: "sede-1", nombre: "Sede Poblado", ciudad: "Medellín", direccion: null, activa: true,
+    especialistas: ["Dr. Carlos Ramírez"], citas_proximas: 4,
+  };
+
+  it("agrega, edita y no deja cerrar una sede donde alguien atiende", async () => {
+    const llamadas = backendFalso({
+      "GET /admin/especialistas": panel(),
+      "GET /especialidades": [ESPECIALIDAD],
+      "GET /sedes": [SEDE],
+      "GET /admin/sedes": [POBLADO],
+      "POST /admin/sedes": ({ cuerpo }) => ({ ...POBLADO, id: "sede-9", ...cuerpo, especialistas: [], citas_proximas: 0 }),
+      "PUT /admin/sedes/:id": ({ cuerpo }) => ({ ...POBLADO, ...cuerpo }),
+      "PATCH /admin/sedes/:id/estado": error(400, "Antes de cerrar Sede Poblado, cambie el horario de: Dr. Carlos Ramírez."),
+    });
+    const usuario = abrir("/admin/especialistas", { personal: true });
+    const sedes = (await screen.findByRole("heading", { name: "Sedes de la red" })).closest("section");
+    expect(await within(sedes).findByText("Dr. Carlos Ramírez")).toBeInTheDocument();
+    expect(within(sedes).getByText("Sin dirección")).toBeInTheDocument();
+
+    await usuario.click(within(sedes).getByRole("button", { name: "Agregar sede" }));
+    const nueva = within(sedes).getByRole("form", { name: "Nueva sede" });
+    await usuario.type(within(nueva).getByLabelText("Nombre"), "Sede Bello");
+    await usuario.type(within(nueva).getByLabelText("Ciudad"), "Bello");
+    await usuario.click(within(nueva).getByRole("button", { name: "Guardar sede" }));
+    expect(await esperarTexto("Se agregó Sede Bello.")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "POST", "/admin/sedes")[0].cuerpo).toEqual({ nombre: "Sede Bello", ciudad: "Bello", direccion: null });
+
+    await usuario.click(within(sedes).getByRole("button", { name: "Editar Sede Poblado" }));
+    const edicion = within(sedes).getByRole("form", { name: "Editar Sede Poblado" });
+    await usuario.type(within(edicion).getByLabelText("Dirección (opcional)"), "Cra. 43A # 7-50");
+    await usuario.click(within(edicion).getByRole("button", { name: "Guardar sede" }));
+    expect(await esperarTexto("Sede Poblado actualizada.")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "PUT", "/admin/sedes/sede-1")[0].cuerpo.direccion).toBe("Cra. 43A # 7-50");
+
+    await usuario.click(within(sedes).getByRole("button", { name: "Cerrar Sede Poblado" }));
+    expect(within(sedes).getByText(/Sus 4 citas ya agendadas se conservan/)).toBeInTheDocument();
+    await usuario.click(within(sedes).getByRole("button", { name: "Sí, cerrar la sede" }));
+    expect(await esperarTexto(/cambie el horario de: Dr\. Carlos Ramírez/)).toBeInTheDocument();
+  });
+});

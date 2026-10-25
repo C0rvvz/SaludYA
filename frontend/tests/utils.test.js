@@ -196,5 +196,9 @@ describe("mis citas", () => {
     expect(enlaceComoLlegar({ nombre: "Sede Envigado", ciudad: "Envigado" })).toBe(
       "https://www.google.com/maps/search/?api=1&query=Envigado%2C%20Envigado"
     );
+    // Con la dirección registrada, el mapa llega a la puerta.
+    expect(enlaceComoLlegar({ nombre: "Sede Bello", ciudad: "Bello", direccion: "Cl. 50 # 49-20" })).toBe(
+      "https://www.google.com/maps/search/?api=1&query=Cl.%2050%20%23%2049-20%2C%20Bello"
+    );
   });
 });

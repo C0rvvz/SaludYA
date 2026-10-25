@@ -75,7 +75,7 @@ def _llegan_nuevos(db: Session, rng: random.Random, cuantos: int) -> list[Especi
     existentes = {nombre.lower() for (nombre,) in db.query(Especialista.nombre).all()}
     libres = [(t, n) for t, n in NOMBRES if f"{t} {n}".lower() not in existentes]
     especialidades = db.query(Especialidad).order_by(Especialidad.nombre).all()
-    sedes = db.query(Sede).order_by(Sede.nombre).all()
+    sedes = db.query(Sede).filter(Sede.activa.is_(True)).order_by(Sede.nombre).all()
     nuevos = []
     for tratamiento, nombre in rng.sample(libres, k=min(cuantos, len(libres))):
         especialidad = rng.choices(especialidades, weights=[PESO_ESPECIALIDAD.get(e.nombre, 1) for e in especialidades])[0]

@@ -53,14 +53,14 @@ def _minutos(hora: time) -> int:
 def validar_turnos(db: Session, turnos: list[TurnoDatos]) -> None:
     if not turnos:
         raise EspecialistaInvalidoError("Agregue al menos un turno al horario.")
-    sedes = {s.id for s in sede_repository.por_ids(db, {t.sede_id for t in turnos})}
+    sedes = {s.id for s in sede_repository.por_ids(db, {t.sede_id for t in turnos}) if s.activa}
     por_dia: dict[int, list[TurnoDatos]] = defaultdict(list)
     for t in turnos:
         if not 0 <= t.dia_semana <= 5:
             raise EspecialistaInvalidoError("Los turnos van de lunes a sábado.")
         dia = DIAS[t.dia_semana]
         if t.sede_id not in sedes:
-            raise EspecialistaInvalidoError(f"La sede del turno del {dia} no existe.")
+            raise EspecialistaInvalidoError(f"La sede del turno del {dia} no existe o está cerrada.")
         if t.duracion_minutos not in DURACIONES:
             raise EspecialistaInvalidoError("Cada cita dura 15, 20, 30, 40 o 60 minutos.")
         if t.hora_inicio < PRIMERA_HORA or t.hora_fin > ULTIMA_HORA:
