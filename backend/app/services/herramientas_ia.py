@@ -43,7 +43,7 @@ from app.repositories import (
     especialidad_repository,
     sede_repository,
 )
-from app.services import citas_service, comprobante_service, ia
+from app.services import citas_service, comprobante_service, eps_service, ia
 from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
@@ -51,6 +51,7 @@ from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     FueraDeHorarioDeLlegadaError,
     HorarioYaNoDisponibleError,
+    MedicoDeOtraEpsError,
     ReprogramacionInvalidaError,
 )
 from app.utils.tiempo import DIAS_SEMANA, ahora_colombia, hoy_en_colombia
@@ -246,9 +247,11 @@ class _BuscarHorariosArgs(BaseModel):
 
 
 def _buscar_horarios(
-    db: Session, _p: Paciente, estado: EstadoConversacion, args: dict
+    db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict
 ) -> dict:
     filtros = _validar(_BuscarHorariosArgs, args, "buscar_horarios")
+    # Solo médicos de su EPS o de una aliada (a un particular, cualquiera): Eli no ofrece lo que no puede agendar.
+    eps_ids = eps_service.eps_permitidas(db, paciente)
 
     especialidad_id = None
     if filtros.especialidad:
@@ -285,6 +288,7 @@ def _buscar_horarios(
         sede_id=sede.id if sede else None,
         modalidad=filtros.modalidad,
         fecha=filtros.fecha,
+        eps_ids=eps_ids,
     )
     mostrados = horarios[:_MAX_HORARIOS]
     resultado = {"total": len(horarios), "horarios": [_horario_para_ia(h) for h in mostrados]}
@@ -298,7 +302,7 @@ def _buscar_horarios(
     hubo_otros_filtros = any([sede, ciudad, filtros.fecha, filtros.modalidad])
     if not horarios and hubo_otros_filtros:
         alternativas = disponibilidad_repository.buscar_disponibilidad(
-            db, especialidad_id=especialidad_id
+            db, especialidad_id=especialidad_id, eps_ids=eps_ids
         )[:_MAX_ALTERNATIVAS]
         mostrados = alternativas
         resultado["alternativas"] = [_horario_para_ia(h) for h in alternativas]
@@ -404,6 +408,9 @@ def _crear_cita(db: Session, paciente: Paciente, estado: EstadoConversacion, arg
             db, paciente.id, datos.disponibilidad_id, datos.canal_recordatorio,
             actor=_actor(paciente),
         )
+    except MedicoDeOtraEpsError as e:
+        db.rollback()
+        raise _ErrorParaElModelo(f"{e} Busca otro horario y ofréceselo al paciente.")
     except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError):
         # Libera el bloqueo de fila: la sesión sigue en uso durante el
         # resto de la conversación de esta petición.
@@ -551,6 +558,7 @@ def _reprogramar_cita(
         CitaNoModificableError,
         DisponibilidadNoEncontradaError,
         HorarioYaNoDisponibleError,
+        MedicoDeOtraEpsError,
         ReprogramacionInvalidaError,
     ) as e:
         raise _ErrorParaElModelo(f"{e} Busca otro horario y ofréceselo al paciente.")

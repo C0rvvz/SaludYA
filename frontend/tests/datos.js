@@ -4,8 +4,12 @@ export const ESPECIALIDAD = { id: "esp-1", nombre: "Cardiología" };
 export const OTRA_ESPECIALIDAD = { id: "esp-2", nombre: "Dermatología" };
 export const SEDE = { id: "sede-1", nombre: "Sede Poblado", ciudad: "Medellín" };
 export const OTRA_SEDE = { id: "sede-2", nombre: "Sede Laureles", ciudad: "Medellín" };
-export const ESPECIALISTA = { id: "med-1", nombre: "Dr. Carlos Ramírez", especialidad: ESPECIALIDAD };
-export const OTRO_ESPECIALISTA = { id: "med-2", nombre: "Dra. Ana Gómez", especialidad: OTRA_ESPECIALIDAD };
+// EPS de los médicos: Savia es aliada de Sura (comparten médicos); Sanitas, no.
+export const SURA = { id: "eps-sura", nombre: "Sura", nombre_corto: "Sura" };
+export const SAVIA = { id: "eps-savia", nombre: "Savia Salud", nombre_corto: "Savia" };
+export const SANITAS = { id: "eps-sanitas", nombre: "Sanitas", nombre_corto: "Sanitas" };
+export const ESPECIALISTA = { id: "med-1", nombre: "Dr. Carlos Ramírez", especialidad: ESPECIALIDAD, eps: SURA };
+export const OTRO_ESPECIALISTA = { id: "med-2", nombre: "Dra. Ana Gómez", especialidad: OTRA_ESPECIALIDAD, eps: SURA };
 
 export function franja(id, fecha, hora, cambios = {}) {
   return { id, especialista: ESPECIALISTA, sede: SEDE, modalidad: "presencial", fecha, hora, ...cambios };
@@ -24,6 +28,9 @@ export const PACIENTE = {
   numero_documento: "1020304050",
   telefono_whatsapp: "3001234567",
   correo: "laura@correo.co",
+  eps: "Sura",
+  eps_id: SURA.id,
+  eps_aliadas: [SAVIA.id],
 };
 
 // Los del administrador (en el backend: core/permisos.py).

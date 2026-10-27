@@ -152,12 +152,15 @@ class Fabrica:
         self._franjas = itertools.count()
         # El catálogo de ejemplo (EPS, especialidades, sedes, especialistas) lo siembran las migraciones.
         self.especialista = db.query(Especialista).order_by(Especialista.nombre).first()
-        self.eps = db.query(Eps).order_by(Eps.nombre).first()
+        # Los pacientes de ejemplo son de la EPS de ese médico: pueden agendar con él (eps_service).
+        self.eps = self.especialista.eps
         self.especialidad_id = self.especialista.especialidad_id
         self.sede_id = self.especialista.sedes[0].id
-        # Uno de otra especialidad, para probar que no se mezclan.
+        # Uno de otra especialidad (de la misma EPS), para probar que no se mezclan.
         self.otro_especialista = (
-            db.query(Especialista).filter(Especialista.especialidad_id != self.especialidad_id).first()
+            db.query(Especialista)
+            .filter(Especialista.especialidad_id != self.especialidad_id, Especialista.eps_id == self.eps.id)
+            .first()
         )
 
     def paciente(self, **datos) -> Paciente:

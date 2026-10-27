@@ -71,6 +71,13 @@ class Especialista(Base):
     )
     especialidad: Mapped["Especialidad"] = relationship(back_populates="especialistas")
 
+    # La EPS de cuyos afiliados es médico (ver Eps y alianzas_eps). Siempre se
+    # muestra con él: se carga de una vez.
+    eps_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("eps.id"), nullable=False, index=True
+    )
+    eps: Mapped["Eps"] = relationship(lazy="joined")
+
     sedes: Mapped[list["Sede"]] = relationship(
         secondary=especialista_sedes, back_populates="especialistas"
     )

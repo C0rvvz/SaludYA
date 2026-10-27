@@ -13,7 +13,9 @@ import {
   salirListaEspera,
   unirseListaEspera,
 } from "../api/listaEspera";
+import { useAuth } from "../context/AuthContext";
 import { CANALES } from "../utils/citas";
+import { puedeAgendarCon } from "../utils/eps";
 import { formatearFechaLarga, formatearHora } from "../utils/formato";
 import { cuandoEs, hastaCuando } from "../utils/agendar";
 import "../styles/espera-y-cartas.css";
@@ -179,6 +181,7 @@ function TarjetaAviso({ solicitud: s, ocupado, onAceptar, onRechazar, onRecupera
 }
 
 function FormularioAviso({ titulo, especialidadInicial, onListo }) {
+  const { paciente } = useAuth();
   const [especialidades, setEspecialidades] = useState([]);
   const [especialidadId, setEspecialidadId] = useState(especialidadInicial ?? "");
   const [sedes, setSedes] = useState([]); // las de la especialidad elegida
@@ -200,12 +203,14 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
     if (!especialidadId) return;
     listarEspecialistas(especialidadId)
       .then((especialistas) => {
-        const unicas = new Map(especialistas.flatMap((e) => e.sedes).map((s) => [s.id, s]));
+        // Solo donde atienden médicos de su EPS o de una aliada.
+        const suyos = especialistas.filter((e) => puedeAgendarCon(paciente, e));
+        const unicas = new Map(suyos.flatMap((e) => e.sedes).map((s) => [s.id, s]));
         setSedes([...unicas.values()]);
         setSedeIds([...unicas.keys()]);
       })
       .catch((err) => setError(err.message));
-  }, [especialidadId]);
+  }, [especialidadId, paciente]);
 
   function alternarSede(id) {
     setSedeIds((actuales) => (actuales.includes(id) ? actuales.filter((x) => x !== id) : [...actuales, id]));

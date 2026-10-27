@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { buscarDisponibilidad } from "../../api/catalogo";
 import { ApiError } from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 import DiasYHoras from "../agendar/DiasYHoras";
 import { Chevron } from "../Iconos";
 import { formatearHora } from "../../utils/formato";
@@ -19,6 +20,7 @@ const cuando = (fecha, hora) => `${cuandoEs(fecha)} · ${formatearHora(hora)}`;
  * aquí; si el horario ya no estaba libre (409), se vuelven a consultar.
  */
 export default function ReprogramarCita({ cita, onConfirmar, onVolver }) {
+  const { paciente } = useAuth();
   const especialidad = cita.especialista.especialidad.nombre;
   const [franjas, setFranjas] = useState(null);
   const [errorBusqueda, setErrorBusqueda] = useState("");
@@ -29,13 +31,14 @@ export default function ReprogramarCita({ cita, onConfirmar, onVolver }) {
 
   const buscar = useCallback(
     () =>
-      buscarDisponibilidad({ especialidad_id: cita.especialista.especialidad.id })
+      // Solo médicos de su EPS o de una aliada (a un particular, de cualquiera).
+      buscarDisponibilidad({ especialidad_id: cita.especialista.especialidad.id, para_eps: paciente?.eps_id })
         .then((lista) => {
           setFranjas(lista);
           setErrorBusqueda("");
         })
         .catch((err) => setErrorBusqueda(err.message)),
-    [cita.especialista.especialidad.id]
+    [cita.especialista.especialidad.id, paciente?.eps_id]
   );
 
   useEffect(() => {

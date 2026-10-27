@@ -195,6 +195,7 @@ from app.services.exceptions import (
     FarmaciaInvalidaError,
     FormulaInvalidaError,
     HorarioYaNoDisponibleError,
+    MedicoDeOtraEpsError,
     ListaEsperaInvalidaError,
     PersonalInvalidoError,
     ProgramacionInvalidaError,
@@ -219,6 +220,7 @@ _CODIGOS = {
     ListaEsperaInvalidaError: status.HTTP_400_BAD_REQUEST,
     SolicitudInvalidaError: status.HTTP_400_BAD_REQUEST,
     FormulaInvalidaError: status.HTTP_400_BAD_REQUEST,
+    MedicoDeOtraEpsError: status.HTTP_400_BAD_REQUEST,
     EnvioFallidoError: status.HTTP_502_BAD_GATEWAY,
 }
 _ERRORES = tuple(_CODIGOS)
@@ -322,6 +324,7 @@ def _paciente_detalle(p: Paciente) -> PacienteDetalleOut:
         telefono_whatsapp=p.telefono_whatsapp,
         correo=p.correo,
         eps=p.eps.nombre if p.eps else None,
+        eps_id=p.eps_id,
         estado_afiliacion=p.estado_afiliacion.value,
     )
 
@@ -715,7 +718,7 @@ def crear_especialista(
     try:
         especialista = especialistas_service.crear(
             db, Actor.de_personal(admin), datos.tratamiento, datos.nombre, datos.especialidad_id,
-            datos.registro_medico, especialistas_service.turnos_desde(datos.turnos),
+            datos.eps_id, datos.registro_medico, especialistas_service.turnos_desde(datos.turnos),
         )
     except EspecialistaInvalidoError as e:
         db.rollback()

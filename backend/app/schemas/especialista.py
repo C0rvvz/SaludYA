@@ -7,6 +7,7 @@ from datetime import date, time
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.eps import EpsOut
 from app.schemas.especialidad import EspecialidadOut
 from app.schemas.sede import SedeOut
 
@@ -17,6 +18,7 @@ class EspecialistaOut(BaseModel):
     id: uuid.UUID
     nombre: str
     especialidad: EspecialidadOut
+    eps: EpsOut  # atiende a afiliados de esta EPS (y de sus aliadas)
     # --- HU-13/HU-14: sedes y modalidades que ofrece EN GENERAL este
     # especialista (no confundir con la franja concreta de Disponibilidad) ---
     sedes: list[SedeOut]
@@ -49,6 +51,7 @@ class EspecialistaBasicoOut(BaseModel):
     id: uuid.UUID
     nombre: str
     especialidad: EspecialidadOut
+    eps: EpsOut
 
 
 class DisponibilidadBusquedaOut(BaseModel):

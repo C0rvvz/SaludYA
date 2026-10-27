@@ -147,6 +147,10 @@ class SedeInvalidaError(Exception):
     """Datos de una sede que no se pueden guardar, o una sede que todavía tiene turnos (RF-89)."""
 
 
+class MedicoDeOtraEpsError(Exception):
+    """El médico atiende a afiliados de otra EPS (ni la del paciente ni una aliada)."""
+
+
 class FarmaciaInvalidaError(Exception):
     """Datos de una farmacia que no se pueden guardar (o una farmacia que no existe)."""
 

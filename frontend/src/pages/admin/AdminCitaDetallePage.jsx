@@ -438,6 +438,7 @@ export default function AdminCitaDetallePage() {
           {panel === "reprogramar" && (
             <SelectorNuevoHorario
               especialidadId={cita.especialidad_id}
+              paraEps={p.eps_id}
               especialidadNombre={cita.especialidad}
               fechaActual={cita.fecha}
               horaActual={cita.hora}

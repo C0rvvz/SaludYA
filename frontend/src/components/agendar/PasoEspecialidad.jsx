@@ -1,18 +1,32 @@
 import { useMemo, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import { Chevron } from "../Iconos";
+import EpsMedico from "./EpsMedico";
 import FotoProfesional from "./FotoProfesional";
 import { formatearHora } from "../../utils/formato";
 import { agruparPorEspecialista, diaCorto, resumenEspecialidades, sinTildes } from "../../utils/agendar";
+import { puedeAgendarCon } from "../../utils/eps";
 
 /**
  * Paso 1 de "Agendar": la especialidad (HU-09). Cada tarjeta dice cuántos
  * profesionales tienen cupo y desde cuándo. El buscador también encuentra
  * médicos por su nombre: al tocar uno se pasa directo a sus horarios.
+ * Solo cuentan los médicos de su EPS o de una aliada; los de otras EPS
+ * aparecen en la búsqueda, en gris y sin poder elegirlos (utils/eps).
  */
 export default function PasoEspecialidad({ especialidades, franjas, elegida, onElegir, onContinuar, onPreguntarEli }) {
+  const { paciente } = useAuth();
   const [busqueda, setBusqueda] = useState("");
-  const resumen = useMemo(() => resumenEspecialidades(especialidades, franjas), [especialidades, franjas]);
-  const medicosConCupo = useMemo(() => agruparPorEspecialista(franjas), [franjas]);
+  const agendables = useMemo(() => franjas.filter((f) => puedeAgendarCon(paciente, f.especialista)), [franjas, paciente]);
+  const resumen = useMemo(() => resumenEspecialidades(especialidades, agendables), [especialidades, agendables]);
+  // Primero los que puede elegir; los de otras EPS, al final.
+  const medicosConCupo = useMemo(
+    () =>
+      agruparPorEspecialista(franjas).sort(
+        (a, b) => puedeAgendarCon(paciente, b.especialista) - puedeAgendarCon(paciente, a.especialista)
+      ),
+    [franjas, paciente]
+  );
 
   const termino = sinTildes(busqueda.trim());
   const visibles = termino ? resumen.filter((e) => sinTildes(e.nombre).includes(termino)) : resumen;
@@ -54,26 +68,36 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
             Médicos
           </p>
           <div className="agendar-medicos-encontrados">
-            {medicos.map(({ especialista, franjas: suyas }) => (
-              <button
-                key={especialista.id}
-                type="button"
-                className="tarjeta-medico"
-                onClick={() => onContinuar(especialista.especialidad.id, especialista.id)}
-              >
-                <FotoProfesional nombre={especialista.nombre} />
-                <span className="tarjeta-medico__textos">
-                  <span className="tarjeta-medico__nombre">{especialista.nombre}</span>
-                  <span className="tarjeta-medico__donde">{especialista.especialidad.nombre}</span>
-                  <span className="tarjeta-medico__proximo">
-                    Próximo: {diaCorto(suyas[0].fecha)} · {formatearHora(suyas[0].hora)}
+            {medicos.map(({ especialista, franjas: suyas }) => {
+              const puede = puedeAgendarCon(paciente, especialista);
+              return (
+                <button
+                  key={especialista.id}
+                  type="button"
+                  className={`tarjeta-medico ${puede ? "" : "tarjeta-medico--otra-eps"}`}
+                  disabled={!puede}
+                  onClick={() => onContinuar(especialista.especialidad.id, especialista.id)}
+                >
+                  <FotoProfesional nombre={especialista.nombre} />
+                  <span className="tarjeta-medico__textos">
+                    <span className="tarjeta-medico__nombre">
+                      {especialista.nombre} <EpsMedico especialista={especialista} paciente={paciente} />
+                    </span>
+                    <span className="tarjeta-medico__donde">{especialista.especialidad.nombre}</span>
+                    <span className="tarjeta-medico__proximo">
+                      {puede
+                        ? `Próximo: ${diaCorto(suyas[0].fecha)} · ${formatearHora(suyas[0].hora)}`
+                        : "No disponible con su EPS"}
+                    </span>
                   </span>
-                </span>
-                <span className="btn__circulo" aria-hidden="true">
-                  <Chevron />
-                </span>
-              </button>
-            ))}
+                  {puede && (
+                    <span className="btn__circulo" aria-hidden="true">
+                      <Chevron />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
       )}

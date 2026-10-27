@@ -61,6 +61,7 @@ from app.services.exceptions import (
     EnlaceInvalidoError,
     FueraDeHorarioDeLlegadaError,
     HorarioYaNoDisponibleError,
+    MedicoDeOtraEpsError,
     ReprogramacionInvalidaError,
 )
 
@@ -117,6 +118,7 @@ def _error_http(e: Exception) -> HTTPException:
         FueraDeHorarioDeLlegadaError: status.HTTP_409_CONFLICT,
         ReprogramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
         EnlaceInvalidoError: status.HTTP_400_BAD_REQUEST,
+        MedicoDeOtraEpsError: status.HTTP_400_BAD_REQUEST,
     }
     return HTTPException(status_code=codigos[type(e)], detail=str(e))
 
@@ -129,6 +131,7 @@ _ERRORES_DE_CITA = (
     FueraDeHorarioDeLlegadaError,
     ReprogramacionInvalidaError,
     EnlaceInvalidoError,
+    MedicoDeOtraEpsError,
 )
 
 
@@ -147,6 +150,9 @@ def confirmar_cita(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except HorarioYaNoDisponibleError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except MedicoDeOtraEpsError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     # --- HU-17: generar el comprobante justo después de confirmar ---
     cita = comprobante_service.generar_comprobante(db, cita)

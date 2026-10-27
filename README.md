@@ -7,6 +7,7 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
 **Paciente**
 - Registro e ingreso con cédula y código de verificación por WhatsApp (HU-01 a HU-08).
 - Buscar disponibilidad por especialidad, especialista, sede, modalidad y fecha, y agendar con comprobante (HU-09 a HU-17).
+- Médicos por EPS: cada médico atiende a los afiliados de una EPS (se ve en corto junto a su nombre). El paciente agenda con los de su EPS y los de las EPS aliadas, que comparten médicos (p. ej. Sura y Savia Salud); los de otras EPS se ven en gris. Sin EPS (particular), con cualquiera.
 - "Mis citas": estado, próximas, historial, confirmar asistencia, reprogramar, cancelar y registrar la llegada (HU-18 a HU-30).
 - Fórmula médica de cada cita atendida: diagnóstico, medicamentos y recomendaciones, para descargar; y las farmacias donde reclamarlos, con el QR del código (gratis en las aliadas) y "Cómo llegar".
 - Lista de espera con ofertas de cupos liberados (HU-19, HU-31, HU-32).

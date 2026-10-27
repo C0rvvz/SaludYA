@@ -63,6 +63,7 @@ from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     HorarioYaNoDisponibleError,
     ListaEsperaInvalidaError,
+    MedicoDeOtraEpsError,
 )
 from app.utils.tiempo import ZONA_COLOMBIA, ahora_colombia, fecha_legible, hora_legible
 
@@ -222,7 +223,7 @@ def _asignar(db: Session, solicitud: SolicitudEspera, disponibilidad_id: uuid.UU
     solicitud.cerrada_en = ahora
     try:
         cita = citas_service.confirmar_cita(db, solicitud.paciente_id, disponibilidad_id, solicitud.canal, actor=actor)
-    except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError):
+    except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError, MedicoDeOtraEpsError):
         db.rollback()
         raise
     solicitud.cita_id = cita.id

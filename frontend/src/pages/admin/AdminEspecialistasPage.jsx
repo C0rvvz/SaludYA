@@ -7,6 +7,7 @@ import {
   sincronizarIps,
 } from "../../api/admin";
 import { listarEspecialidades, listarSedes } from "../../api/catalogo";
+import { listarEps } from "../../api/eps";
 import { BotonIcono, IconoBuscar, IconoEditar, IconoQuitar } from "../../components/admin/IconosAdmin";
 import { CabezaTarjeta } from "../../components/admin/Reportes";
 import FarmaciasDeLaRed from "../../components/admin/FarmaciasDeLaRed";
@@ -171,11 +172,12 @@ function EditorTurnos({ turnos, sedes, onCambiar }) {
   );
 }
 
-function FormularioEspecialista({ especialidades, sedes, ocupado, onGuardar, onVolver }) {
+function FormularioEspecialista({ especialidades, eps, sedes, ocupado, onGuardar, onVolver }) {
   const [datos, setDatos] = useState({
     tratamiento: "Dr.",
     nombre: "",
     especialidad_id: especialidades[0]?.id ?? "",
+    eps_id: "", // la EPS de cuyos afiliados es médico
     registro_medico: "",
     turnos: [turnoNuevo(sedes)],
   });
@@ -216,6 +218,19 @@ function FormularioEspecialista({ especialidades, sedes, ocupado, onGuardar, onV
             {especialidades.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="eps-especialista">EPS que atiende</label>
+          <select id="eps-especialista" value={datos.eps_id} onChange={cambiar("eps_id")} required>
+            <option value="" disabled>
+              Elija la EPS
+            </option>
+            {eps.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.nombre}
               </option>
             ))}
           </select>
@@ -299,6 +314,7 @@ function Sincronizaciones({ sincronizaciones, proxima, cada }) {
 export default function AdminEspecialistasPage() {
   const [datos, setDatos] = useState(null);
   const [especialidades, setEspecialidades] = useState([]);
+  const [listaEps, setListaEps] = useState([]);
   const [sedes, setSedes] = useState([]);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
@@ -333,6 +349,9 @@ export default function AdminEspecialistasPage() {
     listarEspecialidades()
       .then(setEspecialidades)
       .catch((err) => setError(err.message));
+    listarEps()
+      .then(setListaEps)
+      .catch((err) => setError(err.message));
   }, [cargar, cargarSedes]);
 
   async function ejecutar(accion, mensaje) {
@@ -365,7 +384,7 @@ export default function AdminEspecialistasPage() {
       (e) =>
         (!estado || e.activo === (estado === "activo")) &&
         (!buscado ||
-          [e.nombre, e.especialidad, e.registro_medico]
+          [e.nombre, e.especialidad, e.eps, e.registro_medico]
             .filter(Boolean)
             .some((v) => v.toLowerCase().includes(buscado)))
     );
@@ -420,6 +439,7 @@ export default function AdminEspecialistasPage() {
       {panel?.tipo === "nuevo" && (
         <FormularioEspecialista
           especialidades={especialidades}
+          eps={listaEps}
           sedes={sedes}
           ocupado={ocupado}
           onVolver={() => setPanel(null)}
@@ -552,7 +572,12 @@ export default function AdminEspecialistasPage() {
                     </span>
                   </span>
                 </td>
-                <td>{e.especialidad}</td>
+                <td>
+                  <span className="celda-doble">
+                    <span>{e.especialidad}</span>
+                    <span className="celda-doble__dato">EPS {e.eps}</span>
+                  </span>
+                </td>
                 <td>
                   <ul className="horario-resumen">
                     {resumenHorario(e.turnos).map((linea) => (

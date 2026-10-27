@@ -171,6 +171,7 @@ class ObservacionOut(BaseModel):
 class PacienteDetalleOut(PacienteResumenOut):
     correo: str | None
     eps: str | None
+    eps_id: uuid.UUID | None = None
     estado_afiliacion: str
 
 

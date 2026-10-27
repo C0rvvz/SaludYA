@@ -81,9 +81,11 @@ def buscar_disponibilidad(
     modalidad: Modalidad | None = None,
     fecha: date | None = None,
     hora: time | None = None,
+    eps_ids: set[uuid.UUID] | None = None,
 ) -> list[Disponibilidad]:
     """
     Búsqueda combinada a través de TODOS los especialistas -- HU-11.
+    `eps_ids`: solo médicos de esas EPS (las que puede usar un paciente).
 
     Criterio 1 (aplicar filtros): cada parámetro es opcional e
     independiente, se pueden combinar libremente.
@@ -119,6 +121,8 @@ def buscar_disponibilidad(
         query = query.filter(Disponibilidad.fecha == fecha)
     if hora is not None:
         query = query.filter(Disponibilidad.hora == hora)
+    if eps_ids is not None:
+        query = query.filter(Especialista.eps_id.in_(eps_ids))
 
     return query.order_by(Disponibilidad.fecha, Disponibilidad.hora).all()
 

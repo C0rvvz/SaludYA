@@ -6,7 +6,7 @@ En la realidad, cada IPS le manda a la EPS su lista de especialistas y
 sus agendas. Aquí se simula esa actualización cada CADA_DIAS días (la
 tarea de fondo) o cuando el administrador la pide desde "Especialistas":
 
-- Llegan 1 o 2 especialistas nuevos, con nombre, registro médico,
+- Llegan 1 o 2 especialistas nuevos, de una EPS de la red (RED_EPS), con nombre, registro médico,
   especialidad (más médicos generales y pediatras, como en la realidad) y
   un horario semanal realista: un turno por día (mañana o tarde), en una
   o dos sedes, a veces el sábado en la mañana y a veces virtual.
@@ -26,6 +26,7 @@ from datetime import datetime, time, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.models.auditoria import TipoActor
+from app.models.eps import Eps
 from app.models.especialidad import Especialidad
 from app.models.especialista import Especialista, Modalidad
 from app.models.personal import Personal
@@ -37,7 +38,9 @@ from app.services.especialistas_service import TurnoDatos
 from app.services.seguridad_service import nombre_personal
 
 CADA_DIAS = 10
-MAX_ACTIVOS = 14  # para que la red no crezca sin fin
+MAX_ACTIVOS = 40  # para que la red no crezca sin fin
+# EPS de la red en el área metropolitana de Medellín: los nuevos son médicos de una de ellas.
+RED_EPS = ["Sura", "Savia Salud", "Nueva EPS", "Sanitas", "Salud Total", "Coosalud"]
 
 IPS = Actor(TipoActor.SISTEMA, None, "IPS (actualización simulada)")
 
@@ -78,12 +81,13 @@ def _llegan_nuevos(db: Session, rng: random.Random, cuantos: int) -> list[Especi
     libres = [(t, n) for t, n in NOMBRES if f"{t} {n}".lower() not in existentes]
     especialidades = db.query(Especialidad).order_by(Especialidad.nombre).all()
     sedes = db.query(Sede).filter(Sede.activa.is_(True)).order_by(Sede.nombre).all()
+    red = db.query(Eps).filter(Eps.nombre.in_(RED_EPS)).order_by(Eps.nombre).all() or db.query(Eps).all()
     nuevos = []
     for tratamiento, nombre in rng.sample(libres, k=min(cuantos, len(libres))):
         especialidad = rng.choices(especialidades, weights=[PESO_ESPECIALIDAD.get(e.nombre, 1) for e in especialidades])[0]
         turnos = _turnos_al_azar(rng, sedes, DURACION_ESPECIALIDAD.get(especialidad.nombre, 20))
         nuevos.append(especialistas_service.crear(
-            db, IPS, tratamiento, nombre, especialidad.id, f"05-{rng.randint(100000, 199999)}", turnos,
+            db, IPS, tratamiento, nombre, especialidad.id, rng.choice(red).id, f"05-{rng.randint(100000, 199999)}", turnos,
             origen="ips", generar_agenda=False,  # la agenda de todos se genera al final
         ))
     return nuevos
@@ -108,7 +112,7 @@ def sincronizar(db: Session, quien: Personal | None, rng: random.Random | None =
 
     partes = []
     if nuevos:
-        partes.append("Llegaron: " + ", ".join(f"{e.nombre} ({e.especialidad.nombre})" for e in nuevos))
+        partes.append("Llegaron: " + ", ".join(f"{e.nombre} ({e.especialidad.nombre}, {e.eps.nombre})" for e in nuevos))
     if retirados:
         partes.append("Dejó de atender en la red: " + ", ".join(e.nombre for e in retirados))
     if formulas:

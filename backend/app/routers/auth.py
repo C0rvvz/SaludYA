@@ -43,7 +43,7 @@ from app.schemas.auth import (
     ValidarOTPResponse,
 )
 from app.repositories import paciente_repository
-from app.services import auth_service, seguridad_service, sesion_service
+from app.services import auth_service, eps_service, seguridad_service, sesion_service
 from app.services.exceptions import (
     EnvioCodigoFallidoError,
     OtpExpiradoError,
@@ -199,7 +199,7 @@ def salir(sesion: Sesion = Depends(sesion_del_paciente), db: Session = Depends(g
 
 
 @router.get("/me", response_model=MePacienteResponse)
-def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
+def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente), db: Session = Depends(get_db)):
     """
     Datos del paciente de la sesión. Como toda petición con sesión, cuenta
     como actividad (RNF-24): el frontend lo llama mientras la persona usa
@@ -213,4 +213,6 @@ def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
         correo=paciente.correo,
         eps=paciente.eps.nombre if paciente.eps else None,
         particular=paciente.estado_afiliacion == EstadoAfiliacion.PARTICULAR,
+        eps_id=paciente.eps_id,
+        eps_aliadas=sorted(eps_service.aliadas_de(db, paciente.eps_id)) if paciente.eps_id else [],
     )

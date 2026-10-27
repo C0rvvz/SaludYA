@@ -7,6 +7,7 @@ from datetime import datetime, time, timedelta, timezone
 import pytest
 
 from app.models.disponibilidad import Disponibilidad
+from app.models.eps import Eps
 from app.models.especialidad import Especialidad
 from app.models.especialista import Especialista
 from app.models.personal import RolPersonal
@@ -21,7 +22,8 @@ from tests.conftest import encabezado
 def catalogo(db):
     sedes = {s.nombre: str(s.id) for s in db.query(Sede).all()}
     especialidades = {e.nombre: str(e.id) for e in db.query(Especialidad).all()}
-    return sedes, especialidades
+    eps = {e.nombre: str(e.id) for e in db.query(Eps).all()}
+    return sedes, especialidades, eps
 
 
 def _turno(dia, sede, desde, hasta, duracion=30, modalidad="presencial"):
@@ -30,10 +32,10 @@ def _turno(dia, sede, desde, hasta, duracion=30, modalidad="presencial"):
 
 
 def _nuevo(catalogo, **cambios):
-    sedes, especialidades = catalogo
+    sedes, especialidades, eps = catalogo
     return {
         "tratamiento": "Dra.", "nombre": "Prueba Uno", "especialidad_id": especialidades["Dermatología"],
-        "registro_medico": "05-555001",
+        "eps_id": eps["Sanitas"], "registro_medico": "05-555001",
         "turnos": [
             _turno(0, sedes["Sede Poblado"], "07:00", "09:00"),
             _turno(2, sedes["Sede Laureles"], "14:00", "16:00", 20, "virtual"),
@@ -64,11 +66,11 @@ def test_agregar_un_especialista_con_su_horario(cliente, fabrica, catalogo):
     registro = next(
         r for r in cliente.get("/admin/auditoria", headers=encabezado(admin)).json() if r["accion"] == "crear_especialista"
     )
-    assert registro["descripcion"] == "Agregó a Dra. Prueba Uno (Dermatología) con 2 turnos a la semana"
+    assert registro["descripcion"] == "Agregó a Dra. Prueba Uno (Dermatología, Sanitas) con 2 turnos a la semana"
 
 
 def test_validaciones_del_horario(cliente, fabrica, catalogo):
-    sedes, _ = catalogo
+    sedes, _, _ = catalogo
     admin = encabezado(fabrica.personal())
     cruzados = [_turno(0, sedes["Sede Poblado"], "07:00", "12:00"), _turno(0, sedes["Sede Laureles"], "11:00", "13:00")]
     r = cliente.post("/admin/especialistas", headers=admin, json=_nuevo(catalogo, turnos=cruzados))
@@ -89,7 +91,7 @@ def test_validaciones_del_horario(cliente, fabrica, catalogo):
 
 
 def test_cambiar_el_horario_conserva_las_citas(cliente, fabrica, catalogo, db):
-    sedes, _ = catalogo
+    sedes, _, _ = catalogo
     admin = encabezado(fabrica.personal())
     nueva = cliente.post("/admin/especialistas", headers=admin, json=_nuevo(catalogo)).json()
     desde, hasta = disponibilidad_service.ventana()

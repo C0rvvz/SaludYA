@@ -3,10 +3,11 @@
 import uuid
 from datetime import datetime, time, timedelta
 
-from sqlalchemy import and_, case, exists, or_
+from sqlalchemy import and_, case, exists, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
+from app.models.eps import alianzas_eps
 from app.models.especialista import Especialista
 from app.models.lista_espera import (
     EstadoOferta,
@@ -97,6 +98,8 @@ def _compatibles(db: Session, solicitud: SolicitudEspera, desde: datetime):
     HU-31 criterio 2 / HU-55 criterio 1: horarios libres que coinciden con
     la solicitud (especialidad, sedes, jornada y modalidad) y que empiezan
     después de `desde` (hora de Colombia), del más próximo al más lejano.
+    Solo de médicos de la EPS del paciente o de una aliada (eps_service);
+    a un particular (sin EPS), de cualquiera.
     """
     desde = desde_para_jornada(solicitud.jornada, desde)
     query = (
@@ -112,6 +115,10 @@ def _compatibles(db: Session, solicitud: SolicitudEspera, desde: datetime):
             ),
         )
     )
+    eps_id = solicitud.paciente.eps_id
+    if eps_id is not None:
+        aliadas = select(alianzas_eps.c.aliada_id).where(alianzas_eps.c.eps_id == eps_id)
+        query = query.filter(or_(Especialista.eps_id == eps_id, Especialista.eps_id.in_(aliadas)))
     if solicitud.modalidad is not None:
         query = query.filter(Disponibilidad.modalidad == solicitud.modalidad)
     if solicitud.jornada == Jornada.MANANA:

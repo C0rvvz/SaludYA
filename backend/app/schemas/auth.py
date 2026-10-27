@@ -99,3 +99,5 @@ class MePacienteResponse(BaseModel):
     correo: str | None
     eps: str | None = None  # el encabezado muestra nombre y EPS de la persona
     particular: bool = False  # sin EPS: el encabezado dice "Particular"
+    eps_id: uuid.UUID | None = None
+    eps_aliadas: list[uuid.UUID] = []  # comparten médicos con la suya

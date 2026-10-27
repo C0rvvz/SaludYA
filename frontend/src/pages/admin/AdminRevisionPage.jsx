@@ -28,7 +28,7 @@ const sinDiaDeLaSemana = (fechaIso) => formatearFechaLarga(fechaIso).replace(/^[
  * el paciente (si no hay, los más próximos), la revisión prioritaria y los
  * botones "Aprobar y asignar cita", "Remitir a la EPS" y "No aprobar".
  */
-function Decision({ solicitud, ocupado, onAprobar, onRemitir, onNegar }) {
+function Decision({ solicitud, paraEps, ocupado, onAprobar, onRemitir, onNegar }) {
   const [horarios, setHorarios] = useState(null);
   const [elegido, setElegido] = useState("");
   const [prioritaria, setPrioritaria] = useState(false);
@@ -36,7 +36,8 @@ function Decision({ solicitud, ocupado, onAprobar, onRemitir, onNegar }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    buscarDisponibilidad({ especialidad_id: solicitud.especialidad_id })
+    // Solo médicos de la EPS del paciente o de una aliada.
+    buscarDisponibilidad({ especialidad_id: solicitud.especialidad_id, para_eps: paraEps })
       .then((lista) => {
         const desde = lista.filter((h) => h.fecha >= solicitud.fecha_deseada);
         const opciones = (desde.length ? desde : lista).slice(0, 12);
@@ -44,7 +45,7 @@ function Decision({ solicitud, ocupado, onAprobar, onRemitir, onNegar }) {
         setElegido(opciones[0]?.id ?? "");
       })
       .catch((err) => setError(err.message));
-  }, [solicitud.especialidad_id, solicitud.fecha_deseada]);
+  }, [solicitud.especialidad_id, solicitud.fecha_deseada, paraEps]);
 
   const desdeLaFecha = horarios?.some((h) => h.fecha >= solicitud.fecha_deseada);
 
@@ -245,6 +246,7 @@ export default function AdminRevisionPage() {
               {paso === null && (
                 <Decision
                   solicitud={s}
+                  paraEps={p.eps_id}
                   ocupado={ocupado}
                   onAprobar={(datos) =>
                     decidir(() => aprobarSolicitud(s.id, datos), "Solicitud aprobada y cita asignada.")

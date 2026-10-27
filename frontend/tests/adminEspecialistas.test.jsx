@@ -72,6 +72,7 @@ describe("Especialistas", () => {
       "GET /admin/especialistas": panel(),
       "GET /especialidades": [ESPECIALIDAD],
       "GET /sedes": [SEDE],
+      "GET /eps": [{ id: "eps-sura", nombre: "Sura", nombre_corto: "Sura" }],
       "POST /admin/especialistas": ({ cuerpo }) =>
         cuerpo.turnos.length > 1 && cuerpo.turnos[0].dia_semana === cuerpo.turnos[1].dia_semana
           ? error(400, "Los turnos del lunes se cruzan: el especialista no puede estar en dos lugares a la vez.")
@@ -85,6 +86,7 @@ describe("Especialistas", () => {
     const formulario = screen.getByRole("heading", { name: "Nuevo especialista" }).closest("form");
     await usuario.selectOptions(within(formulario).getByLabelText("Tratamiento"), "Dra.");
     await usuario.type(within(formulario).getByLabelText("Nombre completo"), "Paula Restrepo");
+    await usuario.selectOptions(within(formulario).getByLabelText("EPS que atiende"), "Sura");
     await usuario.click(within(formulario).getByRole("button", { name: "Agregar turno" }));
     await usuario.selectOptions(within(formulario).getByLabelText("Día del turno 2"), "0"); // el mismo lunes
     await usuario.click(within(formulario).getByRole("button", { name: "Guardar especialista" }));
@@ -97,6 +99,7 @@ describe("Especialistas", () => {
       tratamiento: "Dra.",
       nombre: "Paula Restrepo",
       especialidad_id: "esp-1",
+      eps_id: "eps-sura",
       registro_medico: null,
       turnos: [
         { dia_semana: 0, sede_id: "sede-1", modalidad: "presencial", hora_inicio: "07:00", hora_fin: "12:00", duracion_minutos: 20 },

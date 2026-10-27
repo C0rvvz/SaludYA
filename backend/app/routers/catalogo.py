@@ -40,6 +40,7 @@ from app.repositories import (
 from app.schemas.especialidad import EspecialidadOut
 from app.schemas.especialista import DisponibilidadBusquedaOut, DisponibilidadOut, EspecialistaOut
 from app.schemas.sede import SedeOut
+from app.services import eps_service
 
 router = APIRouter(tags=["Catálogo médico"])
 
@@ -90,6 +91,7 @@ def _armar_especialista_out(db: Session, especialista) -> EspecialistaOut:
         id=especialista.id,
         nombre=especialista.nombre,
         especialidad=especialista.especialidad,
+        eps=especialista.eps,
         sedes=especialista.sedes,
         modalidades=modalidades,
     )
@@ -166,13 +168,17 @@ def buscar_disponibilidad(
     hora: time | None = Query(
         default=None, description="Filtra por horario exacto (HU-11)"
     ),
+    para_eps: uuid.UUID | None = Query(
+        default=None, description="Solo médicos que atienden a afiliados de esta EPS (los suyos y los de sus aliadas)"
+    ),
     db: Session = Depends(get_db),
 ):
     """
     Búsqueda combinada de disponibilidad a través de TODOS los
     especialistas -- HU-11. Todos los filtros son opcionales y se
     combinan con AND (criterio 3: solo resultados que cumplan todos
-    los indicados).
+    los indicados). Cada franja trae la EPS de su médico: el paciente
+    ve también los de otras EPS (sin poder elegirlos).
     """
     if guardada := _de_la_cache(request):
         return guardada
@@ -184,5 +190,6 @@ def buscar_disponibilidad(
         modalidad=modalidad,
         fecha=fecha,
         hora=hora,
+        eps_ids=({para_eps} | eps_service.aliadas_de(db, para_eps)) if para_eps else None,
     )
     return _respuesta(db, request, list[DisponibilidadBusquedaOut], franjas)

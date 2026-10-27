@@ -343,7 +343,7 @@ describe("Mis citas", () => {
     await usuario.click(await screen.findByRole("button", { name: `Reprogramar ${DE_LA_CITA}` }));
 
     expect(await screen.findByRole("heading", { name: "Reprogramar su cita" })).toBeInTheDocument();
-    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({ especialidad_id: "esp-1" });
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({ especialidad_id: "esp-1", para_eps: "eps-sura" }); // solo médicos de su EPS o aliadas
     const confirmar = screen.getByRole("button", { name: "Confirmar el cambio" });
     expect(confirmar).toBeDisabled();
     expect(screen.getByText("Elija un día y una hora.")).toBeInTheDocument();

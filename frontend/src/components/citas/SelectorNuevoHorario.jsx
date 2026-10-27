@@ -12,6 +12,7 @@ import { Fila } from "./ElementosCita";
 export default function SelectorNuevoHorario({
   especialidadId,
   especialidadNombre,
+  paraEps,
   fechaActual,
   horaActual,
   ocupado,
@@ -25,10 +26,11 @@ export default function SelectorNuevoHorario({
 
   useEffect(() => {
     // La búsqueda ya trae solo horarios libres que todavía no empiezan.
-    buscarDisponibilidad({ especialidad_id: especialidadId })
+    // `paraEps`: la EPS del paciente; solo médicos de ella o de una aliada.
+    buscarDisponibilidad({ especialidad_id: especialidadId, para_eps: paraEps })
       .then(setFranjas)
       .catch((err) => setError(err.message));
-  }, [especialidadId]);
+  }, [especialidadId, paraEps]);
 
   if (error) return <div className="alert alert--error">{error}</div>;
   if (franjas === null) return <p className="texto-suave">Buscando horarios disponibles…</p>;

@@ -40,6 +40,7 @@ from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     HorarioYaNoDisponibleError,
+    MedicoDeOtraEpsError,
     SolicitudInvalidaError,
 )
 from app.utils.tiempo import ZONA_COLOMBIA, fecha_legible, hora_legible, hoy_en_colombia
@@ -139,7 +140,7 @@ def aprobar(
     )
     try:
         cita = citas_service.confirmar_cita(db, solicitud.paciente_id, disponibilidad_id, solicitud.canal, actor=actor)
-    except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError):
+    except (DisponibilidadNoEncontradaError, HorarioYaNoDisponibleError, MedicoDeOtraEpsError):
         db.rollback()
         raise
     solicitud.cita_id = cita.id

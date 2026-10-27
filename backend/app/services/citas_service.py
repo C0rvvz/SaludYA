@@ -56,7 +56,8 @@ from app.integrations.notificaciones import enviar_por_canal
 from app.models.cita import CanalContacto, Cita, EstadoCita
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.repositories import cita_repository, disponibilidad_repository
-from app.services import auditoria_service
+from app.models.paciente import Paciente
+from app.services import auditoria_service, eps_service
 from app.services.auditoria_service import SISTEMA, Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
@@ -273,6 +274,9 @@ def confirmar_cita(
 
     if _inicio(disponibilidad) <= ahora_colombia():
         raise HorarioYaNoDisponibleError("Ese horario ya pasó. Elija otro, por favor.")
+
+    # Solo con médicos de su EPS o de una aliada (eps_service).
+    eps_service.validar(db, db.get(Paciente, paciente_id), disponibilidad.especialista)
 
     disponibilidad.estado = EstadoDisponibilidad.RESERVADO
 
@@ -631,6 +635,11 @@ def reprogramar_cita(
             f"El nuevo horario debe ser de {especialidad_actual.nombre}, "
             "la misma especialidad de la cita."
         )
+    try:
+        eps_service.validar(db, cita.paciente, nueva.especialista)
+    except Exception:
+        db.rollback()
+        raise
 
     antes = texto_estado(cita)
     anterior = disponibilidad_repository.obtener_con_lock(db, cita.disponibilidad_id)

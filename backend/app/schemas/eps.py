@@ -12,3 +12,4 @@ class EpsOut(BaseModel):
 
     id: uuid.UUID
     nombre: str
+    nombre_corto: str  # para mostrar junto al médico: "Sura", "Savia", "SOS"

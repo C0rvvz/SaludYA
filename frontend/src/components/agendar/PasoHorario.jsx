@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, conFiltros } from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 import DiasYHoras from "./DiasYHoras";
+import EpsMedico from "./EpsMedico";
 import FotoProfesional from "./FotoProfesional";
 import { Chevron } from "../Iconos";
 import { CANALES } from "../../utils/citas";
 import { capitalizar, formatearFecha, formatearHora } from "../../utils/formato";
 import { agruparPorEspecialista, diaCorto, dondeAtiende } from "../../utils/agendar";
+import { puedeAgendarCon } from "../../utils/eps";
 
 const MODALIDADES = [
   { value: "", label: "Todas" },
@@ -30,6 +33,9 @@ const unicasPorId = (lista) => [...new Map(lista.map((x) => [x.id, x])).values()
  * Los filtros (ciudad, modalidad y sede) se aplican sobre los horarios de
  * la especialidad, sin volver a consultar (HU-11). Al confirmar, el
  * servidor revisa que el horario siga libre (HU-16).
+ *
+ * Cada médico lleva su EPS. Se eligen los de la EPS del paciente o de una
+ * aliada; los de otras EPS se ven al final, en gris y sin poder elegirlos.
  */
 export default function PasoHorario({
   especialidadId,
@@ -42,6 +48,7 @@ export default function PasoHorario({
   onConfirmar,
   onRecargar,
 }) {
+  const { paciente } = useAuth();
   const [filtros, setFiltros] = useState(FILTROS_VACIOS);
   const [especialistaId, setEspecialistaId] = useState(especialistaInicial);
   const [franjaId, setFranjaId] = useState(null);
@@ -54,7 +61,7 @@ export default function PasoHorario({
   const ciudades = [...new Set(sedes.map((s) => s.ciudad))].sort();
   const sedesDeLaCiudad = sedes.filter((s) => !filtros.ciudad || s.ciudad === filtros.ciudad);
 
-  const grupos = useMemo(
+  const todosLosGrupos = useMemo(
     () =>
       agruparPorEspecialista(
         franjas.filter(
@@ -66,6 +73,10 @@ export default function PasoHorario({
       ),
     [franjas, filtros]
   );
+  // Los que puede elegir (su EPS o una aliada) y, aparte, los de otras EPS.
+  const grupos = todosLosGrupos.filter((g) => puedeAgendarCon(paciente, g.especialista));
+  const deOtrasEps = todosLosGrupos.filter((g) => !puedeAgendarCon(paciente, g.especialista));
+  const hayAgendables = franjas.some((f) => puedeAgendarCon(paciente, f.especialista));
 
   // Lo elegido se deriva de lo que hay: si un filtro deja por fuera al médico
   // o la hora, se pasa al primero disponible en vez de quedar en blanco.
@@ -122,12 +133,15 @@ export default function PasoHorario({
     </div>
   );
 
-  if (franjas.length === 0) {
+  if (!hayAgendables) {
     return (
       <>
         {encabezado}
         <section className="card agendar-sin-cupos">
-          <h2>Por ahora no hay horarios libres{especialidad ? ` de ${especialidad}` : ""}</h2>
+          <h2>
+            Por ahora no hay horarios libres{especialidad ? ` de ${especialidad}` : ""}
+            {franjas.length > 0 && " con médicos de su EPS"}
+          </h2>
           <p>Podemos avisarle apenas se libere un cupo. También puede solicitar una petición para pedir una cita en otra fecha.</p>
           <div className="acciones-admin">
             <Link className="btn btn--primary" to={enlaceEspera}>
@@ -220,7 +234,9 @@ export default function PasoHorario({
                   >
                     <FotoProfesional nombre={g.especialista.nombre} />
                     <span className="tarjeta-medico__textos">
-                      <span className="tarjeta-medico__nombre">{g.especialista.nombre}</span>
+                      <span className="tarjeta-medico__nombre">
+                        {g.especialista.nombre} <EpsMedico especialista={g.especialista} paciente={paciente} />
+                      </span>
                       <span className="tarjeta-medico__donde">{dondeAtiende(g.franjas)}</span>
                       <span className="tarjeta-medico__proximo">
                         Próximo: {diaCorto(g.franjas[0].fecha)} · {formatearHora(g.franjas[0].hora)}
@@ -234,6 +250,26 @@ export default function PasoHorario({
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {deOtrasEps.length > 0 && (
+            <div className="agendar-medicos__otras">
+              <p className="rotulo">De otras EPS (no disponibles con la suya)</p>
+              <div className="agendar-medicos__lista">
+                {deOtrasEps.map((g) => (
+                  <button key={g.especialista.id} type="button" className="tarjeta-medico tarjeta-medico--otra-eps" disabled>
+                    <FotoProfesional nombre={g.especialista.nombre} />
+                    <span className="tarjeta-medico__textos">
+                      <span className="tarjeta-medico__nombre">
+                        {g.especialista.nombre} <EpsMedico especialista={g.especialista} paciente={paciente} />
+                      </span>
+                      <span className="tarjeta-medico__donde">{dondeAtiende(g.franjas)}</span>
+                      <span className="tarjeta-medico__proximo">No disponible con su EPS</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -281,7 +317,9 @@ export default function PasoHorario({
             <div className="resumen-cita__quien">
               <FotoProfesional nombre={grupo.especialista.nombre} tamano={48} />
               <div>
-                <p className="tarjeta-medico__nombre">{grupo.especialista.nombre}</p>
+                <p className="tarjeta-medico__nombre">
+                  {grupo.especialista.nombre} <EpsMedico especialista={grupo.especialista} paciente={paciente} />
+                </p>
                 <p className="tarjeta-medico__donde">{especialidad}</p>
               </div>
             </div>
