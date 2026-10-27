@@ -147,6 +147,10 @@ class SedeInvalidaError(Exception):
     """Datos de una sede que no se pueden guardar, o una sede que todavía tiene turnos (RF-89)."""
 
 
+class PagoInvalidoError(Exception):
+    """Un pago que no se puede hacer: la cita no se ha atendido, ya está pagada o la tarjeta no sirve."""
+
+
 class MedicoDeOtraEpsError(Exception):
     """El médico atiende a afiliados de otra EPS (ni la del paciente ni una aliada)."""
 

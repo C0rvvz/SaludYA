@@ -23,6 +23,7 @@ POST /citas/confirmar-asistencia/enlace/ver -> HU-23 (ver la cita antes de confi
 Después de la consulta:
 POST /citas/{id}/calificar              -> HU-71 (satisfacción del paciente)
 GET  /citas/{id}/formula                -> fórmula médica, su QR y dónde reclamarla
+(el pago en línea, en routers/pagos.py)
 
 Todos exigen JWT y solo actúan sobre citas del paciente autenticado,
 salvo el enlace del recordatorio, que no pide sesión: su token firmado
@@ -52,7 +53,7 @@ from app.schemas.cita import (
     ReprogramarCitaRequest,
 )
 from app.schemas.formula import MiFormulaOut
-from app.services import citas_service, comprobante_service, formulas_service
+from app.services import citas_service, comprobante_service, formulas_service, pagos_service
 from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
@@ -106,6 +107,10 @@ def _mi_cita_out(cita: Cita) -> MiCitaOut:
         llegada_disponible_desde=llegada_desde if activa else None,
         historial=citas_service.historial_de_estado(cita),
         tiene_formula=cita.formula is not None,
+        tipo_cobro=cita.tipo_cobro,
+        valor=cita.valor,
+        pago_pendiente=pagos_service.esta_pendiente(cita),
+        pago_referencia=pagado.referencia if (pagado := pagos_service.pago_aprobado(cita)) else None,
     )
 
 
@@ -170,6 +175,8 @@ def confirmar_cita(
         numero_comprobante=cita.numero_comprobante,
         comprobante_generado_en=cita.comprobante_generado_en,
         mensaje="Su cita quedó confirmada y generamos su comprobante.",
+        tipo_cobro=cita.tipo_cobro,
+        valor=cita.valor,
     )
 
 

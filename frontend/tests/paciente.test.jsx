@@ -92,17 +92,19 @@ describe("Agendar cita", () => {
   it("los filtros de ciudad, modalidad y sede cambian los médicos y horarios", async () => {
     backendFalso(CATALOGO);
     const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
-    expect(await screen.findByText("2 médicos con cupo")).toBeInTheDocument();
+    const medicos = () => screen.getAllByRole("button", { name: /^Dr(a)?. / }).filter((b) => b.classList.contains("tarjeta-medico"));
+    expect(await screen.findByText("Médicos de su EPS y EPS aliadas")).toBeInTheDocument();
+    expect(medicos()).toHaveLength(2);
     expect(screen.getByRole("option", { name: "Medellín" })).toBeInTheDocument();
 
     await usuario.click(screen.getByRole("button", { name: "Sede Laureles" }));
-    expect(screen.getByText("1 médico con cupo")).toBeInTheDocument();
+    expect(medicos()).toHaveLength(1);
     expect(screen.getByRole("button", { name: /3:00 p\. m\., Sede Laureles/ })).toBeInTheDocument();
 
     await usuario.selectOptions(screen.getByLabelText("Modalidad"), "virtual");
     expect(screen.getByText("Ningún médico tiene cupo con estos filtros.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Quitar los filtros" }));
-    expect(screen.getByText("2 médicos con cupo")).toBeInTheDocument();
+    expect(medicos()).toHaveLength(2);
 
     // Otro médico: sus propios días y horas.
     await usuario.click(screen.getByRole("button", { name: /Dra. Ana Gómez/ }));

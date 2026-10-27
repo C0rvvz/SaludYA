@@ -101,3 +101,5 @@ class MePacienteResponse(BaseModel):
     particular: bool = False  # sin EPS: el encabezado dice "Particular"
     eps_id: uuid.UUID | None = None
     eps_aliadas: list[uuid.UUID] = []  # comparten médicos con la suya
+    # Valor de la consulta según el médico: {"eps": 8000, "aliada": 12000, "particular": 100000}
+    tarifas: dict[str, int] = {}

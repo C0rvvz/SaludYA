@@ -3,17 +3,18 @@ import { Chevron } from "../Iconos";
 const PASOS = ["Especialista", "Fecha y hora", "Confirmar"];
 
 /**
- * Los 3 pasos de "Agendar". Computador: círculos numerados unidos por una
+ * Los 3 pasos de "Agendar" (o los que se le pasen, como los del pago:
+ * Revisar › Pagar › Listo). Computador: círculos numerados unidos por una
  * línea (✓ verde en los completados). Celular: "Atrás", "Paso N de 3" y una
  * barra segmentada.
  */
-export default function PasosAgendar({ actual, onAtras }) {
+export default function PasosAgendar({ actual, onAtras, pasos = PASOS, etiqueta = "Pasos para agendar" }) {
   return (
     <>
-      <ol className="pasos-agendar" aria-label="Pasos para agendar">
-        {PASOS.map((nombre, i) => {
+      <ol className="pasos-agendar" aria-label={etiqueta}>
+        {pasos.map((nombre, i) => {
           const numero = i + 1;
-          const hecho = numero < actual || actual === 3;
+          const hecho = numero < actual || actual === pasos.length;
           return (
             <li
               key={nombre}
@@ -42,10 +43,12 @@ export default function PasosAgendar({ actual, onAtras }) {
           ) : (
             <span />
           )}
-          <span className="pasos-agendar-movil__texto">Paso {actual} de 3</span>
+          <span className="pasos-agendar-movil__texto">
+            Paso {actual} de {pasos.length}
+          </span>
         </div>
         <div className="pasos-agendar-movil__barra" aria-hidden="true">
-          {PASOS.map((nombre, i) => (
+          {pasos.map((nombre, i) => (
             <span key={nombre} className={i < actual ? "is-hecho" : ""} />
           ))}
         </div>

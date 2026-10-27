@@ -42,6 +42,8 @@ class CitaOut(BaseModel):
     numero_comprobante: str
     comprobante_generado_en: datetime
     mensaje: str
+    tipo_cobro: str = "eps"  # "eps" (copago), "aliada" o "particular"
+    valor: int = 0  # pesos; se paga después de la cita
 
 
 class EventoCitaOut(BaseModel):
@@ -90,6 +92,11 @@ class MiCitaOut(BaseModel):
     historial: list[EventoCitaOut]
     # Ya está la fórmula médica (GET /citas/{id}/formula): "Fórmula lista" en el historial.
     tiene_formula: bool = False
+    tipo_cobro: str = "eps"  # "eps" (copago), "aliada" o "particular"
+    valor: int = 0  # pesos; se paga después de la cita
+    # Pago en línea (pagos_service): ya atendida y falta pagarla / ya pagada.
+    pago_pendiente: bool = False
+    pago_referencia: str | None = None  # la del pago aprobado
 
 
 class ConfirmarPorEnlaceRequest(BaseModel):

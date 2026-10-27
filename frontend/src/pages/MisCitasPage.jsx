@@ -18,7 +18,8 @@ import {
   reprogramarCita,
 } from "../api/citas";
 import { ESTADOS_ACTIVOS } from "../utils/citas";
-import { formatearFechaLarga } from "../utils/formato";
+import { formatearFechaLarga, formatearPesos } from "../utils/formato";
+import { conceptoPendiente } from "../utils/pagos";
 import "../styles/mis-citas.css";
 
 /**
@@ -30,6 +31,7 @@ import "../styles/mis-citas.css";
  * HU-29: citas pendientes de confirmar asistencia, con botón directo.
  * HU-28: historial de citas anteriores, por mes y con filtros.
  * HU-30: opciones de cada cita y la información actualizada tras cada acción.
+ * Arriba, las citas atendidas que falta pagar, con "Pagar" (pago en línea).
  *
  * Computador: la lista a la izquierda y el detalle de la cita elegida al
  * lado. Celular: arriba la próxima cita destacada; al tocar una cita, su
@@ -115,6 +117,7 @@ export default function MisCitasPage() {
   if (actual.id === "historial") visibles = [...visibles].reverse(); // HU-28: lo más reciente primero
   const elegida = visibles.find((c) => c.id === seleccionId) ?? visibles[0] ?? null;
   const proxima = citas.find((c) => ESTADOS_ACTIVOS.includes(c.estado_visible));
+  const porPagar = citas.filter((c) => c.pago_pendiente);
 
   function ver(cita) {
     setSeleccionId(cita.id);
@@ -268,6 +271,18 @@ export default function MisCitasPage() {
                 : "Consulte sus citas, confirme que asistirá, cámbielas o cancélelas."}
             </p>
           </div>
+
+          {porPagar.map((c) => (
+            <section key={c.id} className="pago-pendiente" aria-label="Pago pendiente">
+              <div className="pago-pendiente__texto">
+                <p className="pago-pendiente__titulo">Tiene un pago pendiente: {formatearPesos(c.valor)}</p>
+                <p>{conceptoPendiente(c)} Páguelo aquí y evite la fila.</p>
+              </div>
+              <Link to={`/pagar/${c.id}`} className="btn btn--primary">
+                Pagar {formatearPesos(c.valor)}
+              </Link>
+            </section>
+          ))}
 
           {proxima && (
             <ProximaCita

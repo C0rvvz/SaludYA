@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
-from app.routers import admin, auth, catalogo, chat, citas, eps, health, lista_espera, pacientes, solicitudes
+from app.routers import admin, auth, catalogo, chat, citas, eps, health, lista_espera, pacientes, pagos, solicitudes
 from app.services import tareas_periodicas
 
 configurar_logging()
@@ -88,6 +88,7 @@ app.include_router(pacientes.router, tags=["Pacientes"])
 app.include_router(auth.router)
 app.include_router(catalogo.router)
 app.include_router(citas.router)
+app.include_router(pagos.router)
 app.include_router(lista_espera.router)
 app.include_router(solicitudes.router)
 app.include_router(chat.router)

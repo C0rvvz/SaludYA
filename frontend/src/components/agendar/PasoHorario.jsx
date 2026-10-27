@@ -9,7 +9,7 @@ import { Chevron } from "../Iconos";
 import { CANALES } from "../../utils/citas";
 import { capitalizar, formatearFecha, formatearHora } from "../../utils/formato";
 import { agruparPorEspecialista, diaCorto, dondeAtiende } from "../../utils/agendar";
-import { puedeAgendarCon } from "../../utils/eps";
+import { conceptoDelValor, puedeAgendarCon, relacionConMedico, valorConMedico } from "../../utils/eps";
 
 const MODALIDADES = [
   { value: "", label: "Todas" },
@@ -34,8 +34,9 @@ const unicasPorId = (lista) => [...new Map(lista.map((x) => [x.id, x])).values()
  * la especialidad, sin volver a consultar (HU-11). Al confirmar, el
  * servidor revisa que el horario siga libre (HU-16).
  *
- * Cada médico lleva su EPS. Se eligen los de la EPS del paciente o de una
- * aliada; los de otras EPS se ven al final, en gris y sin poder elegirlos.
+ * Cada médico lleva su EPS y el valor de la consulta, en tres grupos:
+ * los de su EPS y aliadas (copago), los particulares (se pueden agendar,
+ * pero cuestan más) y los de otras EPS (en gris, sin poder elegirlos).
  */
 export default function PasoHorario({
   especialidadId,
@@ -73,9 +74,12 @@ export default function PasoHorario({
       ),
     [franjas, filtros]
   );
-  // Los que puede elegir (su EPS o una aliada) y, aparte, los de otras EPS.
-  const grupos = todosLosGrupos.filter((g) => puedeAgendarCon(paciente, g.especialista));
-  const deOtrasEps = todosLosGrupos.filter((g) => !puedeAgendarCon(paciente, g.especialista));
+  // Su EPS y aliadas (copago), los particulares (cuestan más) y los de otras EPS (no se eligen).
+  const relacion = (g) => relacionConMedico(paciente, g.especialista);
+  const cubiertos = todosLosGrupos.filter((g) => ["propia", "aliada", "libre"].includes(relacion(g)));
+  const particulares = todosLosGrupos.filter((g) => relacion(g) === "particular");
+  const deOtrasEps = todosLosGrupos.filter((g) => relacion(g) === "otra");
+  const grupos = [...cubiertos, ...particulares];
   const hayAgendables = franjas.some((f) => puedeAgendarCon(paciente, f.especialista));
 
   // Lo elegido se deriva de lo que hay: si un filtro deja por fuera al médico
@@ -110,6 +114,41 @@ export default function PasoHorario({
     } finally {
       setConfirmando(false);
     }
+  }
+
+  // Una tarjeta de médico que se puede elegir, con su EPS y el valor de la consulta.
+  function tarjetaMedico(g) {
+    const elegido = g.especialista.id === grupo?.especialista.id;
+    return (
+      <button
+        key={g.especialista.id}
+        type="button"
+        className={`tarjeta-medico tarjeta-medico--${relacion(g)} ${elegido ? "is-elegida" : ""}`}
+        aria-pressed={elegido}
+        onClick={() => elegirMedico(g.especialista.id)}
+      >
+        <FotoProfesional nombre={g.especialista.nombre} />
+        <span className="tarjeta-medico__textos">
+          <span className="tarjeta-medico__nombre">
+            {g.especialista.nombre} <EpsMedico especialista={g.especialista} paciente={paciente} />
+          </span>
+          <span className="tarjeta-medico__donde">{dondeAtiende(g.franjas)}</span>
+          <span className="tarjeta-medico__proximo">
+            Próximo: {diaCorto(g.franjas[0].fecha)} · {formatearHora(g.franjas[0].hora)}
+          </span>
+        </span>
+        <span className="tarjeta-medico__lado">
+          {valorConMedico(paciente, g.especialista) && (
+            <span className="tarjeta-medico__valor">{valorConMedico(paciente, g.especialista)}</span>
+          )}
+          {elegido && (
+            <span className="tarjeta-medico__check" aria-hidden="true">
+              ✓
+            </span>
+          )}
+        </span>
+      </button>
+    );
   }
 
   const enlaceEspera = conFiltros("/lista-espera", { especialidad: especialidadId });
@@ -208,11 +247,6 @@ export default function PasoHorario({
             </div>
           </div>
 
-          <div className="agendar-medicos__titulo">
-            <p className="rotulo">{grupos.length === 1 ? "1 médico con cupo" : `${grupos.length} médicos con cupo`}</p>
-            <span>Del cupo más cercano al más lejano</span>
-          </div>
-
           {grupos.length === 0 ? (
             <div className="agendar-vacio agendar-vacio--caja">
               <p>Ningún médico tiene cupo con estos filtros.</p>
@@ -221,41 +255,39 @@ export default function PasoHorario({
               </button>
             </div>
           ) : (
-            <div className="agendar-medicos__lista">
-              {grupos.map((g) => {
-                const elegido = g.especialista.id === grupo?.especialista.id;
-                return (
-                  <button
-                    key={g.especialista.id}
-                    type="button"
-                    className={`tarjeta-medico ${elegido ? "is-elegida" : ""}`}
-                    aria-pressed={elegido}
-                    onClick={() => elegirMedico(g.especialista.id)}
-                  >
-                    <FotoProfesional nombre={g.especialista.nombre} />
-                    <span className="tarjeta-medico__textos">
-                      <span className="tarjeta-medico__nombre">
-                        {g.especialista.nombre} <EpsMedico especialista={g.especialista} paciente={paciente} />
-                      </span>
-                      <span className="tarjeta-medico__donde">{dondeAtiende(g.franjas)}</span>
-                      <span className="tarjeta-medico__proximo">
-                        Próximo: {diaCorto(g.franjas[0].fecha)} · {formatearHora(g.franjas[0].hora)}
-                      </span>
-                    </span>
-                    {elegido && (
-                      <span className="tarjeta-medico__check" aria-hidden="true">
-                        ✓
-                      </span>
+            <>
+              {cubiertos.length > 0 && (
+                <div className="agendar-medicos__grupo">
+                  <div className="agendar-medicos__titulo">
+                    <p className="rotulo">{paciente?.eps_id ? "Médicos de su EPS y EPS aliadas" : "Médicos con cupo"}</p>
+                    <span>Del cupo más cercano al más lejano</span>
+                  </div>
+                  <div className="agendar-medicos__lista">{cubiertos.map(tarjetaMedico)}</div>
+                </div>
+              )}
+              {particulares.length > 0 && (
+                <div className="agendar-medicos__grupo">
+                  <p className="rotulo">Particulares</p>
+                  <p className="aviso-particular">
+                    {paciente?.eps_id ? (
+                      <>
+                        Su EPS no cubre estas consultas. Puede agendarlas, pero <strong>cuestan más</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Como no tiene EPS, sus consultas son <strong>particulares</strong>.
+                      </>
                     )}
-                  </button>
-                );
-              })}
-            </div>
+                  </p>
+                  <div className="agendar-medicos__lista">{particulares.map(tarjetaMedico)}</div>
+                </div>
+              )}
+            </>
           )}
 
           {deOtrasEps.length > 0 && (
             <div className="agendar-medicos__otras">
-              <p className="rotulo">De otras EPS (no disponibles con la suya)</p>
+              <p className="rotulo">De otras EPS (no disponibles)</p>
               <div className="agendar-medicos__lista">
                 {deOtrasEps.map((g) => (
                   <button key={g.especialista.id} type="button" className="tarjeta-medico tarjeta-medico--otra-eps" disabled>
@@ -341,6 +373,17 @@ export default function PasoHorario({
               <span className="summary-row__label">Modalidad</span>
               <span className="summary-row__value">{franja ? capitalizar(franja.modalidad) : "—"}</span>
             </div>
+            {grupo && valorConMedico(paciente, grupo.especialista) && (
+              <div className="summary-row resumen-cita__valor">
+                <span className="summary-row__label">
+                  Valor de la consulta
+                  <span className="resumen-cita__concepto">
+                    {conceptoDelValor(paciente, grupo.especialista)} · lo paga después de la cita
+                  </span>
+                </span>
+                <span className="summary-row__value">{valorConMedico(paciente, grupo.especialista)}</span>
+              </div>
+            )}
           </div>
 
           <fieldset className="canales-cita">

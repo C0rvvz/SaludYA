@@ -215,4 +215,5 @@ def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente), 
         particular=paciente.estado_afiliacion == EstadoAfiliacion.PARTICULAR,
         eps_id=paciente.eps_id,
         eps_aliadas=sorted(eps_service.aliadas_de(db, paciente.eps_id)) if paciente.eps_id else [],
+        tarifas=eps_service.TARIFAS,
     )

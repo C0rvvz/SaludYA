@@ -108,7 +108,7 @@ def crear(
     tratamiento: str,
     nombre: str,
     especialidad_id: uuid.UUID,
-    eps_id: uuid.UUID,
+    eps_id: uuid.UUID | None,
     registro_medico: str | None,
     turnos: list[TurnoDatos],
     origen: str = "manual",
@@ -121,9 +121,9 @@ def crear(
     especialidad = especialidad_repository.obtener_por_id(db, especialidad_id)
     if especialidad is None:
         raise EspecialistaInvalidoError("No existe esa especialidad.")
-    eps = db.get(Eps, eps_id)
-    if eps is None:
-        raise EspecialistaInvalidoError("Elija la EPS de cuyos afiliados es médico.")
+    eps = db.get(Eps, eps_id) if eps_id is not None else None  # sin EPS: médico particular
+    if eps_id is not None and eps is None:
+        raise EspecialistaInvalidoError("Elija la EPS de cuyos afiliados es médico, o «Particular».")
     completo = f"{tratamiento} {nombre}"
     if db.query(Especialista).filter(func.lower(Especialista.nombre) == completo.lower()).first():
         raise EspecialistaInvalidoError(f"Ya existe un especialista llamado {completo}.")
@@ -133,14 +133,15 @@ def crear(
     validar_turnos(db, turnos)
 
     especialista = Especialista(
-        nombre=completo, especialidad_id=especialidad.id, eps_id=eps.id, registro_medico=registro_medico, origen=origen
+        nombre=completo, especialidad_id=especialidad.id, eps_id=eps.id if eps else None,
+        registro_medico=registro_medico, origen=origen
     )
     db.add(especialista)
     db.flush()
     _aplicar_turnos(db, especialista, turnos)
     auditoria_service.registrar(
         db, actor, "crear_especialista",
-        f"Agregó a {completo} ({especialidad.nombre}, {eps.nombre}) con {len(turnos)} turnos a la semana",
+        f"Agregó a {completo} ({especialidad.nombre}, {eps.nombre if eps else 'particular'}) con {len(turnos)} turnos a la semana",
     )
     db.commit()
     if generar_agenda:
@@ -214,8 +215,8 @@ def datos(db: Session, e: Especialista, libres: dict[uuid.UUID, int] | None = No
         "especialidad_id": e.especialidad_id,
         "especialidad": e.especialidad.nombre,
         "eps_id": e.eps_id,
-        "eps": e.eps.nombre,
-        "eps_corto": e.eps.nombre_corto,
+        "eps": e.eps.nombre if e.eps else "Particular",
+        "eps_corto": e.eps.nombre_corto if e.eps else "Particular",
         "registro_medico": e.registro_medico,
         "activo": e.activo,
         "origen": e.origen,

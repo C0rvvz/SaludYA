@@ -38,6 +38,8 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
     return () => window.removeEventListener(EVENTO_ABRIR_ELI, abrirEli);
   }, [abrirEli]);
 
+  // Tocar una pestaña lleva arriba, aunque ya esté en esa página.
+  const subir = () => window.scrollTo({ top: 0 });
   const clasePildora = ({ isActive }) => `menu-paciente__enlace ${isActive ? "is-active" : ""}`;
   const clasePestana = ({ isActive }) => `barra-paciente__pestana ${isActive ? "is-active" : ""}`;
   const nombre = paciente?.nombre ?? "";
@@ -45,10 +47,11 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
   return (
     <>
       <header className="cabecera-paciente">
-        <Logo to="/panel" />
+        {/* Al inicio de SaludYA, sin cerrar la sesión (ahí "Agendar cita" lo trae de vuelta) */}
+        <Logo to="/" />
         <nav className="menu-paciente" aria-label="Menú del paciente">
           {SECCIONES.map((s) => (
-            <NavLink key={s.to} to={s.to} className={clasePildora}>
+            <NavLink key={s.to} to={s.to} className={clasePildora} onClick={subir}>
               {s.texto}
             </NavLink>
           ))}
@@ -74,7 +77,7 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
       {/* Celular: pestañas abajo, al alcance del pulgar */}
       <nav className="barra-paciente" aria-label="Menú del paciente (celular)">
         {SECCIONES.map(({ to, corto, Icono }) => (
-          <NavLink key={to} to={to} className={clasePestana}>
+          <NavLink key={to} to={to} className={clasePestana} onClick={subir}>
             <span className="barra-paciente__icono">
               <Icono />
             </span>

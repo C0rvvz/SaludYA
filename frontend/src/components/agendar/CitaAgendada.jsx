@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { CANALES } from "../../utils/citas";
-import { capitalizar, formatearFechaLarga, formatearHora } from "../../utils/formato";
+import { CANALES, TIPO_COBRO } from "../../utils/citas";
+import { capitalizar, formatearFechaLarga, formatearHora, formatearPesos } from "../../utils/formato";
 
 // HU-17: el comprobante se envía por el canal que eligió la persona.
 const ENVIO = {
@@ -62,6 +62,14 @@ export default function CitaAgendada({ cita, onAgendarOtra }) {
             <dt>Recordatorio por</dt>
             <dd>{CANALES[cita.canal_recordatorio] ?? cita.canal_recordatorio}</dd>
           </div>
+          {cita.valor > 0 && (
+            <div>
+              <dt>Valor de la consulta</dt>
+              <dd>
+                {formatearPesos(cita.valor)} · {TIPO_COBRO[cita.tipo_cobro] ?? ""}, se paga después de la cita
+              </dd>
+            </div>
+          )}
         </dl>
         <p className="comprobante-cita__nota">
           {presencial

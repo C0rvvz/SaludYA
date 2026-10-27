@@ -1,0 +1,550 @@
+/* ============ Pago en línea de una cita (simulación de Wompi) ============
+   Revisar › Pagar › Listo, y la página de prueba del banco (PSE). Pensado
+   para personas mayores: una sola columna, letra grande, opciones en
+   tarjeta y botones de 52 px. */
+
+.section.pago {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 880px;
+  padding-top: 32px;
+  padding-bottom: 124px; /* que Eli no tape lo último */
+}
+
+/* Los pasos, centrados sobre el formulario */
+.pago .pasos-agendar {
+  justify-content: center;
+}
+
+.pago .pasos-agendar-movil {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.pago__formulario,
+.pago__resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.pago__resultado {
+  max-width: 880px;
+}
+
+.pago__resultado--angosto {
+  max-width: 640px;
+}
+
+.pago .alert {
+  margin: 0;
+}
+
+.pago__encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pago__encabezado h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.1;
+}
+
+.pago__lead {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 1.1875rem;
+}
+
+.pago__encabezado--centrado {
+  align-items: center;
+  text-align: center;
+}
+
+.pago__icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.pago__icono--bien {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.pago__icono--mal {
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+
+.pago__tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+}
+
+.pago__tarjeta .field {
+  margin: 0;
+}
+
+/* Cita, médico, copago... */
+.pago__resumen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.pago__resumen > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.pago__resumen dt {
+  color: var(--color-ink-soft);
+}
+
+.pago__resumen dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.pago__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.pago__total strong {
+  font-size: var(--text-lg);
+}
+
+/* ¿Cómo quiere pagar? / Tipo de persona / ¿Dónde le enviamos el comprobante? */
+.pago__opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pago__opciones legend {
+  margin-bottom: 10px;
+  padding: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.pago__opciones .field__hint {
+  margin: 0;
+}
+
+.pago__opciones-lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* WhatsApp / Correo / Mensaje de texto: una debajo de otra (en una fila no caben sin partir el texto) */
+.pago__opciones-lista--tres {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opcion-pago {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.opcion-pago--grande {
+  min-height: 76px;
+  padding: 14px 20px;
+}
+
+.opcion-pago input {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-navy);
+}
+
+/* El relleno baja medio píxel: el borde pasa de 1.5 a 2 px y el contenido no salta. */
+.opcion-pago:has(input:checked) {
+  padding: 9.5px 15.5px;
+  border: 2px solid var(--color-navy);
+  background: var(--color-primary-soft);
+}
+
+.opcion-pago--grande:has(input:checked) {
+  padding: 13.5px 19.5px;
+}
+
+.opcion-pago:has(input:focus-visible) {
+  box-shadow: var(--halo);
+}
+
+.opcion-pago.is-deshabilitada {
+  color: var(--color-ink-soft);
+  background: var(--color-surface-2);
+  cursor: not-allowed;
+}
+
+.opcion-pago__titulo {
+  display: block;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.opcion-pago--grande .opcion-pago__titulo {
+  font-size: var(--text-md);
+}
+
+.opcion-pago__ayuda {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.pago__seguro {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.pago__seguro svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.pago__prueba strong {
+  white-space: nowrap;
+}
+
+.pago__prueba strong:first-child {
+  white-space: normal;
+}
+
+/* Tarjeta: vence y CVC lado a lado */
+.pago__dos-columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.pago__vence {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Igual que las etiquetas de los demás campos */
+.pago__vence legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.pago__vence-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Botones: el principal a la derecha */
+.pago__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.pago__acciones .btn {
+  min-width: 160px;
+}
+
+/* --- Pago aprobado --- */
+.pago__columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.pago__llegada {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+.pago__llegada-titulo {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pago__llegada img {
+  display: block;
+}
+
+.pago__llegada-codigo {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.pago__llegada-codigo span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 64px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface-2);
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pago__llegada-ayuda {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+/* --- Pago rechazado --- */
+.pago__motivo {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.pago__puede {
+  margin: 0;
+  font-weight: 600;
+}
+
+.pago__sugerencias {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+/* --- Página de prueba del banco (PSE) --- */
+.banco-prueba {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  min-height: 100vh;
+  padding: 0 16px 48px;
+  background: #e9edf2;
+}
+
+.banco-prueba__aviso {
+  width: calc(100% + 32px);
+  margin: 0 -16px;
+  padding: 10px 16px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: center;
+}
+
+.banco-prueba__caja {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 520px;
+  padding: 28px;
+  border: 1px solid var(--color-line);
+  border-top: 6px solid #2d4a6b;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.banco-prueba__caja h1 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.banco-prueba__banco {
+  margin: 0;
+  color: #2d4a6b;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.banco-prueba__datos {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.banco-prueba__datos > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.banco-prueba__datos dt {
+  color: var(--color-ink-soft);
+}
+
+.banco-prueba__datos dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.banco-prueba__valor {
+  font-size: var(--text-md);
+}
+
+.banco-prueba__nota {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.banco-prueba .alert {
+  margin: 0;
+}
+
+/* "Descargar comprobante": solo existe mientras se imprime (o se guarda en PDF) */
+.comprobante-pago-impreso {
+  display: none;
+}
+
+@media print {
+  body:has(> .comprobante-pago-impreso) > #root {
+    display: none;
+  }
+
+  .comprobante-pago-impreso {
+    display: block;
+    color: #000;
+    font-size: 12pt;
+    line-height: 1.45;
+  }
+
+  .comprobante-pago-impreso h1 {
+    margin: 6pt 0;
+    font-size: 20pt;
+  }
+
+  .comprobante-pago-impreso p {
+    margin: 2pt 0;
+  }
+
+  .comprobante-pago-impreso__marca {
+    font-weight: 700;
+  }
+
+  .comprobante-pago-impreso__codigo {
+    display: flex;
+    align-items: center;
+    gap: 14pt;
+    margin-top: 18pt;
+  }
+}
+
+/* --- Celular --- */
+@media (max-width: 760px) {
+  .section.pago {
+    gap: 18px;
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+
+  .pago__encabezado h1 {
+    font-size: var(--text-lg);
+  }
+
+  .pago__lead {
+    font-size: var(--text-base);
+  }
+
+  .pago__columnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* El código de llegada primero: es lo que se usa al llegar a la EPS. */
+  .pago__llegada {
+    order: -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .pago__opciones-lista,
+  .pago__dos-columnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pago__acciones {
+    flex-direction: column-reverse;
+  }
+
+  .pago__acciones .btn {
+    width: 100%;
+  }
+
+  .pago__resumen > div {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pago__resumen dd {
+    text-align: left;
+  }
+}

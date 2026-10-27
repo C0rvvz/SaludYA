@@ -56,6 +56,7 @@ from app.integrations.notificaciones import enviar_por_canal
 from app.models.cita import CanalContacto, Cita, EstadoCita
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.repositories import cita_repository, disponibilidad_repository
+from app.models.pago import APROBADO
 from app.models.paciente import Paciente
 from app.services import auditoria_service, eps_service
 from app.services.auditoria_service import SISTEMA, Actor
@@ -200,6 +201,7 @@ def historial_de_estado(cita: Cita) -> list[dict]:
     motivo = f": {cita.motivo_cancelacion}" if cita.motivo_cancelacion else ""
     destino = f" a la cita {nueva.numero_comprobante}" if nueva is not None else ""
     tipo_cierre, texto_cierre = _cierre(cita)
+    pagado = next((p for p in cita.pagos if p.estado == APROBADO), None)  # pago en línea (pagos_service)
     # (tipo, fecha, descripción): solo cuentan los pasos que ya ocurrieron (tienen fecha).
     posibles = [
         ("agendada", cita.creado_en, agendada),
@@ -210,6 +212,7 @@ def historial_de_estado(cita: Cita) -> list[dict]:
         ("cancelada", cita.cancelada_en, f"Cita cancelada{motivo}"),
         ("reprogramada", cita.reprogramada_en, f"Cita reprogramada{destino}"),
         ("calificada", cita.calificada_en, f"Calificó la atención con {cita.calificacion} de 5"),
+        ("pagada", pagado and pagado.actualizado_en, pagado and f"Pagó en línea ${pagado.valor:,}".replace(",", ".")),
     ]
     eventos = sorted((e for e in posibles if e[1]), key=lambda e: e[1])
     return [{"tipo": t, "fecha": f, "descripcion": d} for t, f, d in eventos]
@@ -275,8 +278,10 @@ def confirmar_cita(
     if _inicio(disponibilidad) <= ahora_colombia():
         raise HorarioYaNoDisponibleError("Ese horario ya pasó. Elija otro, por favor.")
 
-    # Solo con médicos de su EPS o de una aliada (eps_service).
-    eps_service.validar(db, db.get(Paciente, paciente_id), disponibilidad.especialista)
+    # Con médicos de su EPS, de una aliada o particulares (eps_service), y su valor.
+    paciente = db.get(Paciente, paciente_id)
+    eps_service.validar(db, paciente, disponibilidad.especialista)
+    tipo_cobro, valor = eps_service.cobro(db, paciente, disponibilidad.especialista)
 
     disponibilidad.estado = EstadoDisponibilidad.RESERVADO
 
@@ -287,6 +292,8 @@ def confirmar_cita(
         canal_recordatorio=canal_recordatorio,
         estado=EstadoCita.CONFIRMADA,
         creado_en=_ahora_utc(),
+        tipo_cobro=tipo_cobro,
+        valor=valor,
     )
     db.add(cita)
 
@@ -648,6 +655,7 @@ def reprogramar_cita(
     # 1) Reservar el horario nuevo con una cita nueva enlazada a la original
     #    (del mismo paciente, aunque la reprograme el personal).
     nueva.estado = EstadoDisponibilidad.RESERVADO
+    tipo_cobro, valor = eps_service.cobro(db, cita.paciente, nueva.especialista)  # puede cambiar con el médico
     cita_nueva = Cita(
         paciente_id=cita.paciente_id,
         disponibilidad_id=nueva.id,
@@ -655,6 +663,8 @@ def reprogramar_cita(
         estado=EstadoCita.CONFIRMADA,
         creado_en=ahora,
         reprogramada_desde_id=cita.id,
+        tipo_cobro=tipo_cobro,
+        valor=valor,
     )
     db.add(cita_nueva)
 

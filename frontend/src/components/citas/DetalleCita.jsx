@@ -1,7 +1,8 @@
+import { Link } from "react-router-dom";
 import FotoProfesional from "../agendar/FotoProfesional";
 import { Chevron } from "../Iconos";
-import { CALIFICACIONES, CANALES, estrellas, horaDe } from "../../utils/citas";
-import { capitalizar, formatearFechaLarga, formatearHora, formatearSoloHora } from "../../utils/formato";
+import { CALIFICACIONES, CANALES, ESTADOS_ACTIVOS, TIPO_COBRO, estrellas, horaDe } from "../../utils/citas";
+import { capitalizar, formatearFechaLarga, formatearHora, formatearPesos, formatearSoloHora } from "../../utils/formato";
 import AccionesCita from "./AccionesCita";
 import { EstadoBadge, Fila } from "./ElementosCita";
 import FormulaCita from "./FormulaCita";
@@ -12,11 +13,47 @@ function cuandoPaso(fechaHoraIso) {
   return `${dia.replace(".", "")} · ${formatearSoloHora(fechaHoraIso)}`;
 }
 
+// Valor de la consulta: "se paga después", "Pagar" (en línea) o, ya pagada, su comprobante.
+function ValorDeLaCita({ cita }) {
+  const concepto = TIPO_COBRO[cita.tipo_cobro];
+  if (cita.pago_referencia) {
+    return (
+      <Fila etiqueta="Valor de la consulta">
+        {formatearPesos(cita.valor)} · Pagado
+        <span className="detalle-mi-cita__direccion">
+          {concepto} · <Link to={`/pagar/resultado/${cita.pago_referencia}`}>Ver comprobante y código de llegada</Link>
+        </span>
+      </Fila>
+    );
+  }
+  if (cita.pago_pendiente) {
+    return (
+      <Fila etiqueta="Valor de la consulta">
+        {formatearPesos(cita.valor)} · Pendiente de pago
+        <span className="detalle-mi-cita__direccion">{concepto}</span>
+        <Link to={`/pagar/${cita.id}`} className="btn btn--primary btn--compacto detalle-mi-cita__pagar">
+          Pagar {formatearPesos(cita.valor)}
+        </Link>
+      </Fila>
+    );
+  }
+  // Cancelada, reprogramada o sin asistir: no hay nada que pagar.
+  if (!ESTADOS_ACTIVOS.includes(cita.estado_visible) && cita.estado_visible !== "finalizada") return null;
+  return (
+    <Fila etiqueta="Valor de la consulta">
+      {formatearPesos(cita.valor)}
+      <span className="detalle-mi-cita__direccion">{concepto} · se paga después de la cita</span>
+    </Fila>
+  );
+}
+
 /**
  * Detalle de una cita — HU-26 criterio 4, HU-27 criterio 3 y HU-18 (su
  * estado y la línea de tiempo, con "Ver si hay novedades" para volver a
  * consultarlo). Las acciones las resuelve "Mis citas" (`onAccion`).
  * Si el médico ya mandó la fórmula, debajo va la fórmula y dónde reclamarla.
+ * El valor de la consulta: se paga después de la cita ("Pagar" en línea) y,
+ * ya pagada, enlaza a su comprobante.
  */
 export default function DetalleCita({ cita, ocupado, actualizando, onAccion, onActualizar, onAbrirNumero, onVolver }) {
   const especialidad = cita.especialista.especialidad.nombre;
@@ -59,6 +96,7 @@ export default function DetalleCita({ cita, ocupado, actualizando, onAccion, onA
         </div>
         <div>
           <Fila etiqueta="Recordatorio por">{CANALES[cita.canal_recordatorio] ?? cita.canal_recordatorio}</Fila>
+          {cita.valor > 0 && <ValorDeLaCita cita={cita} />}
           {cita.motivo_cancelacion && <Fila etiqueta="Motivo de cancelación">{cita.motivo_cancelacion}</Fila>}
           {cita.calificacion && (
             <Fila etiqueta="Su calificación">

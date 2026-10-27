@@ -82,6 +82,13 @@ export const AFILIACION = {
 // La EPS del paciente para el personal, o "Particular (sin EPS)".
 export const epsDelPaciente = (p) => p.eps ?? (p.estado_afiliacion === "particular" ? "Particular (sin EPS)" : "—");
 
+// De qué es el valor de la cita (cita.tipo_cobro): copago de su EPS, de una aliada o particular.
+export const TIPO_COBRO = {
+  eps: "Copago de su EPS",
+  aliada: "Copago EPS aliada",
+  particular: "Consulta particular",
+};
+
 // Estado en pocas palabras para las tablas del personal, y cómo se llama
 // cada grupo en los chips con contador de "Gestión de citas" (con su color).
 export const ESTADO_PERSONAL = {

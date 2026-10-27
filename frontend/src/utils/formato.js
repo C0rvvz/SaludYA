@@ -75,6 +75,11 @@ export function ocultarEnlaces(texto) {
   return texto.replace(/https?:\/\/\S+/g, "[enlace]");
 }
 
+// 8000 -> "$8.000" (pesos colombianos, sin decimales)
+export function formatearPesos(valor) {
+  return `$${Math.round(valor).toLocaleString("es-CO")}`;
+}
+
 export function capitalizar(texto) {
   if (!texto) return texto;
   return texto.charAt(0).toUpperCase() + texto.slice(1);

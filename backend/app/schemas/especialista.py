@@ -18,7 +18,7 @@ class EspecialistaOut(BaseModel):
     id: uuid.UUID
     nombre: str
     especialidad: EspecialidadOut
-    eps: EpsOut  # atiende a afiliados de esta EPS (y de sus aliadas)
+    eps: EpsOut | None  # atiende a afiliados de esta EPS (y de sus aliadas); None = particular
     # --- HU-13/HU-14: sedes y modalidades que ofrece EN GENERAL este
     # especialista (no confundir con la franja concreta de Disponibilidad) ---
     sedes: list[SedeOut]
@@ -51,7 +51,7 @@ class EspecialistaBasicoOut(BaseModel):
     id: uuid.UUID
     nombre: str
     especialidad: EspecialidadOut
-    eps: EpsOut
+    eps: EpsOut | None  # None = médico particular
 
 
 class DisponibilidadBusquedaOut(BaseModel):

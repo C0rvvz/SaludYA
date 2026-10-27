@@ -60,6 +60,7 @@ def listar_por_paciente(db: Session, paciente_id: uuid.UUID) -> list[Cita]:
             contains_eager(Cita.disponibilidad).joinedload(Disponibilidad.sede),
             # Solo para saber si tiene fórmula: lo médico (cifrado) no se carga aquí.
             selectinload(Cita.formula).load_only(FormulaMedica.id, FormulaMedica.cita_id),
+            selectinload(Cita.pagos),
         )
         .filter(Cita.paciente_id == paciente_id)
         .order_by(Disponibilidad.fecha, Disponibilidad.hora)

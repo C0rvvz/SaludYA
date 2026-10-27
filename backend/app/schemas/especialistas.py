@@ -26,7 +26,7 @@ class CrearEspecialistaRequest(BaseModel):
     tratamiento: Literal["Dr.", "Dra."]
     nombre: str = Field(min_length=3, max_length=120)
     especialidad_id: uuid.UUID
-    eps_id: uuid.UUID  # la EPS de cuyos afiliados es médico
+    eps_id: uuid.UUID | None  # la EPS de cuyos afiliados es médico; null = médico particular
     registro_medico: str | None = Field(default=None, max_length=20)
     turnos: list[TurnoIn] = Field(min_length=1, max_length=20)
 
@@ -48,8 +48,8 @@ class EspecialistaAdminOut(BaseModel):
     nombre: str
     especialidad_id: uuid.UUID
     especialidad: str
-    eps_id: uuid.UUID
-    eps: str
+    eps_id: uuid.UUID | None
+    eps: str  # "Particular" si no atiende por EPS
     eps_corto: str
     registro_medico: str | None
     activo: bool

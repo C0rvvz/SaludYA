@@ -112,7 +112,9 @@ def sincronizar(db: Session, quien: Personal | None, rng: random.Random | None =
 
     partes = []
     if nuevos:
-        partes.append("Llegaron: " + ", ".join(f"{e.nombre} ({e.especialidad.nombre}, {e.eps.nombre})" for e in nuevos))
+        partes.append("Llegaron: " + ", ".join(
+            f"{e.nombre} ({e.especialidad.nombre}, {e.eps.nombre if e.eps else 'particular'})" for e in nuevos
+        ))
     if retirados:
         partes.append("Dejó de atender en la red: " + ", ".join(e.nombre for e in retirados))
     if formulas:

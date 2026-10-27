@@ -41,7 +41,8 @@ def test_agenda_con_su_eps_y_las_aliadas_pero_no_con_otras(cliente, fabrica, db)
     r = _agendar(cliente, paciente, _franja_de(fabrica, sanitas))
     assert r.status_code == 400
     assert r.json()["detail"] == (
-        f"{sanitas.nombre} atiende a afiliados de Sanitas. Elija un médico de Sura o de una EPS aliada."
+        f"{sanitas.nombre} atiende a afiliados de Sanitas. "
+        "Elija un médico de Sura, de una EPS aliada o un médico particular."
     )
 
 
@@ -108,10 +109,61 @@ def test_catalogo_y_paciente_traen_la_eps(cliente, fabrica, db):
     _franja_de(fabrica, _medico_de(db, "Sanitas"))
     _franja_de(fabrica, _medico_de(db, "Savia Salud"))
     todas = cliente.get("/disponibilidad/buscar").json()
-    assert {"Sanitas", "Savia"} <= {f["especialista"]["eps"]["nombre_corto"] for f in todas}
+    assert {"Sanitas", "Savia Salud"} <= {f["especialista"]["eps"]["nombre_corto"] for f in todas if f["especialista"]["eps"]}
     para_sura = cliente.get(f"/disponibilidad/buscar?para_eps={sura.id}").json()
     assert {f["especialista"]["eps"]["nombre"] for f in para_sura} <= {"Sura", "Savia Salud"}
     assert "Savia Salud" in {f["especialista"]["eps"]["nombre"] for f in para_sura}
 
     medicos = cliente.get("/especialistas").json()
-    assert all(m["eps"]["nombre_corto"] for m in medicos)
+    assert all(m["eps"] is None or m["eps"]["nombre_corto"] for m in medicos)
+    assert any(m["eps"] is None for m in medicos)  # hay médicos particulares
+
+
+def _particular(db, especialidad_id=None) -> Especialista:
+    query = db.query(Especialista).filter(Especialista.eps_id.is_(None))
+    if especialidad_id is not None:
+        query = query.filter(Especialista.especialidad_id == especialidad_id)
+    return query.order_by(Especialista.nombre).first()
+
+
+def test_valor_de_la_cita_segun_el_medico(cliente, fabrica, db):
+    """Copago de su EPS, copago de una aliada y consulta particular (eps_service.TARIFAS)."""
+    sura = db.query(Eps).filter_by(nombre="Sura").one()
+    paciente = fabrica.paciente(eps_id=sura.id)
+    casos = [(_medico_de(db, "Sura"), "eps", 8000), (_medico_de(db, "Savia Salud"), "aliada", 12000),
+             (_particular(db), "particular", 100000)]
+    for medico, tipo, valor in casos:
+        r = _agendar(cliente, paciente, _franja_de(fabrica, medico))
+        assert r.status_code == 201, r.text
+        assert (r.json()["tipo_cobro"], r.json()["valor"]) == (tipo, valor)
+    mias = cliente.get("/citas", headers=encabezado(paciente)).json()
+    assert sorted(c["valor"] for c in mias) == [8000, 12000, 100000]
+
+    # Un paciente sin EPS paga la consulta particular con cualquier médico.
+    particular = fabrica.paciente(eps_id=None, estado_afiliacion=EstadoAfiliacion.PARTICULAR)
+    r = _agendar(cliente, particular, _franja_de(fabrica, _medico_de(db, "Sura")))
+    assert (r.json()["tipo_cobro"], r.json()["valor"]) == ("particular", 100000)
+
+
+def test_al_reprogramar_el_valor_cambia_con_el_medico(cliente, fabrica, db):
+    sura = db.query(Eps).filter_by(nombre="Sura").one()
+    paciente = fabrica.paciente(eps_id=sura.id)
+    particular = _particular(db)  # hay particulares de Médico general en el catálogo de ejemplo
+    medico = _medico_de(db, "Sura", particular.especialidad_id)
+    cita = _agendar(cliente, paciente, _franja_de(fabrica, medico)).json()
+    assert cita["valor"] == 8000
+    franja = _franja_de(fabrica, particular)
+    r = cliente.post(f"/citas/{cita['id']}/reprogramar", headers=encabezado(paciente),
+                     json={"disponibilidad_id": str(franja.id)})
+    assert r.status_code == 200, r.text
+    assert (r.json()["tipo_cobro"], r.json()["valor"]) == ("particular", 100000)
+
+
+def test_el_medico_particular_no_se_ofrece_solo(fabrica, db):
+    """La lista de espera, Eli y el personal ofrecen su EPS y aliadas: un particular cuesta más, lo elige el paciente."""
+    from app.services import eps_service
+
+    sura = db.query(Eps).filter_by(nombre="Sura").one()
+    paciente = fabrica.paciente(eps_id=sura.id)
+    assert eps_service.relacion(db, paciente, _particular(db)) == "particular"
+    assert None not in eps_service.eps_permitidas(db, paciente)

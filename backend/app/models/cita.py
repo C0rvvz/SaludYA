@@ -128,6 +128,12 @@ class Cita(Base):
     )
     calificada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # --- Valor de la consulta (eps_service.cobro), fijado al agendar: "eps"
+    # (copago de su EPS), "aliada" (copago de una EPS aliada) o "particular".
+    # En pesos colombianos; se paga después de la cita. ---
+    tipo_cobro: Mapped[str] = mapped_column(String(12), default="eps", server_default="eps", nullable=False)
+    valor: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
     paciente: Mapped["Paciente"] = relationship(back_populates="citas")
     disponibilidad: Mapped["Disponibilidad"] = relationship(back_populates="citas")
     reprogramada_desde: Mapped["Cita | None"] = relationship(
@@ -136,3 +142,4 @@ class Cita(Base):
     reemplazada_por: Mapped["Cita | None"] = relationship(back_populates="reprogramada_desde")
     # La fórmula médica, cuando la cita fue atendida y el médico formuló algo.
     formula: Mapped["FormulaMedica | None"] = relationship(back_populates="cita", uselist=False)
+    pagos: Mapped[list["Pago"]] = relationship(back_populates="cita", order_by="Pago.creado_en")

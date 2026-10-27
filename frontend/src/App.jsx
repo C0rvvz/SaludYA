@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import PersonalProvider from "./context/PersonalProvider";
 import RutaProtegida from "./components/RutaProtegida";
+import SubirAlCambiarDePagina from "./components/SubirAlCambiarDePagina";
 import RutaPersonal from "./components/admin/RutaPersonal";
 import AdminLayout from "./components/admin/AdminLayout";
 import HomePage from "./pages/HomePage";
@@ -12,6 +13,9 @@ import MisCitasPage from "./pages/MisCitasPage";
 import ConfirmarAsistenciaPage from "./pages/ConfirmarAsistenciaPage";
 import ListaEsperaPage from "./pages/ListaEsperaPage";
 import SolicitudesPage from "./pages/SolicitudesPage";
+import PagarCitaPage from "./pages/PagarCitaPage";
+import BancoPsePage from "./pages/BancoPsePage";
+import ResultadoPagoPage from "./pages/ResultadoPagoPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminCitasPage from "./pages/admin/AdminCitasPage";
 import AdminCitaDetallePage from "./pages/admin/AdminCitaDetallePage";
@@ -29,6 +33,7 @@ import AdminRevisionPage from "./pages/admin/AdminRevisionPage";
 export default function App() {
   return (
     <BrowserRouter>
+      <SubirAlCambiarDePagina />
       <AuthProvider>
         <PersonalProvider>
           <Routes>
@@ -66,6 +71,31 @@ export default function App() {
               element={
                 <RutaProtegida>
                   <MisCitasPage />
+                </RutaProtegida>
+              }
+            />
+            {/* Pago en línea de una cita atendida (simulación de Wompi) */}
+            <Route
+              path="/pagar/:citaId"
+              element={
+                <RutaProtegida>
+                  <PagarCitaPage />
+                </RutaProtegida>
+              }
+            />
+            <Route
+              path="/pagar/banco/:referencia"
+              element={
+                <RutaProtegida>
+                  <BancoPsePage />
+                </RutaProtegida>
+              }
+            />
+            <Route
+              path="/pagar/resultado/:referencia"
+              element={
+                <RutaProtegida>
+                  <ResultadoPagoPage />
                 </RutaProtegida>
               }
             />

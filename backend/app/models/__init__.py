@@ -24,6 +24,7 @@ from app.models.sesion import Sesion
 from app.models.evento_seguridad import EventoSeguridad
 from app.models.sincronizacion_ips import SincronizacionIps
 from app.models.formula_medica import Farmacia, FormulaMedica
+from app.models.pago import Pago
 
 __all__ = [
     "Eps",
@@ -50,4 +51,5 @@ __all__ = [
     "SincronizacionIps",
     "FormulaMedica",
     "Farmacia",
+    "Pago",
 ]

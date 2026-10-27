@@ -40,6 +40,8 @@ const ACCIONES_CITAS = {
   calificar: "Calificar la atención",
   recuperar_cupo: "Recuperar cupo (lista de espera)",
   registrar_formula: "Fórmula médica",
+  pagar_cita: "Pago en línea",
+  pago_rechazado: "Pago no aprobado",
 };
 
 const ACCIONES_CUENTAS = {
