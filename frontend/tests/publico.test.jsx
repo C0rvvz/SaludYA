@@ -212,9 +212,41 @@ describe("Registro", () => {
 
   async function llenarPaso2(usuario) {
     await usuario.selectOptions(await screen.findByLabelText("Su EPS"), "eps-1");
-    await usuario.click(screen.getByRole("checkbox"));
+    await usuario.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos personales/ }));
     await usuario.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
   }
+
+  it("sin EPS: una casilla a la vista, fuera de la lista, y se registra como particular", async () => {
+    const llamadas = backendFalso({
+      "GET /eps": EPS,
+      "POST /pacientes/registro": {
+        numero_documento: "1020304050",
+        eps: null,
+        estado_afiliacion: "particular",
+        mensaje: "Su cuenta quedó creada como paciente particular (sin EPS).",
+      },
+    });
+    const usuario = abrir("/registrarse");
+    await llenarPaso1(usuario);
+    const lista = await screen.findByLabelText("Su EPS");
+    // La lista solo trae EPS; "No tengo EPS" es una casilla aparte.
+    expect(within(lista).getAllByRole("option").map((o) => o.textContent)).toEqual(["Seleccione su EPS", "Sura"]);
+    await usuario.selectOptions(lista, "eps-1");
+
+    await usuario.click(screen.getByRole("checkbox", { name: "No tengo EPS y soy atendido por médicos particulares" }));
+    expect(lista).toBeDisabled();
+    expect(lista).toHaveValue(""); // se quita la EPS que había elegido
+    expect(screen.getByText(/Sus citas serán particulares/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos personales/ }));
+    await usuario.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
+
+    expect(await esperarTexto("Su cuenta está lista, Laura")).toBeInTheDocument();
+    expect(screen.getByText("Particular (sin EPS)")).toBeInTheDocument();
+    expect(screen.getByText("No aplica")).toBeInTheDocument();
+    const cuerpo = llamadasA(llamadas, "POST", "/pacientes/registro")[0].cuerpo;
+    expect(cuerpo.eps_id).toBeNull();
+    expect(cuerpo).not.toHaveProperty("sin_eps");
+  });
 
   it("valida, pide la EPS y la autorización, y crea la cuenta", async () => {
     const llamadas = backendFalso({

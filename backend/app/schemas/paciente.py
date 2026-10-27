@@ -29,8 +29,9 @@ class PacienteRegistroRequest(BaseModel):
     telefono_whatsapp: str
     correo: EmailStr | None = None
 
-    # --- HU-08: EPS declarada por el paciente ---
-    eps_id: uuid.UUID
+    # --- HU-08: EPS declarada por el paciente. null (explícito) = no tiene
+    # EPS: se atiende como particular (médicos particulares). ---
+    eps_id: uuid.UUID | None
 
     # --- HU-07: tratamiento de datos ---
     acepto_tratamiento_datos: bool
@@ -84,7 +85,7 @@ class PacienteRegistroResponse(BaseModel):
     nombre: str
     telefono_whatsapp: str
     correo: str | None
-    eps: EpsOut
+    eps: EpsOut | None  # None: particular (sin EPS)
     estado_afiliacion: EstadoAfiliacion
     acepto_tratamiento_datos: bool
     fecha_aceptacion_tratamiento: datetime | None

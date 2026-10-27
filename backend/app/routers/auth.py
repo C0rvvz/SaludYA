@@ -29,7 +29,7 @@ from app.core.dependencies import get_current_paciente, sesion_del_paciente
 from app.core.limite_intentos import exigir_humano, ip_de, limitar
 from app.core.security import TIPO_PACIENTE, crear_access_token
 from app.models.codigo_otp import CodigoOTP
-from app.models.paciente import Paciente
+from app.models.paciente import EstadoAfiliacion, Paciente
 from app.models.sesion import Sesion
 from app.schemas.auth import (
     EnviarOTPRequest,
@@ -212,4 +212,5 @@ def obtener_paciente_actual(paciente: Paciente = Depends(get_current_paciente)):
         telefono_whatsapp=paciente.telefono_whatsapp,
         correo=paciente.correo,
         eps=paciente.eps.nombre if paciente.eps else None,
+        particular=paciente.estado_afiliacion == EstadoAfiliacion.PARTICULAR,
     )

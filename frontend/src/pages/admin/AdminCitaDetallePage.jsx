@@ -18,8 +18,8 @@ import {
   registrarResultadoAdmin,
   reprogramarCitaAdmin,
 } from "../../api/admin";
-import { CANALES } from "../../utils/citas";
-import { capitalizar, formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
+import { AFILIACION, CANALES, epsDelPaciente } from "../../utils/citas";
+import { formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
 
 /**
  * Detalle de una cita para el personal:
@@ -210,8 +210,8 @@ export default function AdminCitaDetallePage() {
             </Fila>
             <Fila etiqueta="Teléfono (WhatsApp)">{p.telefono_whatsapp}</Fila>
             <Fila etiqueta="Correo electrónico">{p.correo ?? "—"}</Fila>
-            <Fila etiqueta="EPS">{p.eps ?? "—"}</Fila>
-            <Fila etiqueta="Estado de afiliación">{capitalizar(p.estado_afiliacion.replace("_", " "))}</Fila>
+            <Fila etiqueta="EPS">{epsDelPaciente(p)}</Fila>
+            <Fila etiqueta="Estado de afiliación">{AFILIACION[p.estado_afiliacion] ?? p.estado_afiliacion}</Fila>
             {/* HU-42: el canal que eligió el paciente, referencia para contactarlo */}
             <Fila etiqueta="Canal preferido">{CANALES[cita.canal_recordatorio]}</Fila>
           </section>
@@ -450,6 +450,7 @@ export default function AdminCitaDetallePage() {
           {a.formula && (
             <FormulaAdmin
               formula={cita.formula}
+              particular={!p.eps}
               ocupado={ocupado}
               onGuardar={(datos) =>
                 ejecutar(

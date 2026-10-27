@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.models.auditoria import RegistroAuditoria
 from app.models.cita import EstadoCita
 from app.models.formula_medica import Farmacia, FormulaMedica
+from app.models.paciente import EstadoAfiliacion
 from app.models.personal import RolPersonal
 from app.models.sede import Sede
 from app.services import formulas_service, ips_simulada_service
@@ -239,3 +240,12 @@ def test_validaciones_y_permisos_de_las_farmacias(cliente, fabrica, db):
     coordinador = fabrica.personal(RolPersonal.COORDINADOR_MEDICO)
     assert cliente.get("/admin/farmacias", headers=encabezado(coordinador)).status_code == 403
     assert cliente.post("/admin/farmacias", json=_farmacia(fabrica), headers=encabezado(coordinador)).status_code == 403
+
+
+def test_un_particular_no_tiene_medicamentos_cubiertos_por_eps(cliente, fabrica):
+    particular = fabrica.paciente(eps_id=None, estado_afiliacion=EstadoAfiliacion.PARTICULAR)
+    cita = fabrica.cita(particular, EstadoCita.ATENDIDA)
+    r = _registrar(cliente, fabrica.personal(), cita, FORMULA | {"cubierta_por_eps": True})
+    assert r.json()["formula"]["cubierta_por_eps"] is False  # sin EPS no hay cobertura de EPS
+    mia = cliente.get(f"/citas/{cita.id}/formula", headers=encabezado(particular)).json()
+    assert mia["particular"] is True and mia["cubierta_por_eps"] is False

@@ -104,7 +104,8 @@ def registrar(
     formula.nota = (nota or "").strip() or None
     formula.medicamentos = json.dumps(medicamentos, ensure_ascii=False)
     formula.recomendaciones = json.dumps(recomendaciones, ensure_ascii=False)
-    formula.cubierta_por_eps = cubierta_por_eps
+    # Un paciente particular (sin EPS) paga sus medicamentos: no pueden estar "cubiertos por la EPS".
+    formula.cubierta_por_eps = cubierta_por_eps and cita.paciente.eps_id is not None
     formula.registrada_en = datetime.now(timezone.utc)
     formula.registrada_por = actor.nombre
     formula.vence_en = hoy_en_colombia() + timedelta(days=VIGENCIA_DIAS)
@@ -160,6 +161,7 @@ def de_mi_cita(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID) -> dict:
         raise CitaNoEncontradaError("Esta cita no tiene fórmula médica.")
     return {
         **datos(cita.formula),
+        "particular": cita.paciente.eps_id is None,
         "qr": qr(cita.formula),
         "farmacias": [
             {

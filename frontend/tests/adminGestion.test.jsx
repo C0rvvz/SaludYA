@@ -37,7 +37,7 @@ function revision(cambios = {}, cambiosSolicitud = {}) {
       numero_documento: "1010",
       telefono_whatsapp: "3009998877",
       correo: null,
-      eps: null,
+      eps: "Sura",
       estado_afiliacion: "activa",
     },
     historial: [
@@ -84,6 +84,18 @@ describe("Revisión clínica", () => {
       prioritaria: true,
       respuesta: "Aprobada.",
     });
+  });
+
+  it("un paciente particular (sin EPS) no se puede remitir a una EPS", async () => {
+    const base = revision();
+    backendFalso({
+      "GET /admin/solicitudes/:id": { ...base, paciente: { ...base.paciente, eps: null, estado_afiliacion: "particular" } },
+    });
+    abrir("/admin/solicitudes/s1", { personal: true });
+    expect(await esperarTexto("Particular (sin EPS)")).toBeInTheDocument();
+    expect(screen.getByText("No aplica (particular)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "No aprobar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remitir a la EPS" })).not.toBeInTheDocument();
   });
 
   it("remitir a la EPS y después registrar que no la autorizó", async () => {

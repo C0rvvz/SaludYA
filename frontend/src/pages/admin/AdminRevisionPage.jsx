@@ -7,7 +7,7 @@ import TablaHistorial from "../../components/admin/TablaHistorial";
 import { Chevron } from "../../components/Iconos";
 import { Fila } from "../../components/citas/ElementosCita";
 import { usePersonal } from "../../context/personal";
-import { CANALES } from "../../utils/citas";
+import { AFILIACION, CANALES, epsDelPaciente } from "../../utils/citas";
 import { capitalizar, formatearFecha, formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
 import { ESTADOS_SOLICITUD, TIPOS_CITA, TIPOS_SOLICITUD_PERSONAL } from "../../utils/solicitudes";
 
@@ -249,7 +249,8 @@ export default function AdminRevisionPage() {
                   onAprobar={(datos) =>
                     decidir(() => aprobarSolicitud(s.id, datos), "Solicitud aprobada y cita asignada.")
                   }
-                  onRemitir={conEps ? null : () => setPaso("eps")}
+                  // Un particular no tiene EPS a la cual remitirla.
+                  onRemitir={conEps || !p.eps ? null : () => setPaso("eps")}
                   onNegar={() => setPaso("negar")}
                 />
               )}
@@ -309,8 +310,8 @@ export default function AdminRevisionPage() {
                 {p.tipo_documento} {p.numero_documento}
               </Fila>
               <Fila etiqueta="Teléfono (WhatsApp)">{p.telefono_whatsapp}</Fila>
-              <Fila etiqueta="EPS">{p.eps ?? "—"}</Fila>
-              <Fila etiqueta="Estado de afiliación">{capitalizar(p.estado_afiliacion.replace("_", " "))}</Fila>
+              <Fila etiqueta="EPS">{epsDelPaciente(p)}</Fila>
+              <Fila etiqueta="Estado de afiliación">{AFILIACION[p.estado_afiliacion] ?? p.estado_afiliacion}</Fila>
               <Fila etiqueta="Lista de espera">
                 {revision.en_lista_espera.length ? revision.en_lista_espera.join(", ") : "No está en lista de espera"}
               </Fila>

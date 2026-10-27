@@ -26,13 +26,13 @@ const CAMPOS_MEDICAMENTO = [
   ["cantidad", "Cantidad", "Ej. 21 cápsulas", 60],
 ];
 
-function datosIniciales(formula) {
+function datosIniciales(formula, particular) {
   return {
     diagnostico: formula?.diagnostico ?? "",
     nota: formula?.nota ?? "",
     medicamentos: formula?.medicamentos.length ? formula.medicamentos : [MEDICAMENTO_VACIO],
     recomendaciones: formula?.recomendaciones.join("\n") ?? "",
-    cubierta_por_eps: formula?.cubierta_por_eps ?? true,
+    cubierta_por_eps: !particular && (formula?.cubierta_por_eps ?? true),
   };
 }
 
@@ -72,7 +72,7 @@ function Resumen({ formula }) {
   );
 }
 
-export default function FormulaAdmin({ formula, ocupado, onGuardar }) {
+export default function FormulaAdmin({ formula, particular = false, ocupado, onGuardar }) {
   const [datos, setDatos] = useState(null); // null: no se está editando
 
   const cambiarMedicamento = (i, campo, valor) =>
@@ -111,7 +111,7 @@ export default function FormulaAdmin({ formula, ocupado, onGuardar }) {
             </p>
           )}
           <div className="acciones-admin">
-            <button type="button" className="btn btn--outline" onClick={() => setDatos(datosIniciales(formula))}>
+            <button type="button" className="btn btn--outline" onClick={() => setDatos(datosIniciales(formula, particular))}>
               {formula ? "Corregir fórmula" : "Registrar fórmula"}
             </button>
           </div>
@@ -192,14 +192,18 @@ export default function FormulaAdmin({ formula, ocupado, onGuardar }) {
               onChange={(e) => setDatos({ ...datos, recomendaciones: e.target.value })}
             />
           </div>
-          <label className="opcion-admin opcion-admin--casilla">
-            <input
-              type="checkbox"
-              checked={datos.cubierta_por_eps}
-              onChange={(e) => setDatos({ ...datos, cubierta_por_eps: e.target.checked })}
-            />
-            <span className="opcion-admin__titulo">Medicamentos cubiertos por la EPS (gratis en farmacias aliadas)</span>
-          </label>
+          {particular ? (
+            <p className="texto-suave">El paciente es particular (sin EPS): sus medicamentos tienen costo.</p>
+          ) : (
+            <label className="opcion-admin opcion-admin--casilla">
+              <input
+                type="checkbox"
+                checked={datos.cubierta_por_eps}
+                onChange={(e) => setDatos({ ...datos, cubierta_por_eps: e.target.checked })}
+              />
+              <span className="opcion-admin__titulo">Medicamentos cubiertos por la EPS (gratis en farmacias aliadas)</span>
+            </label>
+          )}
 
           <div className="acciones-admin">
             <button type="submit" className="btn btn--primary" disabled={ocupado}>

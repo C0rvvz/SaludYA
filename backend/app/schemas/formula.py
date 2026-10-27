@@ -62,5 +62,6 @@ class FarmaciaOut(BaseModel):
 class MiFormulaOut(FormulaOut):
     """Lo que ve el paciente: además, el QR de su código y dónde reclamar (las cercanas primero)."""
 
+    particular: bool = False  # sin EPS: los medicamentos tienen costo en cualquier farmacia
     qr: str  # imagen SVG como data URI
     farmacias: list[FarmaciaOut]

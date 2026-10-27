@@ -276,13 +276,13 @@ describe("Solicitar petición", () => {
     expect(screen.getByRole("button", { name: "Enviar petición" })).toBeDisabled();
 
     await usuario.click(screen.getByLabelText("Derecho de petición"));
-    expect(screen.getByText(/obligada a responderle por escrito en máximo 15 días hábiles/)).toBeInTheDocument();
+    expect(screen.getByText(/deben responderle por escrito en máximo 15 días hábiles/)).toBeInTheDocument();
     const enviar = screen.getByRole("button", { name: "Enviar petición" });
     await screen.findByRole("option", { name: "Cardiología" });
     await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-1");
     await usuario.click(screen.getByLabelText("Control"));
     await usuario.type(screen.getByLabelText("¿Para qué fecha la necesita?"), "2026-10-30");
-    await usuario.type(screen.getByLabelText("¿Qué le pide a su EPS y por qué?"), "Necesito control.");
+    await usuario.type(screen.getByLabelText("¿Qué solicita y por qué?"), "Necesito control.");
     await usuario.click(screen.getByLabelText("Mensaje de texto"));
     await usuario.click(enviar);
 

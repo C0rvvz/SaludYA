@@ -22,10 +22,13 @@ from app.services.exceptions import DocumentoYaRegistradoError, EpsNoEncontradaE
 
 
 def registrar_paciente(db: Session, datos: PacienteRegistroRequest) -> PacienteRegistroResponse:
-    # --- HU-08, criterio 1: la EPS elegida debe existir en el catálogo ---
-    eps = eps_repository.obtener_eps_por_id(db, datos.eps_id)
-    if eps is None:
-        raise EpsNoEncontradaError("La EPS seleccionada no está disponible. Elija otra de la lista.")
+    # --- HU-08, criterio 1: la EPS elegida debe existir en el catálogo.
+    # Sin EPS (eps_id None): se atiende como particular. ---
+    eps = None
+    if datos.eps_id is not None:
+        eps = eps_repository.obtener_eps_por_id(db, datos.eps_id)
+        if eps is None:
+            raise EpsNoEncontradaError("La EPS seleccionada no está disponible. Elija otra de la lista.")
 
     # --- HU-06, criterio 3: no permitir un registro duplicado ---
     existente = paciente_repository.obtener_por_numero_documento(db, datos.numero_documento)
@@ -34,11 +37,14 @@ def registrar_paciente(db: Session, datos: PacienteRegistroRequest) -> PacienteR
             f"Ya existe una cuenta con el documento {datos.numero_documento}. Si es suya, inicie sesión."
         )
 
-    # --- HU-08, criterios 2, 3 y 4: consultar y guardar el estado de afiliación ---
-    afiliacion_activa = consultar_afiliacion_eps(datos.numero_documento)
-    estado_afiliacion = (
-        EstadoAfiliacion.ACTIVA if afiliacion_activa else EstadoAfiliacion.NO_ENCONTRADA
-    )
+    # --- HU-08, criterios 2, 3 y 4: consultar y guardar el estado de afiliación
+    # (un particular no tiene EPS a la cual consultar) ---
+    if eps is None:
+        estado_afiliacion = EstadoAfiliacion.PARTICULAR
+    elif consultar_afiliacion_eps(datos.numero_documento):
+        estado_afiliacion = EstadoAfiliacion.ACTIVA
+    else:
+        estado_afiliacion = EstadoAfiliacion.NO_ENCONTRADA
 
     ahora = datetime.now(timezone.utc)
 
@@ -48,7 +54,7 @@ def registrar_paciente(db: Session, datos: PacienteRegistroRequest) -> PacienteR
         nombre=datos.nombre,
         telefono_whatsapp=datos.telefono_whatsapp,
         correo=datos.correo,
-        eps_id=eps.id,
+        eps_id=eps.id if eps else None,
         estado_afiliacion=estado_afiliacion,
         # --- HU-07, criterio 3: la aceptación queda registrada con fecha ---
         acepto_tratamiento_datos=datos.acepto_tratamiento_datos,
@@ -58,7 +64,12 @@ def registrar_paciente(db: Session, datos: PacienteRegistroRequest) -> PacienteR
     paciente = paciente_repository.crear_paciente(db, paciente)
 
     # --- HU-05, criterio 4 / HU-08, criterio 4: confirmación con resultado ---
-    if estado_afiliacion == EstadoAfiliacion.ACTIVA:
+    if estado_afiliacion == EstadoAfiliacion.PARTICULAR:
+        mensaje = (
+            "Su cuenta quedó creada como paciente particular (sin EPS). Ya puede iniciar sesión "
+            "y agendar sus citas; la consulta y los medicamentos tienen costo."
+        )
+    elif estado_afiliacion == EstadoAfiliacion.ACTIVA:
         mensaje = "Verificamos su afiliación y está activa. Ya puede iniciar sesión y agendar sus citas."
     else:
         mensaje = (

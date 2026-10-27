@@ -160,6 +160,9 @@ def enviar_a_eps(db: Session, personal: Personal, solicitud_id: uuid.UUID, respu
     if solicitud.estado != EstadoSolicitudCita.PENDIENTE:
         db.rollback()
         raise SolicitudInvalidaError("Esta solicitud ya está esperando la respuesta de la EPS.")
+    if solicitud.paciente.eps_id is None:
+        db.rollback()
+        raise SolicitudInvalidaError("El paciente es particular (no tiene EPS): no hay una EPS a la cual remitirla.")
     ahora = datetime.now(timezone.utc)
     _registrar_decision(solicitud, personal, ahora)
     solicitud.estado = EstadoSolicitudCita.PENDIENTE_EPS

@@ -7,6 +7,7 @@ import pytest
 from app.core.config import settings
 from app.models import CodigoOTP, Paciente
 from app.services import otp_service
+from tests.conftest import encabezado
 
 
 def _registro(fabrica, **cambios) -> dict:
@@ -92,6 +93,22 @@ def test_no_permite_registrar_dos_veces_el_mismo_documento(cliente, fabrica):
     assert cliente.post("/pacientes/registro", json=_registro(fabrica)).status_code == 201
     r = cliente.post("/pacientes/registro", json=_registro(fabrica, nombre="Otra Persona"))
     assert r.status_code == 409
+
+
+def test_registro_sin_eps_como_particular(cliente, fabrica, db):
+    # eps_id null (explícito): no tiene EPS y se atiende con médicos particulares.
+    r = cliente.post("/pacientes/registro", json=_registro(fabrica, eps_id=None))
+    assert r.status_code == 201, r.text
+    assert r.json()["eps"] is None and r.json()["estado_afiliacion"] == "particular"
+    assert "particular" in r.json()["mensaje"] and "costo" in r.json()["mensaje"]
+    paciente = db.query(Paciente).filter_by(numero_documento="1098765432").one()
+    me = cliente.get("/auth/paciente/me", headers=encabezado(paciente)).json()
+    assert me["eps"] is None and me["particular"] is True
+
+    # Sin el campo no se registra como particular por descuido: hay que decirlo.
+    datos = _registro(fabrica, numero_documento="1098765433")
+    del datos["eps_id"]
+    assert cliente.post("/pacientes/registro", json=datos).status_code == 422
 
 
 def test_rutas_protegidas_exigen_sesion(cliente):

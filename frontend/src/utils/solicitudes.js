@@ -9,15 +9,15 @@ export const TIPOS_SOLICITUD = {
 export const EXPLICACION_SOLICITUD = {
   formal: {
     texto:
-      "Úsela si ninguno de los horarios disponibles le sirve o si necesita la cita antes. Cuéntenos por qué y el personal de su EPS la revisará.",
+      "Úsela si ninguno de los horarios disponibles le sirve o si necesita la cita antes. Cuéntenos por qué y nuestro personal la revisará.",
     ejemplo: "Ejemplo: «Necesito la cita antes del 15 porque ese día me operan».",
     pregunta: "¿Por qué no le sirven los horarios disponibles, o por qué necesita esa fecha?",
   },
   derecho_peticion: {
     texto:
-      "Es una petición formal que protege la ley: su EPS está obligada a responderle por escrito en máximo 15 días hábiles. Úsela si ya pidió la cita y no le han dado respuesta.",
+      "Es una petición formal que protege la ley: deben responderle por escrito en máximo 15 días hábiles. Úsela si ya pidió la cita y no le han dado respuesta.",
     ejemplo: "Ejemplo: «Pedí la cita de cardiología hace un mes y no me han respondido».",
-    pregunta: "¿Qué le pide a su EPS y por qué?",
+    pregunta: "¿Qué solicita y por qué?",
   },
 };
 

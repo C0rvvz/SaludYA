@@ -59,7 +59,9 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
           </span>
           <div className="cabecera-paciente__datos">
             <p className="cabecera-paciente__nombre">{nombre}</p>
-            {paciente?.eps && <p className="cabecera-paciente__eps">{paciente.eps}</p>}
+            {(paciente?.eps || paciente?.particular) && (
+              <p className="cabecera-paciente__eps">{paciente.eps ?? "Particular"}</p>
+            )}
           </div>
           <span className="cabecera-paciente__divisor" aria-hidden="true" />
           <button type="button" className="boton-salir" onClick={cerrarSesion}>

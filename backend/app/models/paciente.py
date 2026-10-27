@@ -28,6 +28,7 @@ class EstadoAfiliacion(str, enum.Enum):
     PENDIENTE = "pendiente"          # todavía no se ha consultado (HU-08)
     ACTIVA = "activa"
     NO_ENCONTRADA = "no_encontrada"
+    PARTICULAR = "particular"        # no tiene EPS: se atiende como particular (sin eps_id)
 
 
 class Paciente(Base):

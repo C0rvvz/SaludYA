@@ -71,6 +71,17 @@ export function enlaceAFarmacia(farmacia) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
 }
 
+// Afiliación del paciente a su EPS, para el personal. "particular": no tiene EPS.
+export const AFILIACION = {
+  activa: "Activa",
+  no_encontrada: "No encontrada",
+  pendiente: "Pendiente",
+  particular: "No aplica (particular)",
+};
+
+// La EPS del paciente para el personal, o "Particular (sin EPS)".
+export const epsDelPaciente = (p) => p.eps ?? (p.estado_afiliacion === "particular" ? "Particular (sin EPS)" : "—");
+
 // Estado en pocas palabras para las tablas del personal, y cómo se llama
 // cada grupo en los chips con contador de "Gestión de citas" (con su color).
 export const ESTADO_PERSONAL = {

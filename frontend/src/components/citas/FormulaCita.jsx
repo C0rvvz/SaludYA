@@ -247,7 +247,9 @@ export default function FormulaCita({ citaId }) {
             <p className="texto-suave">
               {formula.cubierta_por_eps
                 ? "Con este código los recibe gratis en cualquier farmacia aliada."
-                : "Su EPS no cubre estos medicamentos: tienen costo en cualquier farmacia."}
+                : formula.particular
+                  ? "Como paciente particular (sin EPS), sus medicamentos tienen costo en cualquier farmacia."
+                  : "Su EPS no cubre estos medicamentos: tienen costo en cualquier farmacia."}
             </p>
           </div>
           {vigente ? (

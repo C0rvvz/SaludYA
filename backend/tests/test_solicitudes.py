@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from app.models.cita import EstadoCita
+from app.models.paciente import EstadoAfiliacion
 from app.models.personal import RolPersonal
 from app.utils.tiempo import hoy_en_colombia
 from tests.conftest import encabezado
@@ -131,3 +132,11 @@ def test_solo_quien_revisa_decide_y_los_indicadores_cuentan(cliente, fabrica):
     indicadores = cliente.get("/admin/reportes?periodo=anio", headers=encabezado(admin)).json()["solicitudes"]
     assert indicadores["recibidas"] == 1  # HU-46
     assert indicadores["pendientes_revision"] == 1
+
+
+def test_un_particular_no_se_remite_a_una_eps(cliente, fabrica):
+    coordinador = fabrica.personal(RolPersonal.COORDINADOR_MEDICO)
+    particular = fabrica.paciente(eps_id=None, estado_afiliacion=EstadoAfiliacion.PARTICULAR)
+    solicitud = _radicar(cliente, fabrica, particular).json()
+    r = cliente.post(f"/admin/solicitudes/{solicitud['id']}/enviar-eps", headers=encabezado(coordinador), json={})
+    assert r.status_code == 400 and "particular" in r.json()["detail"]

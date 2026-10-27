@@ -44,7 +44,8 @@ const MENSAJES_ELI = {
   2: [
     <>Muy bien, ya casi terminamos.</>,
     <>
-      Seleccione su <strong>EPS</strong>, acepte el tratamiento de sus datos personales y marque la casilla{" "}
+      Seleccione su <strong>EPS</strong>. Si no tiene EPS y es atendido por médicos particulares, marque{" "}
+      <strong>No tengo EPS</strong>. Luego acepte el tratamiento de sus datos personales y marque la casilla{" "}
       <strong>No soy un robot</strong>.
     </>,
   ],
@@ -111,6 +112,7 @@ export default function RegistroPage() {
     telefono_whatsapp: "",
     correo: "",
     eps_id: "",
+    sin_eps: false, // no tiene EPS: se atiende con médicos particulares
     acepto_tratamiento_datos: false,
   });
 
@@ -158,7 +160,12 @@ export default function RegistroPage() {
     }
     setCargando(true);
     try {
-      const datos = { ...form, correo: form.correo.trim() === "" ? null : form.correo };
+      const { sin_eps: sinEps, ...campos } = form;
+      const datos = {
+        ...campos,
+        correo: form.correo.trim() === "" ? null : form.correo,
+        eps_id: sinEps ? null : form.eps_id, // null: particular, sin EPS
+      };
       const resp = await registrarPaciente(datos, verificacion);
       setResultado(resp);
       setPaso(3);
@@ -317,10 +324,11 @@ export default function RegistroPage() {
                 className={erroresCampo.eps_id ? "has-error" : ""}
                 aria-invalid={Boolean(erroresCampo.eps_id)}
                 value={form.eps_id}
+                disabled={form.sin_eps}
                 onChange={(e) => actualizarCampo("eps_id", e.target.value)}
               >
                 <option value="" disabled>
-                  Seleccione su EPS
+                  {form.sin_eps ? "Sin EPS (atención particular)" : "Seleccione su EPS"}
                 </option>
                 {epsDisponibles.map((eps) => (
                   <option key={eps.id} value={eps.id}>
@@ -331,6 +339,25 @@ export default function RegistroPage() {
               {erroresCampo.eps_id && <p className="field__error">{erroresCampo.eps_id}</p>}
               {!erroresCampo.eps_id && errorEps && <p className="field__error">{errorEps}</p>}
             </div>
+
+            {/* A la vista, fuera de la lista: quien no tiene EPS no tendría por qué buscarlo adentro. */}
+            <div className="field field--checkbox">
+              <input
+                id="sin_eps"
+                type="checkbox"
+                checked={form.sin_eps}
+                onChange={(e) => {
+                  actualizarCampo("sin_eps", e.target.checked);
+                  if (e.target.checked) actualizarCampo("eps_id", "");
+                }}
+              />
+              <label htmlFor="sin_eps">No tengo EPS y soy atendido por médicos particulares</label>
+            </div>
+            {form.sin_eps && (
+              <p className="field__hint" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
+                Sus citas serán particulares: la consulta y los medicamentos tienen costo.
+              </p>
+            )}
 
             <div className="field field--checkbox">
               <input
@@ -359,7 +386,7 @@ export default function RegistroPage() {
             <button
               className="btn btn--primary btn--block"
               type="submit"
-              disabled={cargando || !form.eps_id || !form.acepto_tratamiento_datos}
+              disabled={cargando || (!form.eps_id && !form.sin_eps) || !form.acepto_tratamiento_datos}
             >
               {cargando ? "Creando su cuenta…" : "Crear mi cuenta"}
             </button>
@@ -390,13 +417,15 @@ export default function RegistroPage() {
             </div>
             <div className="summary-row">
               <span className="summary-row__label">EPS</span>
-              <span className="summary-row__value">{resultado.eps.nombre}</span>
+              <span className="summary-row__value">{resultado.eps?.nombre ?? "Particular (sin EPS)"}</span>
             </div>
             <div className="summary-row">
               <span className="summary-row__label">Estado de la afiliación</span>
               <span className="summary-row__value">
                 {resultado.estado_afiliacion === "activa" ? (
                   <span className="badge badge--success">Activa</span>
+                ) : resultado.estado_afiliacion === "particular" ? (
+                  <span className="badge badge--neutral">No aplica</span>
                 ) : (
                   <span className="badge badge--warning">No encontrada</span>
                 )}
