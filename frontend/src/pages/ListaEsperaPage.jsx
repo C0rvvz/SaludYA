@@ -482,7 +482,7 @@ export default function ListaEsperaPage() {
             </button>
             <button
               type="button"
-              className="btn btn--outline"
+              className="btn btn--outline btn--texto-peligro"
               disabled={ocupado}
               onClick={() => setQuitando(null)}
             >

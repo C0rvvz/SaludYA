@@ -132,8 +132,8 @@ function PanelRetirar({ solicitud, ocupado, onRetirar, onVolver }) {
         <button className="btn btn--peligro" disabled={ocupado} onClick={() => onRetirar(motivo)}>
           {conCita ? "Sí, cancelar la cita" : "Sí, retirar de la lista"}
         </button>
-        <button className="btn btn--outline" onClick={onVolver}>
-          Volver
+        <button className="btn btn--outline btn--texto-peligro" onClick={onVolver}>
+          No, volver
         </button>
       </div>
     </section>

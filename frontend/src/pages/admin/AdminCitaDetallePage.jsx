@@ -288,7 +288,7 @@ export default function AdminCitaDetallePage() {
             {panel === null && hayAcciones && (
               <div className="acciones-admin">
                 {a.confirmar && (
-                  <button className="btn btn--primary" disabled={ocupado} onClick={() => ejecutar(() => confirmarCitaAdmin(cita.id), "Asistencia confirmada.")}>
+                  <button className="btn btn--success" disabled={ocupado} onClick={() => ejecutar(() => confirmarCitaAdmin(cita.id), "Asistencia confirmada.")}>
                     Confirmar asistencia
                   </button>
                 )}

@@ -31,7 +31,7 @@ function ValorDeLaCita({ cita }) {
       <Fila etiqueta="Valor de la consulta">
         {formatearPesos(cita.valor)} · Pendiente de pago
         <span className="detalle-mi-cita__direccion">{concepto}</span>
-        <Link to={`/pagar/${cita.id}`} className="btn btn--primary btn--compacto detalle-mi-cita__pagar">
+        <Link to={`/pagar/${cita.id}`} className="btn btn--primary detalle-mi-cita__pagar">
           Pagar {formatearPesos(cita.valor)}
         </Link>
       </Fila>

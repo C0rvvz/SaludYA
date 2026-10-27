@@ -1533,8 +1533,9 @@ summary:focus-visible {
   }
 }
 
-/* Botón de "No, volver" / "Cancelar" con texto rojo (sin relleno). */
-.btn--texto-peligro {
+/* "No, volver": con .btn--outline, blanco con borde gris y texto rojo (también al pasar el mouse). */
+.btn--texto-peligro,
+.btn--texto-peligro:hover:not(:disabled) {
   color: var(--color-error);
 }
 

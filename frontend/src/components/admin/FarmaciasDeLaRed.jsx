@@ -250,7 +250,7 @@ export default function FarmaciasDeLaRed({ sedes }) {
           </p>
           <div className="acciones-admin">
             <button
-              className={`btn ${f.activa ? "btn--peligro" : "btn--primary"}`}
+              className={`btn ${f.activa ? "btn--peligro" : "btn--success"}`}
               disabled={ocupado}
               autoFocus
               onClick={() =>

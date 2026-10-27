@@ -48,7 +48,7 @@ export default function AccionesCita({ cita: c, compacta = false, ocupado = fals
       "Cancelar cita",
       "Cancelar",
       `Cancelar la cita de ${especialidad} del ${cuando}`,
-      compacta ? "btn--texto-peligro" : "btn--peligro-outline",
+      "btn--peligro-outline",
     ],
     c.puede_calificar && [
       "calificar",

@@ -172,7 +172,7 @@ export default function SedesDeLaRed({ onCambio }) {
           </p>
           <div className="acciones-admin">
             <button
-              className={`btn ${panel.sede.activa ? "btn--peligro" : "btn--primary"}`}
+              className={`btn ${panel.sede.activa ? "btn--peligro" : "btn--success"}`}
               disabled={ocupado}
               autoFocus
               onClick={() =>

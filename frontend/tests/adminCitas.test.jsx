@@ -245,7 +245,9 @@ describe("Detalle de una cita para el personal", () => {
     });
     const usuario = abrir("/admin/citas/ca-1", { personal: true });
 
-    await usuario.click(await screen.findByRole("button", { name: "Confirmar asistencia" }));
+    const confirmar = await screen.findByRole("button", { name: "Confirmar asistencia" });
+    expect(confirmar).toHaveClass("btn--success"); // confirmar o aprobar: verde
+    await usuario.click(confirmar);
     expect(await esperarTexto("Asistencia confirmada.")).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Enviar recordatorio" }));
     expect(await esperarTexto("No se pudo enviar.")).toBeInTheDocument();

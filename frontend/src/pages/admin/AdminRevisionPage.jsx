@@ -94,7 +94,7 @@ function Decision({ solicitud, paraEps, ocupado, onAprobar, onRemitir, onNegar }
       </div>
       <div className="acciones-admin">
         <button
-          className="btn btn--primary"
+          className="btn btn--success"
           disabled={ocupado || !elegido}
           onClick={() => onAprobar({ disponibilidad_id: elegido, prioritaria, respuesta: respuesta || null })}
         >
@@ -130,8 +130,8 @@ function PanelTexto({ etiqueta, boton, obligatorio, peligro, ocupado, onEnviar, 
         >
           {boton}
         </button>
-        <button className="btn btn--outline" onClick={onVolver}>
-          Volver
+        <button className={`btn btn--outline ${peligro ? "btn--texto-peligro" : ""}`} onClick={onVolver}>
+          {peligro ? "No, volver" : "Volver"}
         </button>
       </div>
     </>

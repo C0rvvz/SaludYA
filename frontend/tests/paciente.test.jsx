@@ -297,8 +297,13 @@ describe("Mis citas", () => {
     });
     const usuario = abrir("/mis-citas", { paciente: true });
 
+    // "Cancelar", en la tarjeta y en el detalle: blanco con borde rojo suave (destructivo con borde).
+    const enLaTarjeta = await screen.findByRole("button", { name: `Cancelar ${DE_LA_CITA}` });
+    expect(enLaTarjeta).toHaveClass("btn--peligro-outline");
+    expect(screen.getByRole("button", { name: "Cancelar cita" })).toHaveClass("btn--peligro-outline");
+
     // Escape cierra la ventana sin hacer nada.
-    await usuario.click(await screen.findByRole("button", { name: `Cancelar ${DE_LA_CITA}` }));
+    await usuario.click(enLaTarjeta);
     expect(screen.getByRole("dialog", { name: "¿Desea cancelar esta cita?" })).toBeInTheDocument();
     await usuario.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -307,6 +312,8 @@ describe("Mis citas", () => {
     const ventana = screen.getByRole("dialog", { name: "¿Desea cancelar esta cita?" });
     await usuario.click(within(ventana).getByLabelText("Otro motivo"));
     await usuario.type(within(ventana).getByLabelText("Cuéntenos el motivo"), "Me mudé");
+    expect(within(ventana).getByRole("button", { name: "Sí, cancelar la cita" })).toHaveClass("btn--peligro");
+    expect(within(ventana).getByRole("button", { name: "No, volver" })).toHaveClass("btn--outline", "btn--texto-peligro");
     await usuario.click(within(ventana).getByRole("button", { name: "Sí, cancelar la cita" }));
 
     expect(await esperarTexto(/Su cita fue cancelada/)).toBeInTheDocument();

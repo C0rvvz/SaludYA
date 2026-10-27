@@ -759,12 +759,12 @@
   background: currentColor;
 }
 
-/* --- Botones del panel: rectangulares --- */
+/* --- Botones del panel: en píldora, como los del paciente, pero más bajos
+   (42 px en formularios y 32 px en tablas) por la densidad --- */
 .admin .btn {
   gap: 8px;
   min-height: 42px;
-  padding: 0 16px;
-  border-radius: 8px;
+  padding: 0 18px;
   font-size: 0.875rem;
   box-shadow: none;
 }
@@ -773,11 +773,16 @@
   transform: none;
 }
 
+.admin .btn--primary:not(.btn--compacto) {
+  box-shadow: 0 8px 20px -10px rgba(27, 95, 168, 0.7);
+}
+
 .admin .btn--primary:hover:not(:disabled) {
   box-shadow: var(--halo);
 }
 
 .admin .btn--compacto {
+  gap: 6px;
   min-height: 32px;
   padding: 0 12px;
   font-size: 0.8125rem;
@@ -788,7 +793,7 @@
   padding: 0;
 }
 
-/* Acción secundaria de una fila: ícono de 32 px con su nombre en title/aria-label */
+/* Acción secundaria de una fila: ícono de 32 px (en círculo) con su nombre en title/aria-label */
 .boton-icono {
   display: inline-flex;
   flex-shrink: 0;
@@ -798,7 +803,7 @@
   height: 32px;
   padding: 0;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
+  border-radius: 50%;
   background: #fff;
   color: var(--color-ink);
   cursor: pointer;

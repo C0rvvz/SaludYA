@@ -489,7 +489,7 @@ export default function AdminEspecialistasPage() {
           </p>
           <div className="acciones-admin">
             <button
-              className={`btn ${panel.especialista.activo ? "btn--peligro" : "btn--primary"}`}
+              className={`btn ${panel.especialista.activo ? "btn--peligro" : "btn--success"}`}
               disabled={ocupado}
               autoFocus
               onClick={() =>

@@ -74,6 +74,7 @@ describe("Revisión clínica", () => {
     await usuario.click(within(panel).getByLabelText(/Jueves, 22 de octubre/));
     await usuario.click(within(panel).getByLabelText("Marcar como revisión prioritaria"));
     await usuario.type(within(panel).getByLabelText("Mensaje para el paciente (opcional)"), "Aprobada.");
+    expect(within(panel).getByRole("button", { name: "Aprobar y asignar cita" })).toHaveClass("btn--success");
     await usuario.click(within(panel).getByRole("button", { name: "Aprobar y asignar cita" }));
 
     expect(await esperarTexto("Solicitud aprobada y cita asignada.")).toBeInTheDocument();
@@ -303,7 +304,7 @@ describe("Lista de espera del personal", () => {
     await usuario.click(screen.getByRole("button", { name: "Retirar a Mario Ruiz de la lista" }));
     await usuario.click(screen.getByRole("button", { name: "Sí, retirar de la lista" }));
     expect(await esperarTexto("Esta solicitud ya no está en la lista de espera.")).toBeInTheDocument();
-    await usuario.click(screen.getByRole("button", { name: "Volver" }));
+    await usuario.click(screen.getByRole("button", { name: "No, volver" }));
 
     backendFalso({
       "GET /admin/lista-espera": { dia: "2026-10-01", esperando_ahora: 0, solicitudes: [] },
@@ -500,7 +501,7 @@ describe("Recordatorios", () => {
     });
 
     await usuario.click(screen.getAllByRole("button", { name: "Cancelar el recordatorio de Mario Ruiz" })[0]);
-    await usuario.click(screen.getByRole("button", { name: "No" }));
+    await usuario.click(screen.getByRole("button", { name: "No, volver" }));
     await usuario.click(screen.getAllByRole("button", { name: "Cancelar el recordatorio de Mario Ruiz" })[0]);
     await usuario.click(screen.getByRole("button", { name: "Sí, cancelar" }));
     expect(await esperarTexto("Se canceló el recordatorio.")).toBeInTheDocument();

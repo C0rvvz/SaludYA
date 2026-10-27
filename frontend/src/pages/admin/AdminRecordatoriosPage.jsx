@@ -399,8 +399,11 @@ export default function AdminRecordatoriosPage() {
                       >
                         Sí, cancelar
                       </button>
-                      <button className="btn btn--outline btn--compacto" onClick={() => setCancelando(null)}>
-                        No
+                      <button
+                        className="btn btn--outline btn--texto-peligro btn--compacto"
+                        onClick={() => setCancelando(null)}
+                      >
+                        No, volver
                       </button>
                     </div>
                   ) : (
