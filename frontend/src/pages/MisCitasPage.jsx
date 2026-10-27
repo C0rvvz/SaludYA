@@ -262,7 +262,11 @@ export default function MisCitasPage() {
           <div className="mis-citas__titulo">
             {primerNombre && <p className="mis-citas__saludo">Hola, {primerNombre}</p>}
             <h1>Mis citas</h1>
-            <p className="mis-citas__lead">Consulte sus citas, confirme que asistirá, cámbielas o cancélelas.</p>
+            <p className="mis-citas__lead">
+              {actual.id === "historial" && citas.some((c) => c.tiene_formula)
+                ? "En el historial encuentra lo que le formuló su médico y dónde reclamarlo."
+                : "Consulte sus citas, confirme que asistirá, cámbielas o cancélelas."}
+            </p>
           </div>
 
           {proxima && (

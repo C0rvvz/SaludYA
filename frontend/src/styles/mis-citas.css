@@ -657,6 +657,273 @@
   font-size: 1.5rem;
 }
 
+/* --- Fórmula médica y dónde reclamarla --- */
+.formula {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px;
+}
+
+.formula p,
+.formula h3 {
+  margin: 0;
+}
+
+.formula__titulo {
+  font-size: var(--text-md);
+}
+
+.formula .texto-suave {
+  font-size: var(--text-sm);
+}
+
+.formula .formula__seccion {
+  margin-bottom: 10px;
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.formula__cabeza-seccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.formula .formula__cabeza-seccion .formula__seccion {
+  margin: 0;
+}
+
+.formula__diagnostico {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--color-bg);
+}
+
+.formula__etiqueta {
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.formula__diagnostico-texto {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.formula .formula__nota {
+  margin-top: 6px;
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+
+.formula__medicamentos,
+.formula__recomendaciones,
+.farmacias {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.formula__medicamentos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.formula__medicamento {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+
+.formula__pastilla {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.formula__medicamento-nombre {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.formula__medicamento-nombre span {
+  color: var(--color-ink-soft);
+  font-weight: 500;
+}
+
+.formula__medicamento-cuanto {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.formula__recomendaciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formula__recomendaciones li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.formula__recomendaciones li::before {
+  content: "";
+  position: absolute;
+  top: 0.6em;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+/* El atajo a las farmacias solo hace falta en el celular */
+.formula__ir-farmacias {
+  display: none;
+}
+
+.formula .alert {
+  margin: 0;
+}
+
+.farmacias {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.farmacia {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+
+.farmacia--con-codigo {
+  border: 2px solid var(--color-navy);
+}
+
+.farmacia__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.farmacia__nombre {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.farmacia__donde {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.farmacia__codigo {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--color-bg);
+}
+
+.farmacia__codigo img {
+  flex-shrink: 0;
+  width: 176px;
+  height: 176px;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.farmacia__codigo-titulo {
+  font-weight: 600;
+}
+
+.farmacia .farmacia__numero {
+  margin-top: 8px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.farmacia__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* "Descargar fórmula": solo existe mientras se imprime (o se guarda en PDF) */
+.formula-impresa {
+  display: none;
+}
+
+@media print {
+  body:has(> .formula-impresa) > #root {
+    display: none;
+  }
+
+  .formula-impresa {
+    display: block;
+    color: #000;
+    font-size: 12pt;
+    line-height: 1.45;
+  }
+
+  .formula-impresa h1 {
+    margin: 4pt 0;
+    font-size: 18pt;
+  }
+
+  .formula-impresa h2 {
+    margin: 14pt 0 4pt;
+    font-size: 12pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .formula-impresa p {
+    margin: 2pt 0;
+  }
+
+  .formula-impresa__marca {
+    font-weight: 700;
+  }
+
+  .formula-impresa__codigo {
+    display: flex;
+    align-items: center;
+    gap: 14pt;
+    margin-top: 18pt;
+  }
+}
+
 /* --- Pantallas medianas --- */
 @media (max-width: 1279px) {
   .mis-citas__cuerpo.con-detalle {
@@ -723,8 +990,21 @@
   }
 
   .detalle-mi-cita__tarjeta,
-  .estado-cita {
+  .estado-cita,
+  .formula {
     padding: 20px;
+  }
+
+  /* Siempre a la mano mientras lee la fórmula, encima de las pestañas (como "Continuar" al agendar) */
+  .formula__ir-farmacias {
+    display: inline-flex;
+    position: sticky;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    z-index: 5;
+  }
+
+  .farmacia__acciones .btn {
+    flex: 1 1 140px;
   }
 
   .detalle-mi-cita__quien h2 {
@@ -838,5 +1118,11 @@
 @media (max-width: 560px) {
   .tarjeta-cita .badge {
     font-size: 0.8125rem;
+  }
+
+  /* El QR arriba, grande, y el texto debajo */
+  .farmacia__codigo {
+    flex-direction: column;
+    text-align: center;
   }
 }

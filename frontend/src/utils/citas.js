@@ -62,6 +62,15 @@ export function enlaceComoLlegar(sede) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
 }
 
+/**
+ * "Cómo llegar" a una farmacia donde reclamar la fórmula: a su dirección si
+ * la tiene; si no, a su barrio ("Laureles, Medellín").
+ */
+export function enlaceAFarmacia(farmacia) {
+  const lugar = `${farmacia.direccion ?? farmacia.barrio}, ${farmacia.ciudad}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
+}
+
 // Estado en pocas palabras para las tablas del personal, y cómo se llama
 // cada grupo en los chips con contador de "Gestión de citas" (con su color).
 export const ESTADO_PERSONAL = {

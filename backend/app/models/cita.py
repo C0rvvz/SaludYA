@@ -134,3 +134,5 @@ class Cita(Base):
         remote_side=[id], back_populates="reemplazada_por"
     )
     reemplazada_por: Mapped["Cita | None"] = relationship(back_populates="reprogramada_desde")
+    # La fórmula médica, cuando la cita fue atendida y el médico formuló algo.
+    formula: Mapped["FormulaMedica | None"] = relationship(back_populates="cita", uselist=False)

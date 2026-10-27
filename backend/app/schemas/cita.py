@@ -88,6 +88,8 @@ class MiCitaOut(BaseModel):
     # HU-24: desde qué momento (hora de Colombia) se puede registrar la llegada.
     llegada_disponible_desde: datetime | None
     historial: list[EventoCitaOut]
+    # Ya está la fórmula médica (GET /citas/{id}/formula): "Fórmula lista" en el historial.
+    tiene_formula: bool = False
 
 
 class ConfirmarPorEnlaceRequest(BaseModel):

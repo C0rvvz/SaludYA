@@ -96,6 +96,34 @@ export function IconoDeshacer({ tamano = 18 }) {
   );
 }
 
+/** Medicamento de la fórmula médica */
+export function IconoPastilla({ tamano = 22 }) {
+  return (
+    <Svg tamano={tamano}>
+      <rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-45 12 12)" {...trazo} />
+      <path d="m9.5 9.5 5 5" {...trazo} />
+    </Svg>
+  );
+}
+
+export function IconoDescargar({ tamano = 20 }) {
+  return (
+    <Svg tamano={tamano}>
+      <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" {...trazo} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+/** "Cómo llegar" */
+export function IconoUbicacion({ tamano = 20 }) {
+  return (
+    <Svg tamano={tamano}>
+      <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" {...trazo} strokeWidth={2} />
+      <circle cx="12" cy="10" r="2.3" {...trazo} strokeWidth={2} />
+    </Svg>
+  );
+}
+
 export function IconoMensaje({ tamano = 24 }) {
   return (
     <Svg tamano={tamano}>

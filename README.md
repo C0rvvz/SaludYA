@@ -8,17 +8,20 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
 - Registro e ingreso con cédula y código de verificación por WhatsApp (HU-01 a HU-08).
 - Buscar disponibilidad por especialidad, especialista, sede, modalidad y fecha, y agendar con comprobante (HU-09 a HU-17).
 - "Mis citas": estado, próximas, historial, confirmar asistencia, reprogramar, cancelar y registrar la llegada (HU-18 a HU-30).
+- Fórmula médica de cada cita atendida: diagnóstico, medicamentos y recomendaciones, para descargar; y las farmacias donde reclamarlos, con el QR del código (gratis en las aliadas) y "Cómo llegar".
 - Lista de espera con ofertas de cupos liberados (HU-19, HU-31, HU-32).
-- Solicitudes de cita (cartas de petición).
+- "Solicitar petición": pedir una cita a la medida cuando no hay horarios que sirvan.
 - Asistente conversacional con IA que detecta urgencias (HU-33).
 - Calificar la atención de una cita atendida (HU-71).
 
 **Personal administrativo** (`/admin`)
-- Gestión de citas, contacto, observaciones y resultado de la atención (HU-34 a HU-43).
-- Dashboard y reportes por periodo (HU-44 a HU-52, HU-68 a HU-75).
+- Gestión de citas, contacto, observaciones, resultado de la atención y fórmula médica (HU-34 a HU-43).
+- Resumen y reportes por periodo (HU-44 a HU-52, HU-68 a HU-75).
+- Especialistas con su horario semanal, sedes de la red y la actualización simulada de la IPS (que también trae las fórmulas de las citas atendidas).
 - Lista de espera (HU-45, HU-53 a HU-61) y centro de recordatorios (HU-62 a HU-67).
 - Solicitudes y revisión clínica (HU-76 a HU-79).
 - Auditoría de todas las acciones sobre las citas (HU-80 a HU-85).
+- Seguridad: ingresos fallidos, cuentas bloqueadas, sesiones abiertas y alertas; los datos médicos se guardan cifrados (AES-256).
 - Usuarios del personal con roles: administrador, agendamiento, call center y coordinador médico.
 
 ## Tecnologías

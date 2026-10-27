@@ -30,6 +30,11 @@ export function formatearFechaLarga(fechaIso) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+// "15 de octubre"
+export function formatearDiaMes(fechaIso) {
+  return new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "long" }).format(new Date(`${fechaIso}T00:00:00`));
+}
+
 // "SEPT" (para el bloque de fecha de las tarjetas de "Mis citas")
 export function formatearMesCorto(fechaIso) {
   const fecha = new Date(`${fechaIso}T00:00:00`);

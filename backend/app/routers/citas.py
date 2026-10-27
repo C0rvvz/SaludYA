@@ -22,6 +22,7 @@ POST /citas/confirmar-asistencia/enlace/ver -> HU-23 (ver la cita antes de confi
 
 Después de la consulta:
 POST /citas/{id}/calificar              -> HU-71 (satisfacción del paciente)
+GET  /citas/{id}/formula                -> fórmula médica, su QR y dónde reclamarla
 
 Todos exigen JWT y solo actúan sobre citas del paciente autenticado,
 salvo el enlace del recordatorio, que no pide sesión: su token firmado
@@ -50,7 +51,8 @@ from app.schemas.cita import (
     MiCitaOut,
     ReprogramarCitaRequest,
 )
-from app.services import citas_service, comprobante_service
+from app.schemas.formula import MiFormulaOut
+from app.services import citas_service, comprobante_service, formulas_service
 from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
@@ -102,6 +104,7 @@ def _mi_cita_out(cita: Cita) -> MiCitaOut:
         puede_calificar=citas_service.puede_calificar(cita),
         llegada_disponible_desde=llegada_desde if activa else None,
         historial=citas_service.historial_de_estado(cita),
+        tiene_formula=cita.formula is not None,
     )
 
 
@@ -330,6 +333,19 @@ def confirmar_asistencia_por_enlace(datos: ConfirmarPorEnlaceRequest, db: Sessio
     except _ERRORES_DE_CITA as e:
         raise _error_http(e)
     return _datos_del_enlace(cita, ya_estaba)
+
+
+@router.get("/citas/{cita_id}/formula", response_model=MiFormulaOut)
+def obtener_mi_formula(
+    cita_id: uuid.UUID,
+    paciente: Paciente = Depends(get_current_paciente),
+    db: Session = Depends(get_db),
+):
+    """Lo que le formuló el médico, el QR de su código y las farmacias donde reclamar."""
+    try:
+        return formulas_service.de_mi_cita(db, paciente.id, cita_id)
+    except CitaNoEncontradaError as e:
+        raise _error_http(e)
 
 
 @router.get("/citas/{cita_id}/comprobante", response_model=ComprobanteOut)

@@ -35,7 +35,7 @@ class CitaChatOut(BaseModel):
 class PropuestaChatOut(BaseModel):
     """El horario que el asistente le propone al paciente y espera su "sí"
     (todavía no está agendado): el chat lo muestra como tarjeta, con
-    "Agendar esa cita", "Elegir otra fecha" y "Escribir carta de petición"."""
+    "Agendar esa cita", "Elegir otra fecha" y "Solicitar petición"."""
 
     especialidad: str
     especialidad_id: uuid.UUID

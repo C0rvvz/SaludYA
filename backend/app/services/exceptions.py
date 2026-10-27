@@ -145,3 +145,7 @@ class EnvioCodigoFallidoError(Exception):
 
 class SedeInvalidaError(Exception):
     """Datos de una sede que no se pueden guardar, o una sede que todavía tiene turnos (RF-89)."""
+
+
+class FormulaInvalidaError(Exception):
+    """Datos de una fórmula médica que no se pueden guardar, o una cita que no fue atendida."""

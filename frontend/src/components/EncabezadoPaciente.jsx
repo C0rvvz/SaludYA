@@ -12,7 +12,7 @@ const SECCIONES = [
   { to: "/panel", texto: "Agendar", corto: "Agendar", Icono: IconoAgendar },
   { to: "/mis-citas", texto: "Mis citas", corto: "Mis citas", Icono: IconoMisCitas },
   { to: "/lista-espera", texto: "Avisarme si hay cupo", corto: "Espera", Icono: IconoEspera },
-  { to: "/solicitudes", texto: "Hacer una petición", corto: "Petición", Icono: IconoCarta },
+  { to: "/solicitudes", texto: "Solicitar petición", corto: "Petición", Icono: IconoCarta },
 ];
 
 /**

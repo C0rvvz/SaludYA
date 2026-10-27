@@ -14,6 +14,8 @@ tarea de fondo) o cuando el administrador la pide desde "Especialistas":
   desactiva y sus citas ya agendadas se conservan. Los del catálogo
   inicial y los que agregó el personal nunca se retiran solos.
 - Se genera la agenda de todos para los próximos 10 días hábiles.
+- Llegan las fórmulas médicas de las citas atendidas que todavía no la
+  tienen (formulas_service.simular_desde_ips).
 
 Cada actualización queda en sincronizaciones_ips y en la auditoría.
 """
@@ -29,7 +31,7 @@ from app.models.especialista import Especialista, Modalidad
 from app.models.personal import Personal
 from app.models.sede import Sede
 from app.models.sincronizacion_ips import SincronizacionIps
-from app.services import auditoria_service, disponibilidad_service, especialistas_service
+from app.services import auditoria_service, disponibilidad_service, especialistas_service, formulas_service
 from app.services.auditoria_service import Actor
 from app.services.especialistas_service import TurnoDatos
 from app.services.seguridad_service import nombre_personal
@@ -102,12 +104,16 @@ def sincronizar(db: Session, quien: Personal | None, rng: random.Random | None =
     cuantos = 0 if len(activos) - len(retirados) >= MAX_ACTIVOS else rng.randint(1, 2)
     nuevos = _llegan_nuevos(db, rng, cuantos)
     tanda = disponibilidad_service.generar_franjas(db)
+    formulas = formulas_service.simular_desde_ips(db, IPS, rng)
 
     partes = []
     if nuevos:
         partes.append("Llegaron: " + ", ".join(f"{e.nombre} ({e.especialidad.nombre})" for e in nuevos))
     if retirados:
         partes.append("Dejó de atender en la red: " + ", ".join(e.nombre for e in retirados))
+    if formulas:
+        partes.append(f"Llegaron {formulas} fórmula{'s' if formulas != 1 else ''} médica{'s' if formulas != 1 else ''} "
+                      "de citas atendidas")
     sincronizacion = SincronizacionIps(
         origen="manual" if quien else "automatica",
         solicitada_por=nombre_personal(quien) if quien else None,

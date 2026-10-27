@@ -74,6 +74,11 @@ export function registrarResultadoAdmin(id, resultado) {
   return conPersonal(`/admin/citas/${id}/resultado`, { method: "POST", body: { resultado } });
 }
 
+// Registrar o corregir la fórmula médica de una cita atendida.
+export function registrarFormulaAdmin(id, datos) {
+  return conPersonal(`/admin/citas/${id}/formula`, { method: "PUT", body: datos });
+}
+
 export function agregarObservacionAdmin(pacienteId, texto, citaId) {
   return conPersonal(`/admin/pacientes/${pacienteId}/observaciones`, {
     method: "POST",

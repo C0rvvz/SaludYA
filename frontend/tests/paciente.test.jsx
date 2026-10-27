@@ -139,7 +139,7 @@ describe("Agendar cita", () => {
       "href",
       "/lista-espera?especialidad=esp-1"
     );
-    expect(screen.getByRole("link", { name: "haga una petición" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "solicite una petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );
@@ -163,7 +163,7 @@ describe("Agendar cita", () => {
       "/lista-espera?especialidad=esp-1"
     );
     // El mismo nombre que en el menú, pero con la especialidad ya elegida.
-    expect(within(sinCupos).getByRole("link", { name: "Hacer una petición" })).toHaveAttribute(
+    expect(within(sinCupos).getByRole("link", { name: "Solicitar petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );
@@ -185,10 +185,13 @@ describe("Agendar cita", () => {
     await waitFor(() => expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar").length).toBeGreaterThan(antes));
   });
 
-  it("'¿No sabe cuál?' abre a Eli", async () => {
+  it("sin enlace redundante a Eli arriba; si no encuentra nada, ofrece preguntarle", async () => {
     backendFalso(CATALOGO);
     const usuario = abrir("/panel", { paciente: true });
-    await usuario.click(await screen.findByRole("button", { name: "¿No sabe cuál? Pregúntele a Eli" }));
+    await screen.findByRole("heading", { name: "¿Qué especialista busca?" });
+    expect(screen.queryByRole("button", { name: "¿No sabe cuál? Pregúntele a Eli" })).not.toBeInTheDocument();
+    await usuario.type(screen.getByLabelText("Buscar una especialidad o un médico"), "zzz");
+    await usuario.click(screen.getByRole("button", { name: "pregúntele a Eli" }));
     expect(await screen.findByRole("dialog", { name: /Eli, su guía de SaludYA/ })).toBeInTheDocument();
   });
 
@@ -543,6 +546,9 @@ describe("Asistente conversacional (HU-33)", () => {
   });
 
   it("la cita que Eli propone se ve como tarjeta, con 'Agendar esa cita', 'Elegir otra fecha' y la petición", async () => {
+    // Reloj fijo: si la prueba corre el 25 o el 26 de octubre, la tarjeta diría "Mañana" u "Hoy".
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-10-20T09:00:00"));
     const PROPUESTA = {
       especialidad: "Cardiología",
       especialidad_id: "esp-1",
@@ -569,7 +575,7 @@ describe("Asistente conversacional (HU-33)", () => {
     // Con la propuesta, las respuestas rápidas son las del diseño (no "Sí, confirmo").
     expect(screen.queryByRole("button", { name: "Sí, confirmo" })).not.toBeInTheDocument();
     const eli = screen.getByRole("dialog", { name: "Eli, su guía de SaludYA" });
-    expect(within(eli).getByRole("link", { name: "Hacer una petición" })).toHaveAttribute(
+    expect(within(eli).getByRole("link", { name: "Solicitar petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
     );

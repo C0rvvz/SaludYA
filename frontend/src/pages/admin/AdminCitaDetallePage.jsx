@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import FormulaAdmin from "../../components/admin/FormulaAdmin";
 import IndicadorRiesgo from "../../components/admin/IndicadorRiesgo";
 import { Cifra } from "../../components/admin/Reportes";
 import TablaHistorial from "../../components/admin/TablaHistorial";
@@ -13,6 +14,7 @@ import {
   enviarRecordatorioAdmin,
   obtenerCitaAdmin,
   registrarContactoAdmin,
+  registrarFormulaAdmin,
   registrarResultadoAdmin,
   reprogramarCitaAdmin,
 } from "../../api/admin";
@@ -24,7 +26,8 @@ import { capitalizar, formatearFechaHora, formatearFechaLarga, formatearHora } f
  * HU-35 detalle e historial de asistencia · HU-36 recordatorio · HU-37 llamar
  * HU-38 confirmar · HU-39 reprogramar · HU-40 cancelar · HU-41 observaciones
  * HU-42 canal de contacto · HU-43 estado y acciones según el estado
- * (+ registrar si fue atendido, que corrige el cierre automático de HU-25).
+ * (+ registrar si fue atendido, que corrige el cierre automático de HU-25,
+ * y la fórmula médica de una cita atendida).
  */
 
 const RESULTADOS_LLAMADA = [
@@ -107,7 +110,7 @@ export default function AdminCitaDetallePage() {
     cargar();
   }, [cargar]);
 
-  // Ejecuta una acción; la respuesta ya trae el detalle actualizado (HU-43).
+  // Ejecuta una acción; la respuesta ya trae el detalle actualizado (HU-43). Devuelve si salió bien.
   async function ejecutar(accion, textoExito) {
     setOcupado(true);
     setError("");
@@ -117,8 +120,10 @@ export default function AdminCitaDetallePage() {
       setCita(actualizada);
       setPanel(null);
       setAviso(textoExito);
+      return true;
     } catch (err) {
       setError(err.message);
+      return false;
     } finally {
       setOcupado(false);
     }
@@ -434,6 +439,21 @@ export default function AdminCitaDetallePage() {
               ocupado={ocupado}
               onConfirmar={reprogramar}
               onVolver={() => setPanel(null)}
+            />
+          )}
+
+          {a.formula && (
+            <FormulaAdmin
+              formula={cita.formula}
+              ocupado={ocupado}
+              onGuardar={(datos) =>
+                ejecutar(
+                  () => registrarFormulaAdmin(cita.id, datos),
+                  cita.formula
+                    ? "Fórmula corregida. El paciente ya ve los cambios en Mis citas."
+                    : `Fórmula registrada. Le avisamos al paciente por ${CANALES[cita.canal_recordatorio]}.`
+                )
+              }
             />
           )}
 

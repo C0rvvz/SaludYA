@@ -117,7 +117,7 @@ describe("RNF-17: sesión única y cierre real", () => {
     async () => {
       backendFalso({ "GET /solicitudes": [] });
       abrir("/solicitudes", { paciente: true });
-      await screen.findByRole("heading", { name: "Hacer una petición" });
+      await screen.findByRole("heading", { name: "Solicitar petición" });
 
       // El aviso se repite hasta que la página ya esté escuchando (con muchas pruebas a la vez, tarda).
       const otraPestana = new BroadcastChannel("saludya-sesion");
@@ -143,7 +143,7 @@ describe("RNF-24: cierre a los 2 minutos sin actividad", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const llamadas = backendFalso({ "GET /solicitudes": [] });
     const usuario = abrir("/solicitudes", { paciente: true });
-    await screen.findByRole("heading", { name: "Hacer una petición" });
+    await screen.findByRole("heading", { name: "Solicitar petición" });
 
     await act(() => vi.advanceTimersByTimeAsync(80_000));
     expect(screen.queryByText("¿Sigue ahí?")).not.toBeInTheDocument();

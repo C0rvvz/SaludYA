@@ -61,6 +61,11 @@ export function reprogramarCita(citaId, disponibilidadId) {
   });
 }
 
+// Lo que le formuló el médico, el QR de su código y las farmacias donde reclamar.
+export function obtenerFormula(citaId) {
+  return apiFetch(`/citas/${citaId}/formula`, { auth: true });
+}
+
 // HU-71: calificar la atención de una cita atendida (1 a 5, comentario opcional).
 export function calificarCita(citaId, calificacion, comentario) {
   return apiFetch(`/citas/${citaId}/calificar`, {

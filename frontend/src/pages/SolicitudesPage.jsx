@@ -16,7 +16,7 @@ import {
 import "../styles/espera-y-cartas.css";
 
 /**
- * "Hacer una petición" — HU-76 a HU-79. Un solo apartado con dos tipos de
+ * "Solicitar petición" — HU-76 a HU-79. Un solo apartado con dos tipos de
  * petición (cada uno explicado con un ejemplo antes de escribir):
  *   - "Pedir una cita en otra fecha": ningún horario le sirve y explica por qué.
  *   - "Derecho de petición": la petición formal que la EPS debe responder por ley.
@@ -303,7 +303,7 @@ export default function SolicitudesPage() {
       <div className="section pagina-paciente">
         <div className="pagina-paciente__titulo">
           <div>
-            <h1>Hacer una petición</h1>
+            <h1>Solicitar petición</h1>
             <p>¿No consigue la cita que necesita? Cuéntenos su caso y le ayudamos a conseguirla. Aquí ve la respuesta.</p>
           </div>
         </div>

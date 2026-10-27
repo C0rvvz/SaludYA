@@ -12,6 +12,7 @@ import { BloqueFecha, EstadoBadge } from "./ElementosCita";
  * al tocarla se abre su detalle al lado (con todas las acciones).
  * Celular: "LUN 3 NOV · 2:30 P. M.", foto del médico y, debajo, las
  * acciones de esa cita sin abrir el detalle (HU-30, criterio 1).
+ * Con fórmula médica, en vez de "Atendida" dice "Fórmula lista".
  */
 export default function TarjetaCita({ cita: c, elegida, ocultaEnMovil, ocupado, onVer, onAccion }) {
   const especialidad = c.especialista.especialidad.nombre;
@@ -21,7 +22,7 @@ export default function TarjetaCita({ cita: c, elegida, ocultaEnMovil, ocupado, 
         type="button"
         className="tarjeta-cita__principal"
         aria-current={elegida || undefined}
-        aria-label={`Ver detalle: ${especialidad}, ${formatearFechaLarga(c.fecha)}, ${formatearHora(c.hora)} (${ESTADO_CORTO[c.estado_visible] ?? c.estado_texto})`}
+        aria-label={`Ver detalle: ${especialidad}, ${formatearFechaLarga(c.fecha)}, ${formatearHora(c.hora)} (${ESTADO_CORTO[c.estado_visible] ?? c.estado_texto}${c.tiene_formula ? ", fórmula lista" : ""})`}
         onClick={onVer}
       >
         <BloqueFecha fecha={c.fecha} elegida={elegida} />
@@ -44,7 +45,8 @@ export default function TarjetaCita({ cita: c, elegida, ocultaEnMovil, ocupado, 
             </span>
           </span>
         </span>
-        <EstadoBadge cita={c} corto />
+        {/* Atendida y con la fórmula del médico: se avisa que ya está para ver. */}
+        {c.tiene_formula ? <span className="badge badge--info">Fórmula lista</span> : <EstadoBadge cita={c} corto />}
       </button>
       <AccionesCita cita={c} compacta ocupado={ocupado} onAccion={onAccion} />
     </article>

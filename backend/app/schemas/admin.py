@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.personal import RolPersonal
 from app.schemas.cita import EstadoVisible, EventoCitaOut
+from app.schemas.formula import FormulaOut
 
 # --- Cuentas del personal ---
 
@@ -96,6 +97,7 @@ class AccionesCitaOut(BaseModel):
     contactar: bool
     registrar_resultado: bool
     observar: bool
+    formula: bool
 
 
 class CitaAdminOut(BaseModel):
@@ -182,6 +184,8 @@ class CitaAdminDetalleOut(CitaAdminOut):
     contactos: list[RegistroAuditoriaOut]  # HU-37 criterio 4
     observaciones: list[ObservacionOut]  # HU-41
     auditoria: list[RegistroAuditoriaOut]  # HU-43 criterio 4
+    # Datos médicos: solo para quien registra la atención (acciones.formula).
+    formula: FormulaOut | None = None
 
 
 class ContactoRequest(BaseModel):

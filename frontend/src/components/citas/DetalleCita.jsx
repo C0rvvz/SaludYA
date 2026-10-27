@@ -4,6 +4,7 @@ import { CALIFICACIONES, CANALES, estrellas, horaDe } from "../../utils/citas";
 import { capitalizar, formatearFechaLarga, formatearHora, formatearSoloHora } from "../../utils/formato";
 import AccionesCita from "./AccionesCita";
 import { EstadoBadge, Fila } from "./ElementosCita";
+import FormulaCita from "./FormulaCita";
 
 // "15 oct · 10:42 a. m."
 function cuandoPaso(fechaHoraIso) {
@@ -15,6 +16,7 @@ function cuandoPaso(fechaHoraIso) {
  * Detalle de una cita — HU-26 criterio 4, HU-27 criterio 3 y HU-18 (su
  * estado y la línea de tiempo, con "Ver si hay novedades" para volver a
  * consultarlo). Las acciones las resuelve "Mis citas" (`onAccion`).
+ * Si el médico ya mandó la fórmula, debajo va la fórmula y dónde reclamarla.
  */
 export default function DetalleCita({ cita, ocupado, actualizando, onAccion, onActualizar, onAbrirNumero, onVolver }) {
   const especialidad = cita.especialista.especialidad.nombre;
@@ -99,6 +101,8 @@ export default function DetalleCita({ cita, ocupado, actualizando, onAccion, onA
 
         <AccionesCita cita={cita} ocupado={ocupado} onAccion={onAccion} />
       </section>
+
+      {cita.tiene_formula && <FormulaCita key={cita.id} citaId={cita.id} />}
 
       <section className="card estado-cita" aria-labelledby="titulo-estado-cita">
         <div className="estado-cita__cabeza">

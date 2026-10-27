@@ -126,10 +126,6 @@
   margin-bottom: 6px;
 }
 
-.agendar-eli {
-  font-size: var(--text-base);
-}
-
 /* Sobre el fondo gris de la página, las píldoras de volver van en blanco. */
 .agendar .btn-volver {
   border: 1px solid var(--color-line);

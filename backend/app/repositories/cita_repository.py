@@ -4,11 +4,12 @@ import uuid
 from datetime import date
 
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, contains_eager, joinedload
+from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
 from app.models.cita import Cita, EstadoCita
 from app.models.disponibilidad import Disponibilidad
 from app.models.especialista import Especialista
+from app.models.formula_medica import FormulaMedica
 from app.models.paciente import Paciente
 
 
@@ -57,6 +58,8 @@ def listar_por_paciente(db: Session, paciente_id: uuid.UUID) -> list[Cita]:
             .joinedload(Disponibilidad.especialista)
             .joinedload(Especialista.especialidad),
             contains_eager(Cita.disponibilidad).joinedload(Disponibilidad.sede),
+            # Solo para saber si tiene fórmula: lo médico (cifrado) no se carga aquí.
+            selectinload(Cita.formula).load_only(FormulaMedica.id, FormulaMedica.cita_id),
         )
         .filter(Cita.paciente_id == paciente_id)
         .order_by(Disponibilidad.fecha, Disponibilidad.hora)

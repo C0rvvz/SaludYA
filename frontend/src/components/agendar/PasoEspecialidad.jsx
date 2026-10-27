@@ -21,11 +21,9 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
 
   return (
     <>
+      {/* Sin "¿No sabe cuál? Pregúntele a Eli": el botón flotante de Eli ya está en la pantalla. */}
       <div className="agendar-encabezado">
         <h1>¿Qué especialista busca?</h1>
-        <button type="button" className="btn--link agendar-eli" onClick={onPreguntarEli}>
-          ¿No sabe cuál? Pregúntele a Eli
-        </button>
       </div>
 
       <div className="buscador-agendar">

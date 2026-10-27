@@ -22,6 +22,7 @@ Gestión de citas
   POST  /admin/citas/{id}/recordatorio    HU-36
   POST  /admin/citas/{id}/contacto        HU-37
   POST  /admin/citas/{id}/resultado       HU-25 / HU-43 (atendida o no asistió)
+  PUT   /admin/citas/{id}/formula         fórmula médica de una cita atendida
   POST  /admin/pacientes/{id}/observaciones  HU-41
 
 Auditoría
@@ -118,6 +119,7 @@ from app.schemas.admin import (
     RolOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
+from app.schemas.formula import FormulaRequest
 from app.schemas.especialistas import (
     CrearEspecialistaRequest,
     EspecialistaAdminOut,
@@ -160,6 +162,7 @@ from app.services import (
     citas_service,
     comprobante_service,
     especialistas_service,
+    formulas_service,
     ips_simulada_service,
     sedes_service,
     personal_service,
@@ -181,6 +184,7 @@ from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     EnvioFallidoError,
     EspecialistaInvalidoError,
+    FormulaInvalidaError,
     HorarioYaNoDisponibleError,
     ListaEsperaInvalidaError,
     PersonalInvalidoError,
@@ -205,6 +209,7 @@ _CODIGOS = {
     ProgramacionInvalidaError: status.HTTP_400_BAD_REQUEST,
     ListaEsperaInvalidaError: status.HTTP_400_BAD_REQUEST,
     SolicitudInvalidaError: status.HTTP_400_BAD_REQUEST,
+    FormulaInvalidaError: status.HTTP_400_BAD_REQUEST,
     EnvioFallidoError: status.HTTP_502_BAD_GATEWAY,
 }
 _ERRORES = tuple(_CODIGOS)
@@ -343,9 +348,10 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
     historial = admin_citas_service.historial_por_paciente(db, [cita])[cita.paciente_id]
     paciente = cita.paciente
     auditoria = [_registro_out(r) for r in auditoria_repository.listar(db, cita_id=cita.id)]
+    campos = _campos_cita(cita, personal, historial)
 
     return CitaAdminDetalleOut(
-        **_campos_cita(cita, personal, historial),
+        **campos,
         paciente=_paciente_detalle(paciente),
         motivo_cancelacion=cita.motivo_cancelacion,
         historial_estado=citas_service.historial_de_estado(cita),
@@ -359,6 +365,7 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
             _observacion_out(o) for o in admin_citas_service.observaciones_del_paciente(db, paciente.id)
         ],
         auditoria=auditoria,
+        formula=formulas_service.datos(cita.formula) if campos["acciones"].formula and cita.formula else None,
     )
 
 
@@ -606,6 +613,24 @@ def registrar_resultado(
     resultado = EstadoCita.ATENDIDA if datos.resultado == "atendida" else EstadoCita.NO_ASISTIO
     try:
         citas_service.registrar_resultado(db, cita_id, resultado, actor=Actor.de_personal(personal))
+        return _detalle(db, cita_id, personal)
+    except _ERRORES as e:
+        raise _http(e)
+
+
+@router.put("/citas/{cita_id}/formula", response_model=CitaAdminDetalleOut)
+def registrar_formula(
+    cita_id: uuid.UUID,
+    datos: FormulaRequest,
+    personal: Personal = Depends(requiere(Permiso.REGISTRAR_ATENCION)),
+    db: Session = Depends(get_db),
+):
+    """Registrar o corregir lo que formuló el médico; la primera vez se le avisa al paciente."""
+    try:
+        formulas_service.registrar(
+            db, Actor.de_personal(personal), cita_id, datos.diagnostico, datos.nota,
+            [m.model_dump() for m in datos.medicamentos], datos.recomendaciones, datos.cubierta_por_eps,
+        )
         return _detalle(db, cita_id, personal)
     except _ERRORES as e:
         raise _http(e)

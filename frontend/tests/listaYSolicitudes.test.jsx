@@ -232,7 +232,7 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
   });
 });
 
-describe("Hacer una petición", () => {
+describe("Solicitar petición", () => {
   function solicitud(cambios = {}) {
     return {
       id: "s1",
