@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { EstadoBadge } from "../citas/ElementosCita";
+import { Chevron } from "../Iconos";
 import { formatearFecha, formatearHora } from "../../utils/formato";
 
 const VISIBLES = 8;
@@ -59,8 +60,14 @@ export default function TablaHistorial({ citas, actualId, vacio }) {
         </table>
       </div>
       {citas.length > VISIBLES && (
-        <button type="button" className="btn btn--link" onClick={() => setTodas(!todas)}>
+        <button
+          type="button"
+          className="btn btn--outline btn--compacto tabla-historial__mas"
+          aria-expanded={todas}
+          onClick={() => setTodas(!todas)}
+        >
           {todas ? "Ver menos" : `Ver las ${citas.length} citas`}
+          <Chevron hacia={todas ? "arriba" : "abajo"} tamano={14} />
         </button>
       )}
     </>

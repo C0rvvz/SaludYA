@@ -365,4 +365,22 @@ describe("Detalle de una cita para el personal", () => {
     expect(await esperarTexto("No existe esa cita.")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Volver a Gestión de citas" })).toBeInTheDocument();
   });
+
+  it("historial largo: muestra 8 citas y un botón para ver todas o menos", async () => {
+    const [actual, pasada] = detalle().historial_asistencia;
+    const historial = [actual, ...Array.from({ length: 11 }, (_, i) => ({ ...pasada, id: `ca-p${i}` }))];
+    backendFalso({ "GET /admin/citas/:id": detalle({ historial_asistencia: historial }) });
+    const usuario = abrir("/admin/citas/ca-1", { personal: true });
+    const tarjeta = (await screen.findByRole("heading", { name: "Historial de asistencia" })).closest("section");
+    expect(within(tarjeta).getAllByRole("row")).toHaveLength(1 + 8); // encabezado + 8
+
+    const verTodas = within(tarjeta).getByRole("button", { name: "Ver las 12 citas" });
+    expect(verTodas).toHaveAttribute("aria-expanded", "false");
+    await usuario.click(verTodas);
+    expect(within(tarjeta).getAllByRole("row")).toHaveLength(1 + 12);
+    const verMenos = within(tarjeta).getByRole("button", { name: "Ver menos" });
+    expect(verMenos).toHaveAttribute("aria-expanded", "true");
+    await usuario.click(verMenos);
+    expect(within(tarjeta).getAllByRole("row")).toHaveLength(1 + 8);
+  });
 });

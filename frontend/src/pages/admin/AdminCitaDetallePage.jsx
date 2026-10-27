@@ -63,9 +63,11 @@ function Registro({ registro }) {
 
 function Volver() {
   return (
-    <Link className="admin-volver" to="/admin/citas" aria-label="Volver a Gestión de citas">
-      <Chevron hacia="izquierda" tamano={14} />
-      Gestión de citas
+    <Link className="admin-volver" to="/admin/citas">
+      <span className="admin-volver__circulo">
+        <Chevron hacia="izquierda" tamano={14} />
+      </span>
+      Volver a Gestión de citas
     </Link>
   );
 }

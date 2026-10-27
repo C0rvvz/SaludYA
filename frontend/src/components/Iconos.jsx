@@ -13,11 +13,18 @@ function Svg({ tamano = 22, children }) {
 
 const trazo = { stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
 
-/** Chevron para avanzar o volver (va dentro de .btn__circulo). */
+const TRAZOS_CHEVRON = {
+  derecha: "M9.5 6l6 6-6 6",
+  izquierda: "M14.5 6 8.5 12l6 6",
+  abajo: "M6 9.5l6 6 6-6",
+  arriba: "M6 14.5l6-6 6 6",
+};
+
+/** Chevron para avanzar o volver (va dentro de .btn__circulo), o para ver más o menos. */
 export function Chevron({ hacia = "derecha", tamano = 16 }) {
   return (
     <Svg tamano={tamano}>
-      <path d={hacia === "derecha" ? "M9.5 6l6 6-6 6" : "M14.5 6 8.5 12l6 6"} {...trazo} strokeWidth={2.2} />
+      <path d={TRAZOS_CHEVRON[hacia]} {...trazo} strokeWidth={2.2} />
     </Svg>
   );
 }

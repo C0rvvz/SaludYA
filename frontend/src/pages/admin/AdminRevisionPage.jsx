@@ -174,9 +174,11 @@ export default function AdminRevisionPage() {
   }
 
   const volver = (
-    <Link className="admin-volver" to="/admin/solicitudes" aria-label="Volver a Solicitudes">
-      <Chevron hacia="izquierda" tamano={14} />
-      Solicitudes
+    <Link className="admin-volver" to="/admin/solicitudes">
+      <span className="admin-volver__circulo">
+        <Chevron hacia="izquierda" tamano={14} />
+      </span>
+      Volver a Solicitudes
     </Link>
   );
 

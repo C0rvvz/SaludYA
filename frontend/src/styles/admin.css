@@ -1059,19 +1059,41 @@
 }
 
 /* --- Detalle de una cita / revisión --- */
+/* "Volver a…": botón píldora discreto, fácil de encontrar arriba de la página */
 .admin-volver {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  gap: 6px;
-  color: var(--color-primary);
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px 0 5px;
+  border: 1px solid var(--admin-borde);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-ink);
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
-.admin-volver:hover {
-  text-decoration: underline;
+.admin-volver__circulo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.admin-volver:hover,
+.admin-volver:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: var(--halo);
 }
 
 .admin-comprobante {
@@ -1596,6 +1618,19 @@
 .resumen-asistencia strong {
   color: var(--color-ink);
   font-size: 1.0625rem;
+}
+
+/* "Ver las 30 citas" / "Ver menos", centrado debajo de la tabla del historial.
+   Con el botón debajo, la tabla ya no llega al borde de la tarjeta: termina en una línea. */
+.tabla-historial__mas {
+  align-self: center;
+  gap: 6px;
+}
+
+.card .tabla-contenedor:has(+ .tabla-historial__mas) {
+  margin-bottom: 0;
+  border-bottom-width: 1px;
+  border-radius: 0;
 }
 
 .historial-admin,
