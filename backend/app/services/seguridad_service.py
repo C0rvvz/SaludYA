@@ -414,6 +414,9 @@ def controles() -> list[dict]:
          "detalle": "En cada acción se comprueban el token, la sesión del servidor y el permiso del rol."},
         {"nombre": "Mínimo privilegio por rol",
          "detalle": "Cada rol solo puede usar lo que su función necesita (ver Usuarios)."},
+        {"nombre": "Historia clínica restringida",
+         "detalle": "Solo la ven los roles Médico (únicamente sus pacientes) y Coordinación médica; "
+         "cada consulta queda en la auditoría."},
         {"nombre": "Bloqueo tras 5 intentos fallidos",
          "detalle": "La cuenta del personal se bloquea 15 minutos; el código del paciente, tras 3 intentos."},
         {"nombre": "Límite de intentos por conexión",
@@ -422,11 +425,13 @@ def controles() -> list[dict]:
          "detalle": "Activa con Cloudflare Turnstile." if verificacion_humana.activa()
          else "En modo de desarrollo: sin clave de Turnstile no se verifica."},
         {"nombre": "Datos médicos cifrados con AES-256",
-         "detalle": "Motivos y respuestas de las peticiones, observaciones, motivos de cancelación, comentarios y "
-         "detalles de la auditoría. " + ("Con una llave de desarrollo: configure CLAVE_CIFRADO_DATOS."
+         "detalle": "Diagnósticos (con su código CIE-10), fórmulas médicas, motivos y respuestas de las peticiones, "
+         "observaciones, motivos de cancelación, comentarios y detalles de la auditoría. " + ("Con una llave de desarrollo: configure CLAVE_CIFRADO_DATOS."
                                           if cifrado.llave_de_desarrollo() else "La llave está fuera del código.")},
         {"nombre": "Contraseñas protegidas con scrypt",
          "detalle": "Nunca se guardan ni se muestran; tampoco en la auditoría ni en estos eventos."},
+        {"nombre": "Registro inalterable",
+         "detalle": "La base de datos rechaza cualquier cambio o borrado de la auditoría y de estos eventos."},
     ]
 
 

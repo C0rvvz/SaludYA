@@ -24,7 +24,7 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
 - Lista de espera (HU-45, HU-53 a HU-61) y centro de recordatorios (HU-62 a HU-67).
 - Solicitudes y revisión clínica (HU-76 a HU-79).
 - Auditoría de todas las acciones sobre las citas (HU-80 a HU-85).
-- Seguridad: ingresos fallidos, cuentas bloqueadas, sesiones abiertas y alertas; los datos médicos se guardan cifrados (AES-256).
+- Seguridad: ingresos fallidos, cuentas bloqueadas, sesiones abiertas y alertas; los datos médicos se guardan cifrados (AES-256), y la auditoría y los eventos de seguridad no se pueden modificar ni borrar (lo impide la propia base de datos).
 - Usuarios del personal con roles: administrador, agendamiento, call center, Coordinación médica y médico.
 
 ## Tecnologías

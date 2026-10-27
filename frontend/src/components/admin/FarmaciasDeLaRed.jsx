@@ -192,16 +192,19 @@ export default function FarmaciasDeLaRed({ sedes }) {
     <section className="card" aria-labelledby="titulo-farmacias">
       <CabezaTarjeta
         id="titulo-farmacias"
-        titulo="Farmacias para reclamar fórmulas"
+        titulo="Farmacias de la red"
         dato={
-          <button
-            type="button"
-            className="btn btn--outline btn--compacto"
-            disabled={ocupado}
-            onClick={() => abrir("nueva")}
-          >
-            Agregar farmacia
-          </button>
+          <span className="admin-card__extra">
+            <span className="admin-card__dato">Donde se reclaman las fórmulas</span>
+            <button
+              type="button"
+              className="btn btn--outline btn--compacto"
+              disabled={ocupado}
+              onClick={() => abrir("nueva")}
+            >
+              Agregar farmacia
+            </button>
+          </span>
         }
       />
       <p className="texto-suave">
@@ -305,7 +308,7 @@ export default function FarmaciasDeLaRed({ sedes }) {
                 </td>
                 <td>
                   <span className={`badge ${x.aliada ? "badge--success" : "badge--neutral"}`}>
-                    {x.aliada ? "Aliada · gratis" : "No aliada"}
+                    {x.aliada ? "Aliada · entrega gratis" : "No aliada"}
                   </span>
                 </td>
                 <td>

@@ -32,9 +32,9 @@ import { DIAS, DURACIONES, ORIGEN_ESPECIALISTA, origenSincronizacion, resumenHor
  */
 
 const ESTADOS = [
-  ["", "Todos"],
   ["activo", "Activos"],
   ["inactivo", "Inactivos"],
+  ["", "Todos"],
 ];
 
 function turnoNuevo(sedes, usados = []) {
@@ -550,7 +550,7 @@ export default function AdminEspecialistasPage() {
           <thead>
             <tr>
               <th>Especialista</th>
-              <th>Especialidad</th>
+              <th>Especialidad y EPS</th>
               <th>Horario semanal</th>
               <th>Agenda</th>
               <th>Estado</th>
@@ -575,7 +575,7 @@ export default function AdminEspecialistasPage() {
                 <td>
                   <span className="celda-doble">
                     <span>{e.especialidad}</span>
-                    <span className="celda-doble__dato">EPS {e.eps}</span>
+                    <span className="celda-doble__dato">{e.eps}</span>
                   </span>
                 </td>
                 <td>

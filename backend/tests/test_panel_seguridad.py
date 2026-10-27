@@ -2,7 +2,12 @@
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
 from app.core.security import TIPO_PERSONAL, crear_access_token
+from app.models.auditoria import RegistroAuditoria
 from app.models.codigo_otp import CodigoOTP
 from app.models.evento_seguridad import EventoSeguridad
 from app.models.personal import RolPersonal
@@ -28,7 +33,7 @@ def _claves(panel):
 
 
 def test_solo_el_administrador_ve_el_panel(cliente, fabrica):
-    for rol in (RolPersonal.CALL_CENTER, RolPersonal.AGENDAMIENTO, RolPersonal.COORDINADOR_MEDICO):
+    for rol in (RolPersonal.CALL_CENTER, RolPersonal.AGENDAMIENTO, RolPersonal.COORDINADOR_MEDICO, RolPersonal.MEDICO):
         assert cliente.get("/admin/seguridad", headers=encabezado(fabrica.personal(rol))).status_code == 403
 
 
@@ -204,3 +209,24 @@ def test_ingreso_fuera_de_horario_y_periodo(cliente, fabrica, db):
     assert "fuera_de_horario" not in _claves(hace_poco)
     assert cliente.get("/admin/seguridad?horas=0", headers=encabezado(admin)).status_code == 422
     assert [c["nombre"] for c in hace_poco["controles"]][0] == "Una sola sesión por cuenta"
+
+
+def test_la_auditoria_y_los_eventos_no_se_pueden_cambiar_ni_borrar(cliente, fabrica, db):
+    """Registro inalterable: lo rechaza la propia base de datos, no solo la aplicación."""
+    cliente.post(f"/admin/citas/{fabrica.cita(fabrica.paciente()).id}/cancelar", json={},
+                 headers=encabezado(fabrica.personal()))
+    cliente.post("/admin/auth/login", json={"correo": "nadie@saludya.co", "password": "una-clave-cualquiera"})
+    assert db.query(RegistroAuditoria).count() > 0 and db.query(EventoSeguridad).count() > 0
+    for sentencia in (
+        "UPDATE auditoria SET descripcion = 'cambiada'",
+        "DELETE FROM auditoria",
+        "UPDATE eventos_seguridad SET descripcion = 'cambiada'",
+        "DELETE FROM eventos_seguridad",
+    ):
+        with pytest.raises(DBAPIError, match="no se puede modificar ni borrar"):
+            with db.begin_nested():
+                db.execute(text(sentencia))
+
+    controles = cliente.get("/admin/seguridad", headers=encabezado(fabrica.personal())).json()["controles"]
+    nombres = [c["nombre"] for c in controles]
+    assert "Registro inalterable" in nombres and "Historia clínica restringida" in nombres

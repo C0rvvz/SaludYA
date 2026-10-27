@@ -157,6 +157,7 @@ describe("Sedes de la red", () => {
     const sedes = (await screen.findByRole("heading", { name: "Sedes de la red" })).closest("section");
     expect(await within(sedes).findByText("Dr. Carlos Ramírez")).toBeInTheDocument();
     expect(within(sedes).getByText("Sin dirección")).toBeInTheDocument();
+    expect(within(sedes).getByText("1 abierta")).toBeInTheDocument();
 
     await usuario.click(within(sedes).getByRole("button", { name: "Agregar sede" }));
     const nueva = within(sedes).getByRole("form", { name: "Nueva sede" });
@@ -180,7 +181,7 @@ describe("Sedes de la red", () => {
   });
 });
 
-describe("Farmacias para reclamar fórmulas", () => {
+describe("Farmacias de la red", () => {
   const VIDA_SANA = {
     id: "f1", nombre: "Droguería Vida Sana", barrio: "El Poblado", ciudad: "Medellín", direccion: null, aliada: true,
     activa: true, sede_id: "sede-1", sede: "Sede Poblado", distancia_km: 0.8,
@@ -203,11 +204,12 @@ describe("Farmacias para reclamar fórmulas", () => {
       "PATCH /admin/farmacias/:id/estado": ({ cuerpo }) => ({ ...VIDA_SANA, ...cuerpo }),
     });
     const usuario = abrir("/admin/especialistas", { personal: true });
-    const tarjeta = (await screen.findByRole("heading", { name: "Farmacias para reclamar fórmulas" })).closest("section");
+    const tarjeta = (await screen.findByRole("heading", { name: "Farmacias de la red" })).closest("section");
     expect(await within(tarjeta).findByText("Droguería Vida Sana")).toBeInTheDocument();
     expect(within(tarjeta).getByText("Solo el barrio")).toBeInTheDocument();
     expect(within(tarjeta).getByText("a 0,8 km")).toBeInTheDocument();
-    expect(within(tarjeta).getByText("Aliada · gratis")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Aliada · entrega gratis")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Donde se reclaman las fórmulas")).toBeInTheDocument();
     expect(within(tarjeta).getByText("Cerrada")).toBeInTheDocument();
 
     await usuario.click(within(tarjeta).getByRole("button", { name: "Agregar farmacia" }));
@@ -250,7 +252,7 @@ describe("Farmacias para reclamar fórmulas", () => {
       "PUT /admin/farmacias/:id": error(400, "Ya existe Droguería Vida Sana en El Poblado, Medellín."),
     });
     const usuario = abrir("/admin/especialistas", { personal: true });
-    const tarjeta = (await screen.findByRole("heading", { name: "Farmacias para reclamar fórmulas" })).closest("section");
+    const tarjeta = (await screen.findByRole("heading", { name: "Farmacias de la red" })).closest("section");
     await usuario.click(await within(tarjeta).findByRole("button", { name: "Editar Droguería Vida Sana" }));
     await usuario.click(within(tarjeta).getByRole("button", { name: "Guardar farmacia" }));
     expect(await esperarTexto("Ya existe Droguería Vida Sana en El Poblado, Medellín.")).toBeInTheDocument();

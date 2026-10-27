@@ -13,6 +13,12 @@ import { CabezaTarjeta } from "./Reportes";
 
 const VACIA = { nombre: "", ciudad: "", direccion: "" };
 
+// "4 abiertas", "1 abierta"
+function abiertas(sedes) {
+  const n = sedes.filter((s) => s.activa).length;
+  return `${n} ${n === 1 ? "abierta" : "abiertas"}`;
+}
+
 function FormularioSede({ sede, ocupado, onGuardar, onVolver }) {
   const [datos, setDatos] = useState(
     sede ? { nombre: sede.nombre, ciudad: sede.ciudad, direccion: sede.direccion ?? "" } : VACIA
@@ -121,14 +127,17 @@ export default function SedesDeLaRed({ onCambio }) {
         id="titulo-sedes"
         titulo="Sedes de la red"
         dato={
-          <button
-            type="button"
-            className="btn btn--outline btn--compacto"
-            disabled={ocupado}
-            onClick={() => abrir("nueva")}
-          >
-            Agregar sede
-          </button>
+          <span className="admin-card__extra">
+            {sedes && <span className="admin-card__dato">{abiertas(sedes)}</span>}
+            <button
+              type="button"
+              className="btn btn--outline btn--compacto"
+              disabled={ocupado}
+              onClick={() => abrir("nueva")}
+            >
+              Agregar sede
+            </button>
+          </span>
         }
       />
       {aviso && <div className="alert alert--success">{aviso}</div>}
