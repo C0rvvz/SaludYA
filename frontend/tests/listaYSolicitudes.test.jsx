@@ -68,7 +68,7 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
     await usuario.click(await screen.findByLabelText("Sede Laureles")); // desmarca una de las dos
     expect(screen.queryByText(/Si ya pasó la mañana de hoy/)).not.toBeInTheDocument();
     await usuario.click(screen.getByLabelText("En la mañana"));
-    expect(screen.getByText("Si ya pasó la mañana de hoy, le buscamos desde mañana en la mañana.")).toBeInTheDocument();
+    expect(screen.getByText("Si la mañana de hoy ya pasó, buscaremos cupo desde mañana en la mañana.")).toBeInTheDocument();
     await usuario.click(screen.getByLabelText("Virtual"));
     await usuario.click(screen.getByLabelText("Correo electrónico"));
     await usuario.click(pedir);
@@ -107,7 +107,7 @@ describe("Avisarme si hay cupo (lista de espera)", () => {
     expect(screen.getByRole("heading", { name: "Pedir aviso para otra especialidad" })).toBeInTheDocument();
 
     await usuario.click(within(aviso).getByRole("button", { name: "Aceptar esta cita" }));
-    expect(await esperarTexto(/¡Listo! Su cita quedó agendada/)).toBeInTheDocument();
+    expect(await esperarTexto(/Listo. Su cita quedó agendada/)).toBeInTheDocument();
     expect(await screen.findAllByText(/Comprobante SY-LE1\./)).toHaveLength(2); // aviso y tarjeta
   });
 

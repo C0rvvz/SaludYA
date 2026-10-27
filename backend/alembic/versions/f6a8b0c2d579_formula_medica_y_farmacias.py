@@ -9,7 +9,7 @@ Create Date: 2026-10-25 12:00:00.000000
 
 Las farmacias de ejemplo tienen nombres inventados y solo su barrio (sin
 dirección exacta), para no mandar a nadie a un lugar real por error: el
-personal puede poner las verdaderas.
+administrador pone las verdaderas en Personal › Especialistas › Farmacias.
 """
 from typing import Sequence, Union
 import uuid

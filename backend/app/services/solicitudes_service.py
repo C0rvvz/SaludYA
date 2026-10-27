@@ -44,7 +44,7 @@ from app.services.exceptions import (
 )
 from app.utils.tiempo import ZONA_COLOMBIA, fecha_legible, hora_legible, hoy_en_colombia
 
-NOMBRE_TIPO = {TipoSolicitud.FORMAL: "solicitud formal", TipoSolicitud.DERECHO_PETICION: "derecho de petición"}
+NOMBRE_TIPO = {TipoSolicitud.FORMAL: "petición de cita", TipoSolicitud.DERECHO_PETICION: "derecho de petición"}
 POR_DECIDIR = (EstadoSolicitudCita.PENDIENTE, EstadoSolicitudCita.PENDIENTE_EPS)
 
 

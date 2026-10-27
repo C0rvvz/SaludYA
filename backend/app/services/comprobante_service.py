@@ -42,8 +42,7 @@ def generar_comprobante(db: Session, cita: Cita) -> Cita:
     cita.comprobante_generado_en = datetime.now(timezone.utc)
 
     mensaje = (
-        f"Tu comprobante de cita SaludYA ({cita.numero_comprobante}) fue generado. "
-        f"Estado: CONFIRMADA."
+        f"SaludYA: su cita quedó confirmada. Número de comprobante: {cita.numero_comprobante}."
     )
     # SMS/correo/llamada siguen simulados (solo existe integración real
     # con WhatsApp Cloud API): ver integrations/notificaciones.py.
@@ -59,6 +58,6 @@ def obtener_comprobante(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID)
     cita = cita_repository.obtener_por_id(db, cita_id)
 
     if cita is None or cita.paciente_id != paciente_id:
-        raise CitaNoEncontradaError(f"No existe ninguna cita con id {cita_id}.")
+        raise CitaNoEncontradaError("No encontramos esa cita entre sus citas.")
 
     return cita

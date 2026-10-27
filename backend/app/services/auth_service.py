@@ -20,8 +20,7 @@ def identificar_paciente(db: Session, numero_documento: str) -> Paciente:
     if paciente is None:
         # --- HU-01, criterio 4: informar al paciente cuando no está registrado ---
         raise PacienteNoRegistradoError(
-            f"No encontramos ningún paciente registrado con el documento "
-            f"{numero_documento}."
+            f"No hay ninguna cuenta registrada con el documento {numero_documento}."
         )
     return paciente
 

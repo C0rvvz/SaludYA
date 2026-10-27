@@ -121,6 +121,23 @@ export function editarSede(id, datos) {
   return conPersonal(`/admin/sedes/${id}`, { method: "PUT", body: datos });
 }
 
+// Farmacias donde se reclaman las fórmulas médicas
+export function listarFarmaciasAdmin() {
+  return conPersonal("/admin/farmacias");
+}
+
+export function crearFarmacia(datos) {
+  return conPersonal("/admin/farmacias", { method: "POST", body: datos });
+}
+
+export function editarFarmacia(id, datos) {
+  return conPersonal(`/admin/farmacias/${id}`, { method: "PUT", body: datos });
+}
+
+export function cambiarEstadoFarmacia(id, activa) {
+  return conPersonal(`/admin/farmacias/${id}/estado`, { method: "PATCH", body: { activa } });
+}
+
 export function cambiarEstadoSede(id, activa) {
   return conPersonal(`/admin/sedes/${id}/estado`, { method: "PATCH", body: { activa } });
 }

@@ -137,7 +137,7 @@ def test_sesiones_activas_y_cerrarlas_a_distancia(cliente, fabrica):
     assert r.status_code == 204
     rechazada = cliente.get("/admin/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert rechazada.status_code == 401
-    assert rechazada.json()["detail"] == "Un administrador cerró su sesión por seguridad. Ingrese de nuevo."
+    assert rechazada.json()["detail"] == "Un administrador cerró su sesión por seguridad. Inicie sesión de nuevo."
     assert cliente.post(f"/admin/seguridad/sesiones/{sesion['id']}/cerrar", headers=yo).status_code == 400
 
     panel = cliente.get("/admin/seguridad", headers=yo).json()

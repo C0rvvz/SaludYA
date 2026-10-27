@@ -311,15 +311,18 @@ export default function AdminCitaDetallePage() {
                     Reprogramar
                   </button>
                 )}
-                {a.cancelar && (
-                  <button className="btn btn--peligro-outline" onClick={() => setPanel("cancelar")}>
-                    Cancelar cita
-                  </button>
-                )}
                 {a.registrar_resultado && (
                   <button className="btn btn--outline" onClick={() => setPanel("resultado")}>
                     Registrar atención
                   </button>
+                )}
+                {a.cancelar && (
+                  <>
+                    <span className="acciones__separador" aria-hidden="true" />
+                    <button className="btn btn--peligro-outline" onClick={() => setPanel("cancelar")}>
+                      Cancelar cita
+                    </button>
+                  </>
                 )}
               </div>
             )}

@@ -38,6 +38,10 @@ Especialistas e IPS simulada (RNF: base de datos de especialistas actualizada)
   POST  /admin/sedes                            crear
   PUT   /admin/sedes/{id}                       editar nombre, ciudad y dirección
   PATCH /admin/sedes/{id}/estado                cerrar o volver a abrir
+  GET   /admin/farmacias                        donde se reclaman las fórmulas médicas
+  POST  /admin/farmacias                        crear
+  PUT   /admin/farmacias/{id}                   editar (dirección, sede cercana, distancia, aliada)
+  PATCH /admin/farmacias/{id}/estado            cerrar o volver a abrir
 
 Seguridad (tipo SIEM / SOC)
   GET   /admin/seguridad?horas=24         eventos, alertas, sesiones activas y controles
@@ -125,7 +129,10 @@ from app.schemas.especialistas import (
     EspecialistaAdminOut,
     EspecialistasAdminOut,
     EstadoEspecialistaRequest,
+    EstadoFarmaciaRequest,
     EstadoSedeRequest,
+    FarmaciaAdminOut,
+    FarmaciaRequest,
     HorarioRequest,
     SedeAdminOut,
     SedeRequest,
@@ -162,6 +169,7 @@ from app.services import (
     citas_service,
     comprobante_service,
     especialistas_service,
+    farmacias_service,
     formulas_service,
     ips_simulada_service,
     sedes_service,
@@ -184,6 +192,7 @@ from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     EnvioFallidoError,
     EspecialistaInvalidoError,
+    FarmaciaInvalidaError,
     FormulaInvalidaError,
     HorarioYaNoDisponibleError,
     ListaEsperaInvalidaError,
@@ -806,6 +815,57 @@ def cambiar_estado_sede(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return _sede_out(db, sede)
+
+
+# --- Farmacias donde se reclaman las fórmulas médicas ---
+
+
+@router.get("/farmacias", response_model=list[FarmaciaAdminOut])
+def farmacias(_: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)), db: Session = Depends(get_db)):
+    return farmacias_service.listar(db)
+
+
+@router.post("/farmacias", response_model=FarmaciaAdminOut, status_code=status.HTTP_201_CREATED)
+def crear_farmacia(
+    datos: FarmaciaRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        farmacia = farmacias_service.crear(db, Actor.de_personal(admin), **datos.model_dump())
+    except FarmaciaInvalidaError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return farmacias_service.datos(farmacia)
+
+
+@router.put("/farmacias/{farmacia_id}", response_model=FarmaciaAdminOut)
+def editar_farmacia(
+    farmacia_id: uuid.UUID,
+    datos: FarmaciaRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        farmacia = farmacias_service.editar(db, Actor.de_personal(admin), farmacia_id, **datos.model_dump())
+    except FarmaciaInvalidaError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return farmacias_service.datos(farmacia)
+
+
+@router.patch("/farmacias/{farmacia_id}/estado", response_model=FarmaciaAdminOut)
+def cambiar_estado_farmacia(
+    farmacia_id: uuid.UUID,
+    datos: EstadoFarmaciaRequest,
+    admin: Personal = Depends(requiere(Permiso.GESTIONAR_ESPECIALISTAS)),
+    db: Session = Depends(get_db),
+):
+    try:
+        farmacia = farmacias_service.cambiar_estado(db, Actor.de_personal(admin), farmacia_id, datos.activa)
+    except FarmaciaInvalidaError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return farmacias_service.datos(farmacia)
 
 
 # --- Seguridad (tipo SIEM / SOC) ---

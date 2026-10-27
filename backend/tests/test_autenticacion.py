@@ -142,7 +142,7 @@ def test_codigo_vencido(cliente, fabrica, db):
 
     r = _validar(cliente, paciente, otp.codigo)
     assert r.status_code == 400
-    assert "expiró" in r.json()["detail"]  # HU-02, criterio 2: código temporal
+    assert "venció" in r.json()["detail"]  # HU-02, criterio 2: código temporal
     assert _validar(cliente, paciente, otp.codigo).status_code == 400  # ya no hay código pendiente
 
 

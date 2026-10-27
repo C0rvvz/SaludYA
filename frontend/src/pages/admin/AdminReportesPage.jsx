@@ -135,8 +135,11 @@ export default function AdminReportesPage() {
                 <Columnas
                   datos={r.tendencia.map((t) => ({
                     nombre: t.etiqueta,
+                    // Los meses del trimestre o del año, en corto si son muchos: "Sep"
+                    corto: t.etiqueta.startsWith("Semana") ? undefined : t.etiqueta.slice(0, 3),
                     valor: t.porcentaje ?? 0,
                     texto: formatearPorcentaje(t.porcentaje),
+                    textoCorto: t.porcentaje == null ? "—" : `${Math.round(t.porcentaje)}%`,
                   }))}
                 />
               </section>

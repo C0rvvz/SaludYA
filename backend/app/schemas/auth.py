@@ -60,7 +60,7 @@ class ValidarOTPRequest(BaseModel):
     def validar_codigo(cls, v: str) -> str:
         v = v.strip()
         if not (v.isdigit() and len(v) == 6):
-            raise ValueError("El código debe tener exactamente 6 dígitos.")
+            raise ValueError("El código debe tener 6 dígitos.")
         return v
 
 

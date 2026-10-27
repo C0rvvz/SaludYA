@@ -13,7 +13,7 @@ const AVISAR_ANTES = 30_000; // el aviso "¿Sigue ahí?" sale 30 s antes del cie
 const RENOVAR_CADA = 15_000; // con actividad, se le avisa al servidor como mucho cada 15 s
 const EVENTOS_DE_ACTIVIDAD = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart", "scroll"];
 
-export const MENSAJE_INACTIVIDAD = "Su sesión se cerró por seguridad después de 2 minutos sin actividad. Ingrese de nuevo.";
+export const MENSAJE_INACTIVIDAD = "Su sesión se cerró por seguridad después de 2 minutos sin actividad. Inicie sesión de nuevo.";
 export const MENSAJE_OTRA_PESTANA =
   "Se abrió SaludYA con su cuenta en otra pestaña. Por seguridad, aquí se cerró la sesión.";
 

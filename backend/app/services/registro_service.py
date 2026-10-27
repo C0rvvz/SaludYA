@@ -25,13 +25,13 @@ def registrar_paciente(db: Session, datos: PacienteRegistroRequest) -> PacienteR
     # --- HU-08, criterio 1: la EPS elegida debe existir en el catálogo ---
     eps = eps_repository.obtener_eps_por_id(db, datos.eps_id)
     if eps is None:
-        raise EpsNoEncontradaError(f"No existe ninguna EPS con id {datos.eps_id}.")
+        raise EpsNoEncontradaError("La EPS seleccionada no está disponible. Elija otra de la lista.")
 
     # --- HU-06, criterio 3: no permitir un registro duplicado ---
     existente = paciente_repository.obtener_por_numero_documento(db, datos.numero_documento)
     if existente is not None:
         raise DocumentoYaRegistradoError(
-            f"Ya existe un paciente registrado con el documento {datos.numero_documento}."
+            f"Ya existe una cuenta con el documento {datos.numero_documento}. Si es suya, inicie sesión."
         )
 
     # --- HU-08, criterios 2, 3 y 4: consultar y guardar el estado de afiliación ---
@@ -59,12 +59,12 @@ def registrar_paciente(db: Session, datos: PacienteRegistroRequest) -> PacienteR
 
     # --- HU-05, criterio 4 / HU-08, criterio 4: confirmación con resultado ---
     if estado_afiliacion == EstadoAfiliacion.ACTIVA:
-        mensaje = "Registro exitoso. Tu afiliación a la EPS fue validada correctamente."
+        mensaje = "Verificamos su afiliación y está activa. Ya puede iniciar sesión y agendar sus citas."
     else:
         mensaje = (
-            "Registro exitoso, pero no encontramos una afiliación activa a "
-            "la EPS indicada. Puedes continuar, pero te recomendamos "
-            "verificar tu afiliación con tu EPS."
+            "Su cuenta quedó creada, pero no encontramos una afiliación activa "
+            "en la EPS que eligió. Puede iniciar sesión; le recomendamos "
+            "confirmar su afiliación directamente con su EPS."
         )
 
     return PacienteRegistroResponse(

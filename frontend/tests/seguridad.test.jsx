@@ -85,7 +85,7 @@ describe("No soy un robot (Cloudflare Turnstile)", () => {
     expect(casilla).toHaveAttribute("aria-checked", "true");
 
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
-    expect(await esperarTexto("Escriba el código")).toBeInTheDocument();
+    expect(await esperarTexto("Escriba el código de verificación")).toBeInTheDocument();
     const envio = fetch.mock.calls.find(([url]) => url.endsWith("/auth/paciente/otp/enviar"));
     expect(envio[1].headers["X-Verificacion"]).toBe("token-w1");
 
@@ -132,9 +132,9 @@ describe("RNF-17: sesión única y cierre real", () => {
 
   it("el ingreso del personal muestra por qué se cerró su sesión", () => {
     backendFalso();
-    guardarMotivoCierre("personal", "Su cuenta fue modificada por un administrador. Ingrese de nuevo.");
+    guardarMotivoCierre("personal", "Su cuenta fue modificada por un administrador. Inicie sesión de nuevo.");
     abrir("/admin/ingresar");
-    expect(screen.getByText("Su cuenta fue modificada por un administrador. Ingrese de nuevo.")).toBeInTheDocument();
+    expect(screen.getByText("Su cuenta fue modificada por un administrador. Inicie sesión de nuevo.")).toBeInTheDocument();
   });
 });
 

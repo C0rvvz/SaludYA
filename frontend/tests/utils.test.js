@@ -94,23 +94,23 @@ describe("formato", () => {
 describe("validaciones (las mismas reglas del backend)", () => {
   it("número de documento", () => {
     expect(validarNumeroDocumento("1020304050", "cedula_ciudadania")).toBe("");
-    expect(validarNumeroDocumento("", "cedula_ciudadania")).toMatch(/Ingresa/);
-    expect(validarNumeroDocumento("AB1234", "cedula_ciudadania")).toMatch(/solo dígitos/);
+    expect(validarNumeroDocumento("", "cedula_ciudadania")).toMatch(/Escriba/);
+    expect(validarNumeroDocumento("AB1234", "cedula_ciudadania")).toMatch(/de 6 a 15 números/);
     expect(validarNumeroDocumento("AV123456", "pasaporte")).toBe("");
-    expect(validarNumeroDocumento("AV-12", "pasaporte")).toMatch(/alfanuméricos/);
+    expect(validarNumeroDocumento("AV-12", "pasaporte")).toMatch(/letras o números/);
   });
 
   it("nombre, celular, correo y código", () => {
-    expect(validarNombre(" ")).toMatch(/Ingresa/);
-    expect(validarNombre("A")).toMatch(/2 caracteres/);
+    expect(validarNombre(" ")).toMatch(/Escriba/);
+    expect(validarNombre("A")).toMatch(/2 letras/);
     expect(validarNombre("Ana")).toBe("");
-    expect(validarTelefonoWhatsapp("")).toMatch(/Ingresa/);
+    expect(validarTelefonoWhatsapp("")).toMatch(/Escriba/);
     expect(validarTelefonoWhatsapp("300 123-4567")).toBe("");
     expect(validarTelefonoWhatsapp("2001234567")).toMatch(/celular colombiano/);
     expect(validarCorreo("")).toBe(""); // opcional
     expect(validarCorreo("ana@correo")).toMatch(/válido/);
     expect(validarCorreo("ana@correo.co")).toBe("");
-    expect(validarCodigoOtp("")).toMatch(/Ingresa/);
+    expect(validarCodigoOtp("")).toMatch(/Escriba/);
     expect(validarCodigoOtp("123")).toMatch(/6 dígitos/);
     expect(validarCodigoOtp("123456")).toBe("");
   });

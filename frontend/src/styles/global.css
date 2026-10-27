@@ -589,6 +589,13 @@ select:focus-visible {
   gap: var(--space-1);
 }
 
+/* Va justo antes de Cancelar (lo que deshace algo): si cabe en la misma línea,
+   lo empuja al borde derecho; si no cabe, Cancelar baja a la siguiente línea
+   y empieza a la izquierda, como cualquier botón (el separador se queda arriba). */
+.acciones__separador {
+  flex: 1 1 0;
+}
+
 /* Solo para lectores de pantalla */
 .sr-only {
   position: absolute;

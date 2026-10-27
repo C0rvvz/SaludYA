@@ -15,14 +15,12 @@ def validar_formato_numero_documento(v: str, permitir_letras: bool = False) -> s
     if permitir_letras:
         if not PATRON_ALFANUMERICO.fullmatch(v):
             raise ValueError(
-                "El número de documento debe tener entre 6 y 15 caracteres "
-                "alfanuméricos (solo letras y números, sin espacios ni símbolos)."
+                "El pasaporte debe tener de 6 a 15 letras o números, sin espacios ni símbolos."
             )
         return v
 
     if not PATRON_SOLO_DIGITOS.fullmatch(v):
         raise ValueError(
-            "El número de documento debe contener solo dígitos y tener "
-            "entre 6 y 15 caracteres."
+            "El documento debe tener de 6 a 15 números, sin puntos ni espacios."
         )
     return v

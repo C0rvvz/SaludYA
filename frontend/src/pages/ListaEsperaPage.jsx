@@ -284,7 +284,7 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
             <legend>¿A qué hora le queda mejor?</legend>
             {opciones("jornada", JORNADAS, jornada, setJornada)}
             {jornada === "manana" && (
-              <p className="pregunta-paciente__ayuda">Si ya pasó la mañana de hoy, le buscamos desde mañana en la mañana.</p>
+              <p className="pregunta-paciente__ayuda">Si la mañana de hoy ya pasó, buscaremos cupo desde mañana en la mañana.</p>
             )}
           </fieldset>
           <fieldset className="pregunta-paciente">
@@ -410,7 +410,7 @@ export default function ListaEsperaPage() {
                     responder(
                       () => aceptarCupo(x.id),
                       (r) =>
-                        `¡Listo! Su cita quedó agendada para el ${formatearFechaLarga(r.cita.fecha).toLowerCase()} a las ${formatearHora(r.cita.hora)}. Comprobante ${r.cita.numero_comprobante}.`
+                        `Listo. Su cita quedó agendada para el ${formatearFechaLarga(r.cita.fecha).toLowerCase()} a las ${formatearHora(r.cita.hora)}. Comprobante ${r.cita.numero_comprobante}.`
                     )
                   }
                   onRechazar={(x) =>

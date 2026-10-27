@@ -34,17 +34,18 @@ const ERRORES_CAMPO_VACIOS = {
 const MENSAJES_ELI = {
   1: [
     <>
-      ¡Hola! Soy <strong>Eli</strong>. Le acompaño a crear su cuenta.
+      Hola, soy <strong>Eli</strong>. Le acompañaré mientras crea su cuenta.
     </>,
     <>
-      Digite sus datos y el número de celular que tiene WhatsApp. Ahí le llegará un código para entrar,{" "}
-      <strong>sin contraseñas</strong>.
+      Escriba sus datos y el número de celular en el que tiene WhatsApp. A ese número le enviaremos un código
+      para iniciar sesión: <strong>no necesita contraseña</strong>.
     </>,
   ],
   2: [
-    <>¡Muy bien, ya casi terminamos!</>,
+    <>Muy bien, ya casi terminamos.</>,
     <>
-      Elija su <strong>EPS</strong>, acepte el uso de sus datos y marque que <strong>no es un robot</strong>.
+      Seleccione su <strong>EPS</strong>, acepte el tratamiento de sus datos personales y marque la casilla{" "}
+      <strong>No soy un robot</strong>.
     </>,
   ],
 };
@@ -67,7 +68,7 @@ function EliRegistro({ paso }) {
         ))}
       </div>
       <ol className="pasos-registro">
-        {["Sus datos", "EPS y autorización"].map((nombre, i) => {
+        {["Datos personales", "EPS y autorización"].map((nombre, i) => {
           const numero = i + 1;
           const estado = numero < paso ? "is-hecho" : numero === paso ? "is-actual" : "";
           return (
@@ -117,7 +118,7 @@ export default function RegistroPage() {
     listarEps()
       .then(setEpsDisponibles)
       .catch((err) =>
-        setErrorEps(err?.message || "No fue posible cargar el listado de EPS. Intenta recargar la página.")
+        setErrorEps(err?.message || "No fue posible cargar la lista de EPS. Recargue la página e intente de nuevo.")
       );
   }, []);
 
@@ -195,7 +196,7 @@ export default function RegistroPage() {
       {paso < 3 && (
         <>
           <p className="auth-card__lead auth-card__lead--centro">
-            {paso === 1 ? "Cree su cuenta en dos pasos." : "Su EPS y autorización"}
+            {paso === 1 ? "Cree su cuenta en dos pasos." : "Último paso: su EPS y la autorización de sus datos."}
           </p>
           <div className="steps" aria-label={`Paso ${paso} de 2`}>
             <div className={`steps__item ${paso >= 1 ? "is-active" : ""}`} />
@@ -208,8 +209,8 @@ export default function RegistroPage() {
 
       {paso < 3 && (
         <p className="nota-obligatorios">
-          Los campos con asterisco (<span className="campo-obligatorio">*</span>) son obligatorios. Los que dicen{" "}
-          <strong>(opcional)</strong> puede dejarlos en blanco.
+          Los campos marcados con asterisco (<span className="campo-obligatorio">*</span>) son obligatorios. Los
+          marcados como <strong>(opcional)</strong> puede dejarlos vacíos.
         </p>
       )}
 
@@ -265,7 +266,7 @@ export default function RegistroPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="telefono_whatsapp" className="obligatorio">WhatsApp</label>
+              <label htmlFor="telefono_whatsapp" className="obligatorio">Celular con WhatsApp</label>
               <input
                 id="telefono_whatsapp"
                 type="tel"
@@ -280,12 +281,12 @@ export default function RegistroPage() {
               {erroresCampo.telefono_whatsapp ? (
                 <p className="field__error">{erroresCampo.telefono_whatsapp}</p>
               ) : (
-                <p className="field__hint">A este WhatsApp le enviaremos el código para entrar.</p>
+                <p className="field__hint">A este celular le enviaremos el código para poder iniciar sesión.</p>
               )}
             </div>
 
             <div className="field">
-              <label htmlFor="correo">Correo (opcional)</label>
+              <label htmlFor="correo">Correo electrónico (opcional)</label>
               <input
                 id="correo"
                 type="email"
@@ -349,7 +350,7 @@ export default function RegistroPage() {
             </div>
             {!form.acepto_tratamiento_datos && (
               <p className="field__hint" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
-                Debe aceptarlo para poder crear la cuenta.
+                Es necesario aceptarlo para crear su cuenta.
               </p>
             )}
 
@@ -360,7 +361,7 @@ export default function RegistroPage() {
               type="submit"
               disabled={cargando || !form.eps_id || !form.acepto_tratamiento_datos}
             >
-              {cargando ? "Creando cuenta..." : "Crear mi cuenta"}
+              {cargando ? "Creando su cuenta…" : "Crear mi cuenta"}
             </button>
             <div className="auth-card__centro">
               <button type="button" className="btn-volver" onClick={() => setPaso(1)}>
@@ -379,7 +380,7 @@ export default function RegistroPage() {
           <span className="registro-exito__check" aria-hidden="true">
             ✓
           </span>
-          <h1>¡Registro exitoso, {form.nombre.split(" ")[0]}!</h1>
+          <h1>Su cuenta está lista, {form.nombre.split(" ")[0]}</h1>
           <p className="auth-card__lead">{resultado.mensaje}</p>
 
           <div className="registro-exito__datos">
@@ -392,7 +393,7 @@ export default function RegistroPage() {
               <span className="summary-row__value">{resultado.eps.nombre}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-row__label">Afiliación</span>
+              <span className="summary-row__label">Estado de la afiliación</span>
               <span className="summary-row__value">
                 {resultado.estado_afiliacion === "activa" ? (
                   <span className="badge badge--success">Activa</span>

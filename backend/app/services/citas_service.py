@@ -84,7 +84,7 @@ ESTADOS_VISIBLES = {
     "reprogramada": "Reprogramada",
 }
 
-HORARIO_NO_DISPONIBLE = "Ese horario ya no está disponible. Por favor elige otro."
+HORARIO_NO_DISPONIBLE = "Ese horario ya no está disponible. Elija otro, por favor."
 
 # Citas que todavía van a ocurrir (o están ocurriendo); el resto forma
 # el historial del paciente (HU-28).
@@ -263,7 +263,7 @@ def confirmar_cita(
 
     if disponibilidad is None:
         raise DisponibilidadNoEncontradaError(
-            f"No existe ninguna disponibilidad con id {disponibilidad_id}."
+            "Ese horario ya no existe. Elija otro, por favor."
         )
 
     if disponibilidad.estado != EstadoDisponibilidad.DISPONIBLE:
@@ -272,7 +272,7 @@ def confirmar_cita(
         )
 
     if _inicio(disponibilidad) <= ahora_colombia():
-        raise HorarioYaNoDisponibleError("Ese horario ya pasó. Por favor elige otro.")
+        raise HorarioYaNoDisponibleError("Ese horario ya pasó. Elija otro, por favor.")
 
     disponibilidad.estado = EstadoDisponibilidad.RESERVADO
 
@@ -478,7 +478,7 @@ def registrar_resultado(
     en la aplicación y el cierre automático lo marcó "no asistió".
     """
     if resultado not in (EstadoCita.ATENDIDA, EstadoCita.NO_ASISTIO):
-        raise ResultadoNoRegistrableError("El resultado debe ser 'atendida' o 'no asistió'.")
+        raise ResultadoNoRegistrableError("Indique si el paciente fue atendido o no asistió.")
 
     cita = _con_lock(db, cita_id, None)
     if not puede_registrar_resultado(cita):
@@ -618,7 +618,7 @@ def reprogramar_cita(
     if nueva is None:
         db.rollback()
         raise DisponibilidadNoEncontradaError(
-            f"No existe ninguna disponibilidad con id {nueva_disponibilidad_id}."
+            "Ese horario ya no existe. Elija otro, por favor."
         )
     if nueva.estado != EstadoDisponibilidad.DISPONIBLE or _inicio(nueva) <= ahora_colombia():
         db.rollback()

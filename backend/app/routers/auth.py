@@ -121,7 +121,7 @@ def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
         enviado=True,
         telefono_enmascarado=_enmascarar_telefono(paciente.telefono_whatsapp),
         expira_en_minutos=settings.otp_expire_minutes,
-        mensaje="Te enviamos un código de verificación por WhatsApp.",
+        mensaje="Le enviamos un código de verificación por WhatsApp.",
         codigo_demo=_codigo_demo(otp),
     )
 
@@ -162,7 +162,7 @@ def validar_otp(datos: ValidarOTPRequest, request: Request, db: Session = Depend
         expira_en_minutos=settings.jwt_expire_minutes,
         paciente_id=paciente.id,
         nombre=paciente.nombre,
-        mensaje="Código validado correctamente. Sesión iniciada.",
+        mensaje="Código correcto. Inició sesión.",
     )
 
 
@@ -187,7 +187,7 @@ def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
         reenviado=True,
         telefono_enmascarado=_enmascarar_telefono(paciente.telefono_whatsapp),
         expira_en_minutos=settings.otp_expire_minutes,
-        mensaje="Se generó y envió un nuevo código de verificación.",
+        mensaje="Le enviamos un nuevo código de verificación.",
         codigo_demo=_codigo_demo(otp),
     )
 

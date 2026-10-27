@@ -49,8 +49,7 @@ def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:
         if segundos_transcurridos < settings.otp_reenvio_segundos:
             espera_restante = int(settings.otp_reenvio_segundos - segundos_transcurridos)
             raise ReenvioMuyProntoError(
-                f"Debes esperar {espera_restante} segundos antes de solicitar "
-                "un nuevo código."
+                f"Espere {espera_restante} segundos antes de pedir un nuevo código."
             )
 
     # --- HU-04, criterio 3 (aplicado también aquí): el código anterior
@@ -74,8 +73,8 @@ def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:
 
     # --- HU-02, criterio 1: enviar el código al WhatsApp asociado ---
     mensaje = (
-        f"Tu código de verificación de SaludYA es: {codigo}. "
-        f"Vence en {settings.otp_expire_minutes} minutos. No lo compartas con nadie."
+        f"Su código de verificación de SaludYA es {codigo}. "
+        f"Vence en {settings.otp_expire_minutes} minutos. No lo comparta con nadie."
     )
     empezo = time.monotonic()
     if not enviar_mensaje_whatsapp(paciente.telefono_whatsapp, mensaje):
@@ -110,14 +109,14 @@ def validar_otp(db: Session, paciente: Paciente, codigo_ingresado: str) -> Codig
 
     if otp is None or otp.estado != EstadoOTP.PENDIENTE:
         raise OtpNoEncontradoError(
-            "No hay ningún código pendiente de validación. Solicita uno nuevo."
+            "No hay un código vigente para este documento. Pida uno nuevo."
         )
 
     ahora = datetime.now(timezone.utc)
     if ahora > otp.expira_en:
         otp.estado = EstadoOTP.EXPIRADO
         db.commit()
-        raise OtpExpiradoError("El código expiró. Solicita uno nuevo.")
+        raise OtpExpiradoError("El código venció. Pida uno nuevo.")
 
     if otp.codigo != codigo_ingresado:
         otp.intentos_realizados += 1
@@ -126,14 +125,14 @@ def validar_otp(db: Session, paciente: Paciente, codigo_ingresado: str) -> Codig
             otp.estado = EstadoOTP.INVALIDADO
             db.commit()
             raise OtpIntentosSuperadosError(
-                f"Superaste el máximo de {settings.otp_max_intentos} intentos. "
-                "Solicita un nuevo código."
+                f"Superó el máximo de {settings.otp_max_intentos} intentos. Pida un nuevo código."
             )
 
         db.commit()
         intentos_restantes = settings.otp_max_intentos - otp.intentos_realizados
         raise OtpIncorrectoError(
-            f"Código incorrecto. Te quedan {intentos_restantes} intento(s).",
+            f"El código no es correcto. Le "
+            f"{'queda 1 intento' if intentos_restantes == 1 else f'quedan {intentos_restantes} intentos'}.",
             intentos_restantes=intentos_restantes,
         )
 

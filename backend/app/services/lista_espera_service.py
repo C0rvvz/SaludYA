@@ -239,7 +239,7 @@ def aceptar(db: Session, paciente: Paciente, solicitud_id: uuid.UUID) -> Solicit
     oferta = _oferta_vigente(db, solicitud)
     if oferta.expira_en <= datetime.now(timezone.utc):
         db.rollback()
-        raise ListaEsperaInvalidaError("El plazo para aceptar este cupo ya venció. Conserva su lugar en la lista.")
+        raise ListaEsperaInvalidaError("El plazo para aceptar este cupo ya venció. Usted conserva su lugar en la lista.")
     return _asignar(db, solicitud, oferta.disponibilidad_id, Actor.de_paciente(paciente, via="lista de espera"))
 
 

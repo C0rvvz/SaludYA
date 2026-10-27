@@ -304,7 +304,7 @@ export default function SolicitudesPage() {
         <div className="pagina-paciente__titulo">
           <div>
             <h1>Solicitar petición</h1>
-            <p>¿No consigue la cita que necesita? Cuéntenos su caso y le ayudamos a conseguirla. Aquí ve la respuesta.</p>
+            <p>¿No encuentra la cita que necesita? Cuéntenos su caso y le ayudaremos a conseguirla. Aquí mismo verá la respuesta.</p>
           </div>
         </div>
 

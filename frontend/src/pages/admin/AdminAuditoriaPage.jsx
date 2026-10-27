@@ -39,6 +39,7 @@ const ACCIONES_CITAS = {
   cerrar_cita: "Cierre automático",
   calificar: "Calificar la atención",
   recuperar_cupo: "Recuperar cupo (lista de espera)",
+  registrar_formula: "Fórmula médica",
 };
 
 const ACCIONES_CUENTAS = {
@@ -60,6 +61,10 @@ const ACCIONES_ESPECIALISTAS = {
   editar_sede: "Editar sede",
   desactivar_sede: "Cerrar sede",
   activar_sede: "Abrir sede",
+  crear_farmacia: "Agregar farmacia",
+  editar_farmacia: "Editar farmacia",
+  desactivar_farmacia: "Cerrar farmacia",
+  activar_farmacia: "Abrir farmacia",
 };
 
 const CATEGORIAS = [
@@ -175,7 +180,7 @@ export default function AdminAuditoriaPage() {
               </optgroup>
             )}
             {categoria !== "cuentas" && (
-              <optgroup label="Especialistas, sedes e IPS">
+              <optgroup label="Especialistas, sedes, farmacias e IPS">
                 {Object.entries(ACCIONES_ESPECIALISTAS).map(([valor, nombre]) => (
                   <option key={valor} value={valor}>
                     {nombre}

@@ -128,7 +128,7 @@ export default function PasoHorario({
         {encabezado}
         <section className="card agendar-sin-cupos">
           <h2>Por ahora no hay horarios libres{especialidad ? ` de ${especialidad}` : ""}</h2>
-          <p>Le avisamos apenas se libere un cupo, o puede solicitar una petición para pedir una cita en otra fecha.</p>
+          <p>Podemos avisarle apenas se libere un cupo. También puede solicitar una petición para pedir una cita en otra fecha.</p>
           <div className="acciones-admin">
             <Link className="btn btn--primary" to={enlaceEspera}>
               Avisarme cuando haya cupo
@@ -307,7 +307,7 @@ export default function PasoHorario({
 
           <fieldset className="canales-cita">
             <legend className="obligatorio">¿Por dónde le avisamos?</legend>
-            <p className="canales-cita__ayuda">Ahí le llegan el comprobante y el recordatorio.</p>
+            <p className="canales-cita__ayuda">Por ese medio le enviaremos el comprobante y el recordatorio.</p>
             <div className="canales-cita__opciones">
               {Object.entries(CANALES).map(([valor, texto]) => (
                 <label key={valor} className="canal-opcion">

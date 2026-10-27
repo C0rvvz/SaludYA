@@ -119,7 +119,7 @@ export default function PanelPage() {
           <div className="alert alert--error">No pudimos cargar la lista de especialidades: {errorEspecialidades}</div>
         )}
         {errorTodas && paso === 1 && (
-          <div className="alert alert--error">No pudimos ver los cupos de cada especialidad: {errorTodas}</div>
+          <div className="alert alert--error">No pudimos consultar los cupos de cada especialidad: {errorTodas}</div>
         )}
 
         {paso === 1 && (

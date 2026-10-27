@@ -1,4 +1,4 @@
-"""Fórmula médica de una cita atendida, su QR y las farmacias donde reclamarla."""
+"""Fórmula médica de una cita atendida, su QR y las farmacias donde reclamarla (y su administración)."""
 
 import random
 from datetime import timedelta
@@ -9,6 +9,7 @@ from app.models.auditoria import RegistroAuditoria
 from app.models.cita import EstadoCita
 from app.models.formula_medica import Farmacia, FormulaMedica
 from app.models.personal import RolPersonal
+from app.models.sede import Sede
 from app.services import formulas_service, ips_simulada_service
 from app.utils.tiempo import hoy_en_colombia
 from tests.conftest import encabezado
@@ -152,3 +153,89 @@ def test_la_ips_manda_la_formula_de_las_citas_atendidas(db, fabrica, monkeypatch
     assert "fórmula" in sincronizacion.detalle
     # La siguiente no la repite.
     assert formulas_service.simular_desde_ips(db, ips_simulada_service.IPS, random.Random(4)) == 0
+
+
+# --- Farmacias en el panel del personal ---
+
+
+def _farmacia(fabrica, **cambios):
+    return {
+        "nombre": "Droguería Prueba", "barrio": "Belén", "ciudad": "Medellín", "direccion": None,
+        "aliada": True, "sede_id": str(fabrica.sede_id), "distancia_km": 0.8,
+    } | cambios
+
+
+def test_el_administrador_agrega_edita_y_cierra_una_farmacia(cliente, fabrica, db):
+    admin = fabrica.personal()
+    paciente = fabrica.paciente()
+    cita = fabrica.cita(paciente, EstadoCita.ATENDIDA)
+    _registrar(cliente, admin, cita)
+
+    def para_el_paciente():
+        r = cliente.get(f"/citas/{cita.id}/formula", headers=encabezado(paciente))
+        return {f["nombre"]: f for f in r.json()["farmacias"]}
+
+    r = cliente.post("/admin/farmacias", json=_farmacia(fabrica, nombre="  Droguería   Prueba "), headers=encabezado(admin))
+    assert r.status_code == 201, r.text
+    nueva = r.json()
+    assert nueva["nombre"] == "Droguería Prueba" and nueva["activa"] and nueva["sede"] == cita.disponibilidad.sede.nombre
+    assert para_el_paciente()["Droguería Prueba"]["aliada"] is True
+    # Mismo nombre en el mismo barrio y ciudad: no se repite.
+    r = cliente.post("/admin/farmacias", json=_farmacia(fabrica, nombre="DROGUERÍA PRUEBA"), headers=encabezado(admin))
+    assert r.status_code == 400 and "Ya existe Droguería Prueba en Belén" in r.json()["detail"]
+
+    # Editarla: dirección exacta (para "Cómo llegar") y deja de ser aliada.
+    cambios = _farmacia(fabrica, direccion="Cra. 76 # 30-12", aliada=False, distancia_km=1.25)
+    r = cliente.put(f"/admin/farmacias/{nueva['id']}", json=cambios, headers=encabezado(admin))
+    assert r.status_code == 200, r.text
+    assert r.json()["direccion"] == "Cra. 76 # 30-12" and r.json()["aliada"] is False
+    assert r.json()["distancia_km"] == 1.2
+    vista = para_el_paciente()["Droguería Prueba"]
+    assert vista["direccion"] == "Cra. 76 # 30-12" and vista["aliada"] is False
+
+    # Cerrada, el paciente ya no la ve; abierta de nuevo, sí.
+    r = cliente.patch(f"/admin/farmacias/{nueva['id']}/estado", json={"activa": False}, headers=encabezado(admin))
+    assert r.json()["activa"] is False
+    assert "Droguería Prueba" not in para_el_paciente()
+    listado = cliente.get("/admin/farmacias", headers=encabezado(admin)).json()
+    assert listado[-1]["nombre"] == "Droguería Prueba"  # las cerradas al final
+    cliente.patch(f"/admin/farmacias/{nueva['id']}/estado", json={"activa": True}, headers=encabezado(admin))
+    assert "Droguería Prueba" in para_el_paciente()
+
+    registros = {
+        r.accion: r
+        for r in db.query(RegistroAuditoria).filter(RegistroAuditoria.accion.like("%farmacia"))
+    }
+    assert set(registros) == {"crear_farmacia", "editar_farmacia", "desactivar_farmacia", "activar_farmacia"}
+    assert registros["crear_farmacia"].detalle.startswith("Aliada · 0,8 km de ")
+    assert registros["editar_farmacia"].estado_anterior.startswith("Aliada · 0,8 km")
+    assert registros["editar_farmacia"].estado_nuevo.startswith("No aliada · 1,2 km")
+
+
+def test_validaciones_y_permisos_de_las_farmacias(cliente, fabrica, db):
+    admin = fabrica.personal()
+    cerrada = Sede(nombre="Sede Cerrada de Prueba", ciudad="Bello", activa=False)
+    db.add(cerrada)
+    db.commit()
+
+    r = cliente.post("/admin/farmacias", json=_farmacia(fabrica, sede_id=str(cerrada.id)), headers=encabezado(admin))
+    assert r.status_code == 400 and r.json()["detail"] == "Elija una sede abierta de la red."
+    assert cliente.post("/admin/farmacias", json=_farmacia(fabrica, distancia_km=0), headers=encabezado(admin)).status_code == 422
+    assert cliente.post("/admin/farmacias", json=_farmacia(fabrica, barrio="B"), headers=encabezado(admin)).status_code == 422
+
+    # Si su sede se cerró después, puede seguir con ella al editarla.
+    farmacia = cliente.post("/admin/farmacias", json=_farmacia(fabrica), headers=encabezado(admin)).json()
+    db.get(Farmacia, farmacia["id"]).sede_id = cerrada.id
+    db.commit()
+    r = cliente.put(f"/admin/farmacias/{farmacia['id']}", json=_farmacia(fabrica, sede_id=str(cerrada.id), aliada=False),
+                    headers=encabezado(admin))
+    assert r.status_code == 200, r.text
+
+    otra = "00000000-0000-0000-0000-000000000000"
+    assert cliente.patch(f"/admin/farmacias/{otra}/estado", json={"activa": False}, headers=encabezado(admin)).status_code == 404
+    assert cliente.put(f"/admin/farmacias/{otra}", json=_farmacia(fabrica), headers=encabezado(admin)).status_code == 400
+
+    # Solo el administrador (como las sedes).
+    coordinador = fabrica.personal(RolPersonal.COORDINADOR_MEDICO)
+    assert cliente.get("/admin/farmacias", headers=encabezado(coordinador)).status_code == 403
+    assert cliente.post("/admin/farmacias", json=_farmacia(fabrica), headers=encabezado(coordinador)).status_code == 403

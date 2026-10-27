@@ -57,6 +57,35 @@ describe("Inicio (rediseño 2a)", () => {
     expect(activa()).toMatch(/Dermatología/); // en pausa con el cursor encima
   });
 
+  it("la cabecera queda fija: al bajar se vuelve compacta y al volver arriba, completa", async () => {
+    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE] });
+    abrir("/");
+    const cabecera = screen.getByRole("banner");
+    expect(cabecera).not.toHaveClass("is-desplazada");
+
+    act(() => {
+      window.scrollY = 600;
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(cabecera).toHaveClass("is-desplazada");
+    expect(within(cabecera).getByRole("link", { name: "Iniciar sesión" })).toBeInTheDocument();
+
+    act(() => {
+      window.scrollY = 0;
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(cabecera).not.toHaveClass("is-desplazada");
+  });
+
+  it("el logo lleva hasta arriba del inicio, también desde una sección", async () => {
+    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE] });
+    const subir = vi.spyOn(window, "scrollTo");
+    const usuario = abrir("/#sedes");
+    await usuario.click(screen.getByRole("link", { name: "SaludYA, ir al inicio" }));
+    expect(subir).toHaveBeenCalledWith({ top: 0 });
+    expect(window.location.hash).toBe("");
+  });
+
   it("con sesión, agendar lleva directo a buscar cita", async () => {
     backendFalso({ "GET /disponibilidad/buscar": [], "GET /sedes": [] });
     abrir("/", { paciente: true });
@@ -105,25 +134,25 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     const usuario = abrir("/iniciar-sesion");
 
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
-    expect(screen.getByText("Ingresa tu número de documento.")).toBeInTheDocument();
+    expect(screen.getByText("Escriba su número de documento.")).toBeInTheDocument();
 
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
-    expect(await esperarTexto("Escriba el código")).toBeInTheDocument();
+    expect(await esperarTexto("Escriba el código de verificación")).toBeInTheDocument();
     expect(screen.getByText("4567")).toBeInTheDocument();
     expect(screen.getAllByText("123456").length).toBeGreaterThan(0); // modo demostración: en el celular de muestra
 
-    await usuario.click(screen.getByRole("button", { name: "Entrar" }));
-    expect(screen.getByText("Ingresa el código de verificación.")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
+    expect(screen.getByText("Escriba el código de 6 dígitos que le enviamos.")).toBeInTheDocument();
 
     await usuario.type(screen.getByPlaceholderText("000000"), "99a9999");
     expect(screen.getByPlaceholderText("000000")).toHaveValue("999999"); // solo dígitos
-    await usuario.click(screen.getByRole("button", { name: "Entrar" }));
+    await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
     expect(await esperarTexto("El código no es correcto.")).toBeInTheDocument();
 
     await usuario.clear(screen.getByPlaceholderText("000000"));
     await usuario.type(screen.getByPlaceholderText("000000"), "123456");
-    await usuario.click(screen.getByRole("button", { name: "Entrar" }));
+    await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
     expect(await esperarTexto("¿Qué especialista busca?")).toBeInTheDocument();
     expect(sessionStorage.getItem(TOKEN_PACIENTE)).toBe("token-nuevo");
     expect(llamadasA(llamadas, "POST", "/auth/paciente/otp/validar")).toHaveLength(2);
@@ -135,7 +164,7 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     const usuario = abrir("/iniciar-sesion");
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
-    expect(await esperarTexto(/Reenviar en/)).toBeInTheDocument(); // hay que esperar
+    expect(await esperarTexto(/Podrá pedir otro en/)).toBeInTheDocument(); // hay que esperar
     expect(screen.queryByRole("button", { name: "Reenviar código" })).not.toBeInTheDocument();
 
     await act(() => vi.advanceTimersByTimeAsync(61_000));
@@ -150,8 +179,8 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     await usuario.selectOptions(screen.getByLabelText("Tipo de documento"), "pasaporte");
     await usuario.type(screen.getByLabelText("Número de documento"), "AV123456");
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
-    expect(await esperarTexto(/No se encontró ningún paciente/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Regístrese aquí" })).toBeInTheDocument();
+    expect(await esperarTexto(/No hay ninguna cuenta registrada con ese documento/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Cree su cuenta aquí" })).toBeInTheDocument();
 
     backendFalso({ "POST /auth/paciente/identificar": error(500, "Servidor caído") });
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
@@ -164,7 +193,7 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     const usuario = abrir("/iniciar-sesion");
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
     await usuario.click(screen.getByRole("button", { name: "Enviar código" }));
-    await screen.findByText("Escriba el código");
+    await screen.findByText("Escriba el código de verificación");
     await act(() => vi.advanceTimersByTimeAsync(61_000));
     await usuario.click(screen.getByRole("button", { name: "Reenviar código" }));
     expect(await esperarTexto("Espere un momento.")).toBeInTheDocument();
@@ -177,7 +206,7 @@ describe("Registro", () => {
   async function llenarPaso1(usuario) {
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
     await usuario.type(screen.getByLabelText("Nombre completo"), "Laura Gómez");
-    await usuario.type(screen.getByLabelText("WhatsApp"), "3001234567");
+    await usuario.type(screen.getByLabelText("Celular con WhatsApp"), "3001234567");
     await usuario.click(screen.getByRole("button", { name: "Continuar" }));
   }
 
@@ -199,12 +228,12 @@ describe("Registro", () => {
     });
     const usuario = abrir("/registrarse");
 
-    await usuario.type(screen.getByLabelText("Correo (opcional)"), "malo@correo");
+    await usuario.type(screen.getByLabelText("Correo electrónico (opcional)"), "malo@correo");
     await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    expect(screen.getByText("Ingresa tu nombre completo.")).toBeInTheDocument();
-    expect(screen.getByText("Ingresa un correo electrónico válido.")).toBeInTheDocument();
-    await usuario.clear(screen.getByLabelText("Correo (opcional)"));
-    expect(screen.queryByText("Ingresa un correo electrónico válido.")).not.toBeInTheDocument();
+    expect(screen.getByText("Escriba su nombre completo.")).toBeInTheDocument();
+    expect(screen.getByText("Escriba un correo electrónico válido (por ejemplo, nombre@correo.com).")).toBeInTheDocument();
+    await usuario.clear(screen.getByLabelText("Correo electrónico (opcional)"));
+    expect(screen.queryByText("Escriba un correo electrónico válido (por ejemplo, nombre@correo.com).")).not.toBeInTheDocument();
 
     await llenarPaso1(usuario);
     expect(screen.getByRole("button", { name: "Crear mi cuenta" })).toBeDisabled();
@@ -215,7 +244,7 @@ describe("Registro", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await llenarPaso2(usuario);
-    expect(await esperarTexto("¡Registro exitoso, Laura!")).toBeInTheDocument();
+    expect(await esperarTexto("Su cuenta está lista, Laura")).toBeInTheDocument();
     expect(screen.getByText("Activa")).toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/pacientes/registro")[0].cuerpo).toMatchObject({
       numero_documento: "1020304050",
@@ -300,7 +329,7 @@ describe("Confirmar asistencia desde el enlace del recordatorio", () => {
     expect(llamadasA(llamadas, "POST", "/citas/confirmar-asistencia/enlace/ver")[0].cuerpo).toEqual({ token: "abc" });
 
     await usuario.click(screen.getByRole("button", { name: "Sí, asistiré" }));
-    expect(await esperarTexto("¡Asistencia confirmada!")).toBeInTheDocument();
+    expect(await esperarTexto("Asistencia confirmada")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sí, asistiré" })).not.toBeInTheDocument();
     expect(llamadasA(llamadas, "POST", "/citas/confirmar-asistencia/enlace")[0].cuerpo).toEqual({ token: "abc" });
   });
@@ -349,6 +378,6 @@ describe("Confirmar asistencia desde el enlace del recordatorio", () => {
     abrir("/confirmar-asistencia");
     expect(screen.getByText("Este enlace no es válido.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sí, asistiré" })).not.toBeInTheDocument();
-    expect(within(document.body).getByRole("link", { name: "Ingrese a Mis citas" })).toBeInTheDocument();
+    expect(within(document.body).getByRole("link", { name: "Vaya a Mis citas" })).toBeInTheDocument();
   });
 });

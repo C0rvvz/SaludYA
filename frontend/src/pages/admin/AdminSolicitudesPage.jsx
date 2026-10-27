@@ -48,7 +48,7 @@ export default function AdminSolicitudesPage() {
         <div>
           <h1 className="admin-titulo">Solicitudes</h1>
           <p className="admin-subtitulo">
-            Cartas de solicitud de cita y derechos de petición radicados por los pacientes. Los derechos de petición
+            Peticiones de cita y derechos de petición radicados por los pacientes. Los derechos de petición
             deben responderse en un plazo máximo de 15 días hábiles. Las solicitudes pendientes se muestran primero.
           </p>
         </div>

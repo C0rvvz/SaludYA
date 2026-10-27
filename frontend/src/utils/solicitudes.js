@@ -9,7 +9,7 @@ export const TIPOS_SOLICITUD = {
 export const EXPLICACION_SOLICITUD = {
   formal: {
     texto:
-      "Ninguno de los horarios disponibles le sirve, o necesita la cita antes. Cuéntenos por qué y el personal de su EPS la revisa.",
+      "Úsela si ninguno de los horarios disponibles le sirve o si necesita la cita antes. Cuéntenos por qué y el personal de su EPS la revisará.",
     ejemplo: "Ejemplo: «Necesito la cita antes del 15 porque ese día me operan».",
     pregunta: "¿Por qué no le sirven los horarios disponibles, o por qué necesita esa fecha?",
   },
@@ -49,7 +49,7 @@ export const NOVEDAD_SOLICITUD = {
 // Para el personal: nombres formales del tipo de petición, el estado corto de
 // la tabla y los grupos de los chips con contador.
 export const TIPOS_SOLICITUD_PERSONAL = {
-  formal: "Carta de solicitud",
+  formal: "Petición de cita",
   derecho_peticion: "Derecho de petición",
 };
 

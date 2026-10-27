@@ -301,7 +301,7 @@ export default function MisCitasPage() {
 
           {actual.id === "por_confirmar" && visibles.length > 0 && (
             <p className="mis-citas__ayuda">
-              Confirme que asistirá: así podemos ofrecer a otra persona los horarios que no se van a usar.
+              Confirme su asistencia: así podemos ofrecer a otros pacientes los horarios que no se usarán.
             </p>
           )}
         </div>

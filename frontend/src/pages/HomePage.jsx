@@ -31,7 +31,7 @@ const PREGUNTAS = [
   {
     pregunta: "¿Necesito una contraseña?",
     respuesta:
-      "No. Ingresa con su número de documento y un código de 6 dígitos que le llega por WhatsApp. El código vence a los 5 minutos.",
+      "No. Para iniciar sesión solo necesita su número de documento y un código de 6 dígitos que le llega por WhatsApp. El código vence en 5 minutos.",
   },
   {
     pregunta: "¿Cómo cambio o cancelo una cita?",
@@ -41,12 +41,12 @@ const PREGUNTAS = [
   {
     pregunta: "¿Y si ningún horario me sirve?",
     respuesta:
-      "Puede pedir que le avisemos cuando se libere un cupo, o escribir una carta pidiendo una cita en otra fecha.",
+      "Puede pedir que le avisemos cuando se libere un cupo, o solicitar una petición para una cita en otra fecha.",
   },
   {
     pregunta: "¿Por qué se cerró mi sesión?",
     respuesta:
-      "Por su seguridad, la sesión se cierra después de 2 minutos sin actividad o si ingresa desde otro equipo. Solo vuelva a ingresar.",
+      "Por su seguridad, la sesión se cierra después de 2 minutos sin actividad o si inicia sesión en otro dispositivo. Solo tiene que volver a iniciar sesión.",
   },
 ];
 
@@ -55,6 +55,15 @@ export default function HomePage() {
   const { hash } = useLocation();
   const [cupos, setCupos] = useState(null); // null mientras carga
   const [sedes, setSedes] = useState([]);
+  // La cabecera queda fija arriba; al bajar se vuelve más delgada y con sombra
+  // (en celular y tableta, sin los enlaces a las secciones: ver inicio.css).
+  const [desplazada, setDesplazada] = useState(() => window.scrollY > 8);
+
+  useEffect(() => {
+    const revisar = () => setDesplazada(window.scrollY > 8);
+    window.addEventListener("scroll", revisar, { passive: true });
+    return () => window.removeEventListener("scroll", revisar);
+  }, []);
 
   // Desde otra página (p. ej. "¿Problemas para entrar?" lleva a /#ayuda): ir a esa sección.
   useEffect(() => {
@@ -73,7 +82,7 @@ export default function HomePage() {
 
   return (
     <div className="inicio">
-      <header className="inicio-cabecera">
+      <header className={`inicio-cabecera ${desplazada ? "is-desplazada" : ""}`}>
         <div className="inicio-contenedor inicio-cabecera__fila">
           <Logo to="/" />
           <nav className="inicio-menu" aria-label="Secciones">

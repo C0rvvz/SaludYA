@@ -170,6 +170,31 @@ describe("Reportes", () => {
     abrir("/admin/reportes", { personal: true });
     expect(await esperarTexto(texto)).toBeInTheDocument();
   });
+
+  it("en el año, la tendencia por mes se compacta para caber en su tarjeta", async () => {
+    const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre"];
+    const tendencia = MESES.map((mes, i) => ({
+      etiqueta: mes, desde: "2026-01-01", hasta: "2026-01-31", atendidas: 1, no_asistio: 3,
+      porcentaje: i < 8 ? null : [75, 77.8][i - 8],
+    }));
+    backendFalso({ "GET /admin/reportes": reporte({ periodo: "anio", periodo_texto: "Este año", tendencia }) });
+    abrir("/admin/reportes", { personal: true });
+    const tarjeta = (await screen.findByRole("heading", { name: "Tendencia de inasistencia" })).closest("section");
+    const columnas = within(tarjeta).getByRole("list");
+    expect(columnas).toHaveClass("columnas--compactas");
+    expect(within(columnas).getByText("Sep")).toBeInTheDocument();
+    expect(within(columnas).getByText("Septiembre")).toHaveClass("sr-only"); // completo para lectores de pantalla
+    expect(within(columnas).getByText("78%")).toBeInTheDocument();
+    expect(within(columnas).getAllByRole("listitem")[9]).toHaveAttribute("title", "Octubre: 77,8 %");
+  });
+
+  it("con pocos tramos (las semanas del mes) muestra los nombres completos", async () => {
+    backendFalso({ "GET /admin/reportes": reporte() });
+    abrir("/admin/reportes", { personal: true });
+    const tarjeta = (await screen.findByRole("heading", { name: "Tendencia de inasistencia" })).closest("section");
+    expect(within(tarjeta).getByRole("list")).not.toHaveClass("columnas--compactas");
+    expect(within(tarjeta).getByText("Semana del 1 de octubre")).not.toHaveClass("sr-only");
+  });
 });
 
 describe("Auditoría", () => {
@@ -325,7 +350,7 @@ describe("Lista de solicitudes del personal", () => {
     const usuario = abrir("/admin/solicitudes", { personal: true });
     expect(await esperarTexto("RAD-1")).toBeInTheDocument();
     expect(screen.getByText("Prioritaria")).toBeInTheDocument();
-    expect(screen.getByText("Carta de solicitud · 1 oct")).toBeInTheDocument();
+    expect(screen.getByText("Petición de cita · 1 oct")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Revisar la solicitud RAD-1" })).toHaveAttribute("href", "/admin/solicitudes/s1");
     expect(screen.getByRole("link", { name: "Ver la solicitud RAD-2" })).toHaveAttribute("href", "/admin/solicitudes/s2");
 

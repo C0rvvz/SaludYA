@@ -58,7 +58,7 @@ export default function ConfirmarAsistenciaPage() {
     titulo = "No podemos confirmar con este enlace";
     texto = "Puede revisar su cita, cambiarla o confirmarla desde Mis citas.";
   } else if (confirmada) {
-    titulo = cita.ya_estaba_confirmada ? "Su asistencia ya estaba confirmada" : "¡Asistencia confirmada!";
+    titulo = cita.ya_estaba_confirmada ? "Su asistencia ya estaba confirmada" : "Asistencia confirmada";
     texto = "Gracias por avisarnos. Lo esperamos.";
   } else if (cita?.ya_estaba_confirmada) {
     titulo = "Su asistencia ya está confirmada";
@@ -123,7 +123,7 @@ export default function ConfirmarAsistenciaPage() {
         </section>
 
         <p className="confirmar-asistencia__nota">
-          ¿No puede asistir o quiere cambiar la fecha? <Link to="/mis-citas">Ingrese a Mis citas</Link>
+          ¿No puede asistir o quiere cambiar la fecha? <Link to="/mis-citas">Vaya a Mis citas</Link>
         </p>
       </main>
 

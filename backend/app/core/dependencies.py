@@ -65,7 +65,7 @@ def _autenticar(token: str, tipo_esperado: str, db: Session, request: Request) -
     try:
         payload = decodificar_access_token(token)
     except jwt.ExpiredSignatureError:
-        raise _no_autorizado("La sesión expiró. Ingrese de nuevo.")  # normal: no es un evento de seguridad
+        raise _no_autorizado("Su sesión expiró. Inicie sesión de nuevo.")  # normal: no es un evento de seguridad
     except jwt.InvalidTokenError:
         raise _token_invalido(db, request, tipo_esperado, "token con firma inválida o mal formado")
 

@@ -69,30 +69,32 @@ describe("Fórmula médica en Mis citas", () => {
     expect(llamadasA(llamadas, "GET", "/citas/p2/formula")).toHaveLength(0);
   });
 
-  it("farmacias: el QR en la aliada más cercana, 'Ver mi código' y 'Cómo llegar'", async () => {
-    const { usuario } = await abrirHistorial({ "GET /citas/:id/formula": formula() });
+  it("farmacias: un solo QR que sirve en cualquier aliada, y debajo las farmacias con 'Cómo llegar'", async () => {
+    await abrirHistorial({ "GET /citas/:id/formula": formula() });
     const donde = await screen.findByRole("region", { name: "Dónde reclamar sus medicamentos" });
-    expect(within(donde).getByText("En las farmacias aliadas los recibe gratis mostrando su código.")).toBeInTheDocument();
-    expect(within(donde).getAllByText("Aliada · gratis")).toHaveLength(2);
-    expect(within(donde).getByText("No aliada · con costo")).toBeInTheDocument();
-    expect(within(donde).getByText("El Poblado, Medellín · 0,8 km de Sede Poblado")).toBeInTheDocument();
-    expect(within(donde).getByText("Cra. 76 # 33-10 · 0,6 km de Sede Laureles")).toBeInTheDocument();
+    expect(within(donde).getByText("Con este código los recibe gratis en cualquier farmacia aliada.")).toBeInTheDocument();
 
+    // El código va una sola vez, arriba, y no está atado a ninguna farmacia.
     const qr = within(donde).getByRole("img", { name: "Código QR de su fórmula FM-2026-07733" });
     expect(qr).toHaveAttribute("src", formula().qr);
-    expect(within(donde).getByText("Le entregan sus 2 medicamentos sin costo. Vale hasta el 14 de noviembre.")).toBeInTheDocument();
-    // Solo un código abierto a la vez; en la no aliada no hay código.
-    expect(within(donde).queryByRole("button", { name: "Ver mi código para Droguería Vida Sana" })).not.toBeInTheDocument();
-    expect(within(donde).queryByRole("button", { name: "Ver mi código para Farmacia Nueva Salud" })).not.toBeInTheDocument();
-    await usuario.click(within(donde).getByRole("button", { name: "Ver mi código para Farmacia La Esperanza" }));
     expect(within(donde).getAllByRole("img", { name: /Código QR/ })).toHaveLength(1);
-    expect(within(donde).getByRole("button", { name: "Ver mi código para Droguería Vida Sana" })).toBeInTheDocument();
+    expect(within(donde).getByText("Muestre este código en cualquier farmacia aliada")).toBeInTheDocument();
+    expect(within(donde).getByText("Le entregan sus 2 medicamentos sin costo. Vale hasta el 14 de noviembre.")).toBeInTheDocument();
+    expect(within(donde).queryByRole("button", { name: /Ver mi código/ })).not.toBeInTheDocument();
 
-    expect(within(donde).getByRole("link", { name: "Cómo llegar a Farmacia Nueva Salud" })).toHaveAttribute(
+    // Debajo, las farmacias: aliada o no, dónde quedan y cómo llegar.
+    const lista = within(donde).getByRole("list");
+    expect(qr.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(lista).getAllByText("Aliada · gratis")).toHaveLength(2);
+    expect(within(lista).getByText("No aliada · con costo")).toBeInTheDocument();
+    expect(within(lista).getByText("El Poblado, Medellín · 0,8 km de Sede Poblado")).toBeInTheDocument();
+    expect(within(lista).getByText("Cra. 76 # 33-10 · 0,6 km de Sede Laureles")).toBeInTheDocument();
+    expect(within(lista).getAllByRole("link", { name: /^Cómo llegar a / })).toHaveLength(3);
+    expect(within(lista).getByRole("link", { name: "Cómo llegar a Farmacia Nueva Salud" })).toHaveAttribute(
       "href",
       "https://www.google.com/maps/search/?api=1&query=Manila%2C%20Medell%C3%ADn"
     );
-    expect(within(donde).getByRole("link", { name: "Cómo llegar a Farmacia La Esperanza" })).toHaveAttribute(
+    expect(within(lista).getByRole("link", { name: "Cómo llegar a Farmacia La Esperanza" })).toHaveAttribute(
       "href",
       expect.stringContaining(encodeURIComponent("Cra. 76 # 33-10, Medellín"))
     );

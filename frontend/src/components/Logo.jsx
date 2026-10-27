@@ -1,13 +1,15 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 /**
  * Logo de SaludYA. Con `to`, es un enlace al inicio de quien lo ve (como
  * en la mayoría de páginas web): la búsqueda de citas para el paciente y
- * la gestión de citas para el personal.
+ * la gestión de citas para el personal. Si ya está en esa página, lo
+ * lleva hasta arriba (en el inicio, con desplazamiento suave).
  */
 const MEDIDAS = { sm: 30, md: 36, lg: 44 };
 
 export default function Logo({ size = "md", to }) {
+  const { pathname } = useLocation();
   const dims = MEDIDAS[size] ?? MEDIDAS.md;
 
   const contenido = (
@@ -31,7 +33,12 @@ export default function Logo({ size = "md", to }) {
 
   if (to) {
     return (
-      <Link to={to} className={`logo logo--${size}`} aria-label="SaludYA, ir al inicio">
+      <Link
+        to={to}
+        className={`logo logo--${size}`}
+        aria-label="SaludYA, ir al inicio"
+        onClick={() => pathname === to && window.scrollTo({ top: 0 })}
+      >
         {contenido}
       </Link>
     );

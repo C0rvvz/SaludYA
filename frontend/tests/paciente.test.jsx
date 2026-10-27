@@ -20,7 +20,7 @@ const CITA_CREADA = {
   canal_recordatorio: "sms",
   estado: "confirmada",
   numero_comprobante: "SY-NUEVA",
-  mensaje: "Tu cita quedó confirmada y el comprobante fue generado.",
+  mensaje: "Su cita quedó confirmada y generamos su comprobante.",
 };
 
 describe("Agendar cita", () => {
@@ -176,7 +176,7 @@ describe("Agendar cita", () => {
     });
     const usuario = abrir("/panel", { paciente: true });
     expect(await esperarTexto(/No pudimos cargar la lista de especialidades: Sin catálogo/)).toBeInTheDocument();
-    expect(await esperarTexto(/No pudimos ver los cupos de cada especialidad: Sin horarios/)).toBeInTheDocument();
+    expect(await esperarTexto(/No pudimos consultar los cupos de cada especialidad: Sin horarios/)).toBeInTheDocument();
 
     abrir("/panel?especialidad=esp-1", { paciente: true });
     expect(await esperarTexto("Sin horarios")).toBeInTheDocument();

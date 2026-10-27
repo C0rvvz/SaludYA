@@ -50,7 +50,7 @@ class PacienteRegistroRequest(BaseModel):
     def validar_nombre(cls, v: str) -> str:
         v = v.strip()
         if len(v) < 2:
-            raise ValueError("El nombre debe tener al menos 2 caracteres.")
+            raise ValueError("El nombre debe tener al menos 2 letras.")
         return v
 
     @field_validator("telefono_whatsapp")
@@ -59,8 +59,7 @@ class PacienteRegistroRequest(BaseModel):
         v = re.sub(r"[\s\-]", "", v)
         if not re.fullmatch(r"3\d{9}", v):
             raise ValueError(
-                "El número de WhatsApp debe ser un celular colombiano válido "
-                "(10 dígitos, comienza en 3)."
+                "Escriba un celular colombiano de 10 dígitos que empiece por 3."
             )
         return v
 
@@ -71,8 +70,7 @@ class PacienteRegistroRequest(BaseModel):
         # sin aceptarla.
         if v is not True:
             raise ValueError(
-                "Debes aceptar el tratamiento de datos personales para "
-                "poder registrarte en SaludYA."
+                "Debe aceptar el tratamiento de sus datos personales para crear su cuenta."
             )
         return v
 

@@ -7,7 +7,7 @@ const ENVIO = {
   whatsapp: "Le enviamos el comprobante a su WhatsApp.",
   sms: "Le enviamos el comprobante por mensaje de texto.",
   correo: "Le enviamos el comprobante a su correo.",
-  llamada: "Le daremos los datos del comprobante por llamada.",
+  llamada: "Le comunicaremos los datos del comprobante por llamada.",
 };
 
 /** Paso 3 de "Agendar": la cita quedó agendada y este es su comprobante. */
@@ -66,7 +66,7 @@ export default function CitaAgendada({ cita, onAgendarOtra }) {
         <p className="comprobante-cita__nota">
           {presencial
             ? "Llegue 15 minutos antes con su documento."
-            : "Esté listo 10 minutos antes y tenga a mano su documento."}{" "}
+            : "Conéctese 10 minutos antes y tenga a mano su documento."}{" "}
           Conserve el número de comprobante.
         </p>
       </section>

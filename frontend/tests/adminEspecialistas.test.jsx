@@ -173,3 +173,81 @@ describe("Sedes de la red", () => {
     expect(await esperarTexto(/cambie el horario de: Dr\. Carlos Ramírez/)).toBeInTheDocument();
   });
 });
+
+describe("Farmacias para reclamar fórmulas", () => {
+  const VIDA_SANA = {
+    id: "f1", nombre: "Droguería Vida Sana", barrio: "El Poblado", ciudad: "Medellín", direccion: null, aliada: true,
+    activa: true, sede_id: "sede-1", sede: "Sede Poblado", distancia_km: 0.8,
+  };
+  // Su sede se cerró después: al editarla puede seguir con ella.
+  const LAS_VEGAS = {
+    id: "f2", nombre: "Farmacia Las Vegas", barrio: "Las Vegas", ciudad: "Envigado", direccion: "Cl. 37 Sur # 43-20",
+    aliada: false, activa: false, sede_id: "sede-3", sede: "Sede Envigado", distancia_km: 1.6,
+  };
+
+  it("agrega, edita y cierra una farmacia", async () => {
+    const llamadas = backendFalso({
+      "GET /admin/especialistas": panel(),
+      "GET /especialidades": [ESPECIALIDAD],
+      "GET /sedes": [SEDE],
+      "GET /admin/sedes": [],
+      "GET /admin/farmacias": [VIDA_SANA, LAS_VEGAS],
+      "POST /admin/farmacias": ({ cuerpo }) => ({ ...cuerpo, id: "f9", activa: true, sede: "Sede Poblado" }),
+      "PUT /admin/farmacias/:id": ({ cuerpo }) => ({ ...LAS_VEGAS, ...cuerpo }),
+      "PATCH /admin/farmacias/:id/estado": ({ cuerpo }) => ({ ...VIDA_SANA, ...cuerpo }),
+    });
+    const usuario = abrir("/admin/especialistas", { personal: true });
+    const tarjeta = (await screen.findByRole("heading", { name: "Farmacias para reclamar fórmulas" })).closest("section");
+    expect(await within(tarjeta).findByText("Droguería Vida Sana")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Solo el barrio")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("a 0,8 km")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Aliada · gratis")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Cerrada")).toBeInTheDocument();
+
+    await usuario.click(within(tarjeta).getByRole("button", { name: "Agregar farmacia" }));
+    const nueva = within(tarjeta).getByRole("form", { name: "Nueva farmacia" });
+    await usuario.type(within(nueva).getByLabelText("Nombre"), "Droguería Central");
+    await usuario.type(within(nueva).getByLabelText("Barrio"), "Laureles");
+    await usuario.type(within(nueva).getByLabelText("Ciudad"), "Medellín");
+    await usuario.selectOptions(within(nueva).getByLabelText("Sede cercana"), "Sede Poblado");
+    await usuario.type(within(nueva).getByLabelText("Distancia a la sede (km)"), "0.6");
+    await usuario.click(within(nueva).getByRole("checkbox", { name: /Aliada/ }));
+    await usuario.click(within(nueva).getByRole("button", { name: "Guardar farmacia" }));
+    expect(await esperarTexto("Se agregó Droguería Central.")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "POST", "/admin/farmacias")[0].cuerpo).toEqual({
+      nombre: "Droguería Central", barrio: "Laureles", ciudad: "Medellín", direccion: null,
+      sede_id: "sede-1", distancia_km: 0.6, aliada: false,
+    });
+
+    await usuario.click(within(tarjeta).getByRole("button", { name: "Editar Farmacia Las Vegas" }));
+    const edicion = within(tarjeta).getByRole("form", { name: "Editar Farmacia Las Vegas" });
+    expect(within(edicion).getByLabelText("Sede cercana")).toHaveDisplayValue("Sede Envigado (cerrada)");
+    expect(within(edicion).getByLabelText("Dirección (opcional)")).toHaveValue("Cl. 37 Sur # 43-20");
+    await usuario.click(within(edicion).getByRole("button", { name: "Guardar farmacia" }));
+    expect(await esperarTexto("Farmacia Las Vegas actualizada.")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "PUT", "/admin/farmacias/f2")[0].cuerpo.sede_id).toBe("sede-3");
+
+    await usuario.click(within(tarjeta).getByRole("button", { name: "Cerrar Droguería Vida Sana" }));
+    expect(within(tarjeta).getByText(/Los pacientes ya no la verán/)).toBeInTheDocument();
+    await usuario.click(within(tarjeta).getByRole("button", { name: "Sí, cerrar la farmacia" }));
+    expect(await esperarTexto("Droguería Vida Sana quedó cerrada.")).toBeInTheDocument();
+    expect(llamadasA(llamadas, "PATCH", "/admin/farmacias/f1/estado")[0].cuerpo).toEqual({ activa: false });
+  });
+
+  it("un error al guardar se muestra y el formulario sigue abierto", async () => {
+    backendFalso({
+      "GET /admin/especialistas": panel(),
+      "GET /especialidades": [ESPECIALIDAD],
+      "GET /sedes": [SEDE],
+      "GET /admin/sedes": [],
+      "GET /admin/farmacias": [VIDA_SANA],
+      "PUT /admin/farmacias/:id": error(400, "Ya existe Droguería Vida Sana en El Poblado, Medellín."),
+    });
+    const usuario = abrir("/admin/especialistas", { personal: true });
+    const tarjeta = (await screen.findByRole("heading", { name: "Farmacias para reclamar fórmulas" })).closest("section");
+    await usuario.click(await within(tarjeta).findByRole("button", { name: "Editar Droguería Vida Sana" }));
+    await usuario.click(within(tarjeta).getByRole("button", { name: "Guardar farmacia" }));
+    expect(await esperarTexto("Ya existe Droguería Vida Sana en El Poblado, Medellín.")).toBeInTheDocument();
+    expect(within(tarjeta).getByRole("form", { name: "Editar Droguería Vida Sana" })).toBeInTheDocument();
+  });
+});

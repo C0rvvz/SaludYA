@@ -10,6 +10,9 @@ import { formatearFechaLarga, formatearHora } from "../../utils/formato";
  * "Cambiar", "Cancelar"); su nombre accesible dice a qué cita se refieren.
  * Sin `compacta`: los del detalle, con el texto completo.
  *
+ * Cancelar va siempre al final; en el detalle, pegado a la derecha si cabe
+ * en la misma línea (ver .acciones__separador), como en el panel del personal.
+ *
  * `onAccion(tipo)`: "llegada" | "confirmar" | "reprogramar" | "cancelar" | "calificar".
  */
 export default function AccionesCita({ cita: c, compacta = false, ocupado = false, onAccion }) {
@@ -56,7 +59,7 @@ export default function AccionesCita({ cita: c, compacta = false, ocupado = fals
     ],
   ].filter(Boolean);
 
-  const botones = posibles.map(([tipo, texto, textoCorto, nombreAccesible, clase]) => (
+  const boton = ([tipo, texto, textoCorto, nombreAccesible, clase]) => (
     <button
       key={tipo}
       type="button"
@@ -67,7 +70,9 @@ export default function AccionesCita({ cita: c, compacta = false, ocupado = fals
     >
       {compacta ? textoCorto : texto}
     </button>
-  ));
+  );
+  const botones = posibles.filter(([tipo]) => tipo !== "cancelar").map(boton);
+  const cancelar = posibles.find(([tipo]) => tipo === "cancelar");
 
   if (!compacta && ESTADOS_ACTIVOS.includes(c.estado_visible) && c.modalidad === "presencial") {
     botones.push(
@@ -87,6 +92,11 @@ export default function AccionesCita({ cita: c, compacta = false, ocupado = fals
         Agendar de nuevo
       </Link>
     );
+  }
+
+  if (cancelar) {
+    if (!compacta) botones.push(<span key="separador" className="acciones__separador" aria-hidden="true" />);
+    botones.push(boton(cancelar));
   }
 
   if (botones.length === 0) return null;

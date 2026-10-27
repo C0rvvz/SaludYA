@@ -163,20 +163,35 @@ export function BarraApilada({ segmentos }) {
   );
 }
 
-/** Columnas verticales (tendencia). La última, en azul oscuro. */
+/**
+ * Columnas verticales (tendencia). La última, en azul oscuro.
+ * Con muchas (p. ej. los 12 meses del año) se compactan: el nombre corto
+ * (`corto`, "Sep") y el valor corto (`textoCorto`, "78%"); el nombre completo
+ * queda para lectores de pantalla y al pasar el cursor.
+ */
+const MAX_COLUMNAS_AMPLIAS = 6;
+
 export function Columnas({ datos }) {
   const mayor = Math.max(0, ...datos.map((d) => d.valor));
+  const compactas = datos.length > MAX_COLUMNAS_AMPLIAS;
   return (
-    <ul className="columnas">
+    <ul className={`columnas ${compactas ? "columnas--compactas" : ""}`}>
       {datos.map((d) => (
-        <li key={d.nombre}>
-          <span className="columnas__valor">{d.texto ?? d.valor}</span>
+        <li key={d.nombre} title={compactas ? `${d.nombre}: ${d.texto ?? d.valor}` : undefined}>
+          <span className="columnas__valor">{(compactas && d.textoCorto) || d.texto || d.valor}</span>
           <span
             className="columnas__barra"
             style={{ height: `${mayor ? Math.max(4, (110 * d.valor) / mayor) : 4}px` }}
             aria-hidden="true"
           />
-          <span className="columnas__nombre">{d.nombre}</span>
+          {compactas && d.corto ? (
+            <span className="columnas__nombre">
+              <span aria-hidden="true">{d.corto}</span>
+              <span className="sr-only">{d.nombre}</span>
+            </span>
+          ) : (
+            <span className="columnas__nombre">{d.nombre}</span>
+          )}
         </li>
       ))}
     </ul>

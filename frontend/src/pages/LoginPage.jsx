@@ -34,25 +34,25 @@ function MensajeEli({ paso, codigoDemo, telefono, compacto = false }) {
   if (paso === "otp" && codigoDemo) {
     return (
       <output className={`burbuja burbuja--oscura eli-codigo ${compacto ? "eli-codigo--compacto" : ""}`}>
-        <span className="eli-codigo__intro">{compacto ? "Soy Eli. Este es su código:" : "¡Listo! Este es su código de acceso:"}</span>
+        <span className="eli-codigo__intro">{compacto ? "Soy Eli. Este es su código:" : "Listo. Este es su código de acceso:"}</span>
         <strong className="eli-codigo__digitos">{codigoDemo}</strong>
-        <span className="eli-codigo__nota">Modo de prueba: en la versión real, este código le llegaría a su WhatsApp.</span>
+        <span className="eli-codigo__nota">Modo de prueba: en el servicio real, este código le llega por WhatsApp.</span>
       </output>
     );
   }
   if (paso === "otp") {
     return (
       <p className="burbuja">
-        ¡Listo! Le envié el código a su WhatsApp terminado en <strong>{telefono?.slice(-4)}</strong>.
+        Listo. Enviamos el código por WhatsApp a su celular terminado en <strong>{telefono?.slice(-4)}</strong>.
       </p>
     );
   }
   return compacto ? (
-    <p className="burbuja">Escriba su documento y le mando un código. Sin contraseñas.</p>
+    <p className="burbuja">Escriba su número de documento y le enviaremos un código por WhatsApp. No necesita contraseña.</p>
   ) : (
     <p className="burbuja">
-      ¡Hola! Soy <strong>Eli</strong>. Escriba su documento y toque <strong>Enviar código</strong>. Le mando un código
-      para entrar.
+      Hola, soy <strong>Eli</strong>. Escriba su número de documento y presione <strong>Enviar código</strong>. Le
+      enviaremos un código por WhatsApp para iniciar sesión.
     </p>
   );
 }
@@ -232,7 +232,7 @@ export default function LoginPage() {
         <>
           <div className="auth-card__header">
             <h1 className="sr-only">Ingrese su número de documento</h1>
-            <p className="auth-card__lead">Entre con su documento. Sin contraseñas.</p>
+            <p className="auth-card__lead">Inicie sesión con su número de documento, sin contraseña.</p>
           </div>
 
           {/* En el celular, Eli va dentro de la tarjeta */}
@@ -243,13 +243,13 @@ export default function LoginPage() {
 
           {noRegistrado && (
             <div className="alert alert--error">
-              No se encontró ningún paciente con ese documento. <Link to="/registrarse">Regístrese aquí</Link>.
+              No hay ninguna cuenta registrada con ese documento. <Link to="/registrarse">Cree su cuenta aquí</Link>.
             </div>
           )}
           {error && <div className="alert alert--error">{error}</div>}
 
           <p className="nota-obligatorios">
-            Los campos con asterisco (<span className="campo-obligatorio">*</span>) son obligatorios.
+            Los campos marcados con asterisco (<span className="campo-obligatorio">*</span>) son obligatorios.
           </p>
 
           <form onSubmit={manejarEnvioCedula} noValidate>
@@ -304,7 +304,7 @@ export default function LoginPage() {
           </form>
 
           <Link to="/#ayuda" className="auth-ayuda">
-            ¿Problemas para entrar?
+            ¿Problemas para iniciar sesión?
           </Link>
         </>
       )}
@@ -319,9 +319,9 @@ export default function LoginPage() {
           </button>
 
           <div className="auth-card__header auth-card__header--izquierda">
-            <h1>Escriba el código</h1>
+            <h1>Escriba el código de verificación</h1>
             <p className="auth-card__lead">
-              Lo enviamos al WhatsApp terminado en <strong>{telefonoEnmascarado?.slice(-4)}</strong>.
+              Lo enviamos por WhatsApp a su celular terminado en <strong>{telefonoEnmascarado?.slice(-4)}</strong>.
             </p>
           </div>
 
@@ -350,7 +350,7 @@ export default function LoginPage() {
               {errorCodigo ? (
                 <p className="field__error">{errorCodigo}</p>
               ) : (
-                <p className="field__hint">El código vence a los 5 minutos.</p>
+                <p className="field__hint">El código vence en 5 minutos.</p>
               )}
             </div>
 
@@ -358,7 +358,7 @@ export default function LoginPage() {
               ¿No le llegó?{" "}
               {segundosRestantes > 0 ? (
                 <>
-                  Reenviar en <strong>{reloj(segundosRestantes)}</strong>
+                  Podrá pedir otro en <strong>{reloj(segundosRestantes)}</strong>
                 </>
               ) : (
                 <button type="button" className="btn btn--link" onClick={manejarReenvio} disabled={cargando}>
@@ -368,7 +368,7 @@ export default function LoginPage() {
             </p>
 
             <button className="btn btn--primary btn--block" type="submit" disabled={cargando}>
-              {cargando ? "Entrando..." : "Entrar"}
+              {cargando ? "Iniciando sesión…" : "Iniciar sesión"}
             </button>
           </form>
         </>

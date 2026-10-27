@@ -822,10 +822,6 @@
   border-radius: 16px;
 }
 
-.farmacia--con-codigo {
-  border: 2px solid var(--color-navy);
-}
-
 .farmacia__cabeza {
   display: flex;
   flex-wrap: wrap;
@@ -844,7 +840,8 @@
   font-size: var(--text-sm);
 }
 
-.farmacia__codigo {
+/* El QR de la fórmula, una sola vez: sirve en cualquier farmacia aliada */
+.formula__codigo {
   display: flex;
   align-items: center;
   gap: 18px;
@@ -853,7 +850,7 @@
   background: var(--color-bg);
 }
 
-.farmacia__codigo img {
+.formula__codigo img {
   flex-shrink: 0;
   width: 176px;
   height: 176px;
@@ -861,11 +858,11 @@
   background: var(--color-surface);
 }
 
-.farmacia__codigo-titulo {
+.formula__codigo-titulo {
   font-weight: 600;
 }
 
-.farmacia .farmacia__numero {
+.formula .formula__numero {
   margin-top: 8px;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: var(--text-md);
@@ -1015,6 +1012,11 @@
     flex: 1 1 160px;
   }
 
+  /* Aquí los botones crecen hasta llenar la línea: el separador no hace falta */
+  .acciones-detalle-cita .acciones__separador {
+    display: none;
+  }
+
   /* La tarjeta de la lista, como en el celular del diseño */
   .tarjeta-cita--oculta-movil {
     display: none;
@@ -1121,7 +1123,7 @@
   }
 
   /* El QR arriba, grande, y el texto debajo */
-  .farmacia__codigo {
+  .formula__codigo {
     flex-direction: column;
     text-align: center;
   }

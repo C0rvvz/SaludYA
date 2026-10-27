@@ -29,7 +29,7 @@ const SECCIONES = [
     ayuda: "Peticiones de los pacientes",
     permiso: "revisar_solicitudes",
   },
-  { to: "/admin/especialistas", texto: "Especialistas", ayuda: "Médicos, horarios y sedes", permiso: "gestionar_especialistas" },
+  { to: "/admin/especialistas", texto: "Especialistas", ayuda: "Médicos, sedes y farmacias", permiso: "gestionar_especialistas" },
   { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
   { to: "/admin/seguridad", texto: "Seguridad", ayuda: "Accesos y alertas", permiso: "seguridad" },
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },

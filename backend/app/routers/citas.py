@@ -163,7 +163,7 @@ def confirmar_cita(
         creado_en=cita.creado_en,
         numero_comprobante=cita.numero_comprobante,
         comprobante_generado_en=cita.comprobante_generado_en,
-        mensaje="Tu cita quedó confirmada y el comprobante fue generado.",
+        mensaje="Su cita quedó confirmada y generamos su comprobante.",
     )
 
 

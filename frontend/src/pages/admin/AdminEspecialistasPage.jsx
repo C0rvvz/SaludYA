@@ -9,6 +9,7 @@ import {
 import { listarEspecialidades, listarSedes } from "../../api/catalogo";
 import { BotonIcono, IconoBuscar, IconoEditar, IconoQuitar } from "../../components/admin/IconosAdmin";
 import { CabezaTarjeta } from "../../components/admin/Reportes";
+import FarmaciasDeLaRed from "../../components/admin/FarmaciasDeLaRed";
 import SedesDeLaRed from "../../components/admin/SedesDeLaRed";
 import FotoProfesional from "../../components/agendar/FotoProfesional";
 import { formatearFechaHora, formatearSoloFecha } from "../../utils/formato";
@@ -26,6 +27,7 @@ import { DIAS, DURACIONES, ORIGEN_ESPECIALISTA, origenSincronizacion, resumenHor
  *   - Cambiar su horario, desactivarlo o activarlo. Las citas ya agendadas
  *     siempre se conservan.
  *   - Las sedes de la red (RF-89), al final: ver SedesDeLaRed.
+ *   - Las farmacias donde se reclaman las fórmulas: ver FarmaciasDeLaRed.
  */
 
 const ESTADOS = [
@@ -597,6 +599,8 @@ export default function AdminEspecialistasPage() {
           cargar();
         }}
       />
+
+      <FarmaciasDeLaRed sedes={sedes} />
     </>
   );
 }

@@ -142,7 +142,7 @@ def listar_disponibilidad(
     if especialista is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No existe ningún especialista con id {especialista_id}.",
+            detail="No encontramos ese especialista.",
         )
 
     franjas = disponibilidad_repository.listar_disponibilidad(

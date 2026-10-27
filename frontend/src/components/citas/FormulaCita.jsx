@@ -13,9 +13,10 @@ import { IconoDescargar, IconoPastilla, IconoUbicacion } from "../Iconos";
  * - Sus medicamentos (nombre, dosis, cada cuánto, por cuánto tiempo y
  *   cuántos) y "Descargar fórmula" (la imprime o la guarda en PDF).
  * - Las recomendaciones.
- * - Dónde reclamar: las farmacias cercanas a la sede donde lo atendieron.
- *   En las aliadas se los entregan gratis mostrando el QR de su código;
- *   las demás cobran. Todas con "Cómo llegar".
+ * - Dónde reclamar: arriba, el QR de su código, que sirve en cualquier
+ *   farmacia aliada (allí se los entregan gratis); debajo, las farmacias,
+ *   primero las cercanas a la sede donde lo atendieron, cada una con
+ *   "Cómo llegar". Las que no son aliadas cobran.
  *
  * Se monta con key={cita.id}: al cambiar de cita empieza de cero.
  */
@@ -41,12 +42,31 @@ function Medicamento({ m }) {
   );
 }
 
-function Farmacia({ farmacia: f, formula, conCodigo, vigente, onVerCodigo }) {
+/** El QR de la fórmula: el mismo código sirve en cualquier farmacia aliada. */
+function CodigoFormula({ formula }) {
   const gratis = formula.cubierta_por_eps;
-  const etiqueta = f.aliada ? (gratis ? "Aliada · gratis" : "Aliada") : gratis ? "No aliada · con costo" : "No aliada";
   const cuantos = formula.medicamentos.length;
   return (
-    <li className={`farmacia ${conCodigo ? "farmacia--con-codigo" : ""}`}>
+    <div className="formula__codigo">
+      <img src={formula.qr} width="176" height="176" alt={`Código QR de su fórmula ${formula.codigo}`} />
+      <div>
+        <p className="formula__codigo-titulo">
+          {gratis ? "Muestre este código en cualquier farmacia aliada" : "Muestre este código en la farmacia"}
+        </p>
+        <p>
+          {gratis ? "Le entregan" : "Con él le entregan"} {cuantos === 1 ? "su medicamento" : `sus ${cuantos} medicamentos`}
+          {gratis && " sin costo"}. Vale hasta el {formatearDiaMes(formula.vence_en)}.
+        </p>
+        <p className="formula__numero">{formula.codigo}</p>
+      </div>
+    </div>
+  );
+}
+
+function Farmacia({ farmacia: f, gratis }) {
+  const etiqueta = f.aliada ? (gratis ? "Aliada · gratis" : "Aliada") : gratis ? "No aliada · con costo" : "No aliada";
+  return (
+    <li className="farmacia">
       <div className="farmacia__cabeza">
         <div>
           <p className="farmacia__nombre">{f.nombre}</p>
@@ -58,31 +78,7 @@ function Farmacia({ farmacia: f, formula, conCodigo, vigente, onVerCodigo }) {
         <span className={`badge ${f.aliada ? "badge--success" : "badge--neutral"}`}>{etiqueta}</span>
       </div>
 
-      {conCodigo && (
-        <div className="farmacia__codigo">
-          <img src={formula.qr} width="176" height="176" alt={`Código QR de su fórmula ${formula.codigo}`} />
-          <div>
-            <p className="farmacia__codigo-titulo">Muestre este código en la farmacia</p>
-            <p>
-              Le entregan {cuantos === 1 ? "su medicamento" : `sus ${cuantos} medicamentos`}
-              {gratis && " sin costo"}. Vale hasta el {formatearDiaMes(formula.vence_en)}.
-            </p>
-            <p className="farmacia__numero">{formula.codigo}</p>
-          </div>
-        </div>
-      )}
-
       <div className="farmacia__acciones">
-        {f.aliada && vigente && !conCodigo && (
-          <button
-            type="button"
-            className="btn btn--outline"
-            aria-label={`Ver mi código para ${f.nombre}`}
-            onClick={onVerCodigo}
-          >
-            Ver mi código
-          </button>
-        )}
         <a
           className="btn btn--outline"
           href={enlaceAFarmacia(f)}
@@ -153,16 +149,11 @@ export default function FormulaCita({ citaId }) {
   const { paciente } = useAuth();
   const [formula, setFormula] = useState(null);
   const [error, setError] = useState("");
-  const [conCodigo, setConCodigo] = useState(null); // la farmacia aliada que muestra el QR
   const [imprimiendo, setImprimiendo] = useState(false);
 
   useEffect(() => {
     obtenerFormula(citaId)
-      .then((datos) => {
-        setFormula(datos);
-        // Abierto de una vez el código en la aliada más cercana.
-        setConCodigo(datos.farmacias.find((f) => f.aliada)?.id ?? null);
-      })
+      .then(setFormula)
       .catch((err) => setError(err.message));
   }, [citaId]);
 
@@ -255,28 +246,26 @@ export default function FormulaCita({ citaId }) {
             </h3>
             <p className="texto-suave">
               {formula.cubierta_por_eps
-                ? "En las farmacias aliadas los recibe gratis mostrando su código."
+                ? "Con este código los recibe gratis en cualquier farmacia aliada."
                 : "Su EPS no cubre estos medicamentos: tienen costo en cualquier farmacia."}
             </p>
           </div>
-          {!vigente && (
+          {vigente ? (
+            <CodigoFormula formula={formula} />
+          ) : (
             <div className="alert alert--info">
               Esta fórmula venció el {formatearDiaMes(formula.vence_en)}. Si todavía necesita los medicamentos, pida una
               cita para que se la renueven.
             </div>
           )}
-          <ul className="farmacias">
-            {formula.farmacias.map((f) => (
-              <Farmacia
-                key={f.id}
-                farmacia={f}
-                formula={formula}
-                vigente={vigente}
-                conCodigo={vigente && f.id === conCodigo}
-                onVerCodigo={() => setConCodigo(f.id)}
-              />
-            ))}
-          </ul>
+          <div>
+            <p className="formula__seccion">Farmacias cercanas</p>
+            <ul className="farmacias">
+              {formula.farmacias.map((f) => (
+                <Farmacia key={f.id} farmacia={f} gratis={formula.cubierta_por_eps} />
+              ))}
+            </ul>
+          </div>
         </section>
       )}
 

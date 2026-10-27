@@ -79,6 +79,37 @@ class SedeAdminOut(BaseModel):
     citas_proximas: int
 
 
+class FarmaciaRequest(BaseModel):
+    """Farmacia donde se reclaman las fórmulas (farmacias_service)."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nombre: str = Field(min_length=3, max_length=100)
+    barrio: str = Field(min_length=2, max_length=100)
+    ciudad: str = Field(min_length=2, max_length=80)
+    direccion: str | None = Field(default=None, max_length=150)
+    aliada: bool  # entrega gratis con el código de la fórmula
+    sede_id: uuid.UUID  # la sede que tiene cerca
+    distancia_km: float = Field(gt=0, le=50)
+
+
+class EstadoFarmaciaRequest(BaseModel):
+    activa: bool
+
+
+class FarmaciaAdminOut(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    barrio: str
+    ciudad: str
+    direccion: str | None
+    aliada: bool
+    activa: bool
+    sede_id: uuid.UUID | None
+    sede: str | None
+    distancia_km: float
+
+
 class SincronizacionIpsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

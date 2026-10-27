@@ -23,10 +23,10 @@ from app.services.exceptions import SesionCerradaError
 # Mensajes que ve la persona al volver a la pantalla de ingreso.
 MENSAJES_CIERRE = {
     MotivoCierre.OTRA_SESION: "Su sesión se cerró porque se inició sesión con su cuenta en otra pestaña o dispositivo.",
-    MotivoCierre.INACTIVIDAD: "Su sesión se cerró por seguridad después de 2 minutos sin actividad. Ingrese de nuevo.",
-    MotivoCierre.SALIO: "Su sesión ya fue cerrada. Ingrese de nuevo.",
-    MotivoCierre.CUENTA_MODIFICADA: "Su cuenta fue modificada por un administrador. Ingrese de nuevo.",
-    MotivoCierre.CERRADA_POR_ADMIN: "Un administrador cerró su sesión por seguridad. Ingrese de nuevo.",
+    MotivoCierre.INACTIVIDAD: "Su sesión se cerró por seguridad después de 2 minutos sin actividad. Inicie sesión de nuevo.",
+    MotivoCierre.SALIO: "Su sesión ya fue cerrada. Inicie sesión de nuevo.",
+    MotivoCierre.CUENTA_MODIFICADA: "Su cuenta fue modificada por un administrador. Inicie sesión de nuevo.",
+    MotivoCierre.CERRADA_POR_ADMIN: "Un administrador cerró su sesión por seguridad. Inicie sesión de nuevo.",
 }
 
 # La última actividad se guarda como mucho cada tantos segundos: así no se
@@ -91,7 +91,7 @@ def validar(db: Session, sid: uuid.UUID, tipo: str, sujeto_id: uuid.UUID) -> Ses
     """La sesión del token, ya con su actividad al día. Si no sirve, lanza SesionCerradaError."""
     sesion = db.get(Sesion, sid)
     if sesion is None or sesion.tipo != tipo or sesion.sujeto_id != sujeto_id:
-        raise SesionCerradaError("Su sesión no es válida. Ingrese de nuevo.")
+        raise SesionCerradaError("Su sesión ya no es válida. Inicie sesión de nuevo.")
     if sesion.cerrada_en is not None:
         raise SesionCerradaError(MENSAJES_CIERRE.get(MotivoCierre(sesion.motivo_cierre), MENSAJES_CIERRE[MotivoCierre.SALIO]))
 

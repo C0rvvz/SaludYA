@@ -19,31 +19,31 @@ const PATRON_CORREO = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 export function validarNumeroDocumento(valor, tipoDocumento) {
   const v = (valor ?? "").trim();
-  if (!v) return "Ingresa tu número de documento.";
+  if (!v) return "Escriba su número de documento.";
 
   const esPasaporte = tipoDocumento === "pasaporte";
   const patron = esPasaporte ? PATRON_ALFANUMERICO : PATRON_SOLO_DIGITOS;
 
   if (!patron.test(v)) {
     return esPasaporte
-      ? "Debe tener entre 6 y 15 caracteres alfanuméricos (letras y números, sin espacios ni símbolos)."
-      : "Debe contener solo dígitos, entre 6 y 15 caracteres.";
+      ? "El pasaporte debe tener de 6 a 15 letras o números, sin espacios ni símbolos."
+      : "El documento debe tener de 6 a 15 números, sin puntos ni espacios.";
   }
   return "";
 }
 
 export function validarNombre(valor) {
   const v = (valor ?? "").trim();
-  if (!v) return "Ingresa tu nombre completo.";
-  if (v.length < 2) return "El nombre debe tener al menos 2 caracteres.";
+  if (!v) return "Escriba su nombre completo.";
+  if (v.length < 2) return "El nombre debe tener al menos 2 letras.";
   return "";
 }
 
 export function validarTelefonoWhatsapp(valor) {
   const v = (valor ?? "").replace(/[\s-]/g, "");
-  if (!v) return "Ingresa tu número de WhatsApp.";
+  if (!v) return "Escriba el número de su celular con WhatsApp.";
   if (!PATRON_CELULAR_CO.test(v)) {
-    return "Debe ser un celular colombiano válido: 10 dígitos, comienza en 3.";
+    return "Escriba un celular colombiano de 10 dígitos que empiece por 3 (por ejemplo, 300 123 4567).";
   }
   return "";
 }
@@ -51,13 +51,13 @@ export function validarTelefonoWhatsapp(valor) {
 export function validarCorreo(valor) {
   const v = (valor ?? "").trim();
   if (!v) return ""; // el correo es opcional
-  if (!PATRON_CORREO.test(v)) return "Ingresa un correo electrónico válido.";
+  if (!PATRON_CORREO.test(v)) return "Escriba un correo electrónico válido (por ejemplo, nombre@correo.com).";
   return "";
 }
 
 export function validarCodigoOtp(valor) {
   const v = (valor ?? "").trim();
-  if (!v) return "Ingresa el código de verificación.";
+  if (!v) return "Escriba el código de 6 dígitos que le enviamos.";
   if (v.length !== 6) return "El código debe tener 6 dígitos.";
   return "";
 }

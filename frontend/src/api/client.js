@@ -76,7 +76,7 @@ export async function apiFetch(path, { method = "GET", body, auth, token: tokenE
     // pasar el error técnico original (ej. "Failed to fetch").
     throw new ApiError(
       0,
-      "No fue posible conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo."
+      "No fue posible conectar con el servidor. Revise su conexión a internet e intente de nuevo."
     );
   }
 

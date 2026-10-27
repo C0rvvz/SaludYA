@@ -147,5 +147,9 @@ class SedeInvalidaError(Exception):
     """Datos de una sede que no se pueden guardar, o una sede que todavía tiene turnos (RF-89)."""
 
 
+class FarmaciaInvalidaError(Exception):
+    """Datos de una farmacia que no se pueden guardar (o una farmacia que no existe)."""
+
+
 class FormulaInvalidaError(Exception):
     """Datos de una fórmula médica que no se pueden guardar, o una cita que no fue atendida."""

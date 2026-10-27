@@ -186,8 +186,22 @@
 }
 
 /* --- Cabecera --- */
+/* Fija arriba aunque se baje por la página. Ya abajo (.is-desplazada) se
+   vuelve más delgada y con sombra; el contenido pasa por debajo, difuminado. */
 .inicio-cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   border-bottom: 1px solid var(--i-borde);
+  background: var(--i-fondo);
+  background: color-mix(in srgb, var(--i-fondo) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: box-shadow 0.2s ease;
+}
+
+.inicio-cabecera.is-desplazada {
+  box-shadow: 0 10px 24px -18px rgba(14, 31, 57, 0.45);
 }
 
 .inicio-cabecera__fila {
@@ -197,6 +211,19 @@
   gap: 24px;
   padding-top: 28px;
   padding-bottom: 28px;
+  transition:
+    padding 0.2s ease,
+    row-gap 0.2s ease;
+}
+
+.inicio-cabecera.is-desplazada .inicio-cabecera__fila {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+/* "Cómo funciona", "Sedes" y "Ayuda" llevan a su sección sin que la cabecera la tape */
+html:has(.inicio) {
+  scroll-padding-top: 96px;
 }
 
 .inicio .logo {
@@ -852,7 +879,32 @@
     order: 3;
     justify-content: space-between;
     width: 100%;
+    max-height: 60px;
     gap: 12px;
+    transition:
+      max-height 0.2s ease,
+      opacity 0.2s ease,
+      visibility 0.2s;
+  }
+
+  /* Al bajar quedan el logo y los botones: la cabecera fija no tapa media pantalla */
+  /* Abajo no hace falta relleno: el espacio antes de la fila (vacía) de los enlaces ya lo da */
+  .inicio-cabecera.is-desplazada .inicio-cabecera__fila {
+    row-gap: 10px;
+    padding-top: 10px;
+    padding-bottom: 0;
+  }
+
+  /* Se recogen (sin saltos) y no se pueden enfocar mientras están ocultos */
+  .inicio-cabecera.is-desplazada .inicio-menu {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  html:has(.inicio) {
+    scroll-padding-top: 84px;
   }
 
   .inicio-hero,
@@ -920,6 +972,10 @@
     flex: 1;
     padding-right: 16px;
     padding-left: 16px;
+  }
+
+  html:has(.inicio) {
+    scroll-padding-top: 132px;
   }
 
   .inicio-hero__acciones .inicio-boton {
