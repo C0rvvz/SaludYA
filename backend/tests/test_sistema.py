@@ -38,6 +38,17 @@ def test_catalogo_publico(cliente, fabrica):
     assert filtrados[0]["modalidades"]
 
 
+def test_catalogo_de_eps_vigentes(cliente):
+    """Las 28 EPS habilitadas (Ministerio de Salud, 2025), en orden y sin la palabra "EPS" en el nombre."""
+    nombres = [e["nombre"] for e in cliente.get("/eps").json()]
+    assert len(nombres) == 28
+    assert nombres == sorted(nombres)
+    assert "Sura" in nombres and "EPS Sura" not in nombres
+    assert {"Coosalud", "Mutual SER", "Capital Salud", "Savia Salud", "Dusakawi"} <= set(nombres)
+    # "Nueva EPS" es su nombre propio; las demás no llevan "EPS".
+    assert [n for n in nombres if "EPS" in n.split()] == ["Nueva EPS"]
+
+
 def test_disponibilidad_de_un_especialista_y_busqueda_combinada(cliente, fabrica):
     franja = fabrica.franja(fecha=hoy_en_colombia() + timedelta(days=15))
     ruta = f"/especialistas/{fabrica.especialista.id}/disponibilidad"

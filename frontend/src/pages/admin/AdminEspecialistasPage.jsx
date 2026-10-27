@@ -221,7 +221,7 @@ function FormularioEspecialista({ especialidades, sedes, ocupado, onGuardar, onV
           </select>
         </div>
         <div className="field">
-          <label htmlFor="registro-medico">Registro médico (opcional)</label>
+          <label htmlFor="registro-medico">Registro médico <span className="opcional">(opcional)</span></label>
           <input
             id="registro-medico"
             value={datos.registro_medico}
@@ -379,7 +379,7 @@ export default function AdminEspecialistasPage() {
           <h1 className="admin-titulo">Especialistas</h1>
           <p className="admin-subtitulo">
             Médicos de la red, su horario semanal y su agenda de los próximos 10 días hábiles. La IPS envía su
-            actualización cada 10 días; también puede simularla ahora.
+            actualización cada 10 días; también puede cargarla ahora.
           </p>
         </div>
         <div className="acciones-admin">
@@ -391,19 +391,26 @@ export default function AdminEspecialistasPage() {
           >
             Agregar especialista
           </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={ocupado}
-            onClick={() =>
-              ejecutar(
-                () => sincronizarIps(),
-                (s) => `La IPS envió su actualización. ${s.detalle} Se generaron ${s.franjas_creadas} horarios nuevos.`
-              )
-            }
-          >
-            {ocupado ? "Actualizando…" : "Simular actualización de la IPS"}
-          </button>
+          <div className="accion-con-nota">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={ocupado}
+              aria-describedby="nota-ips"
+              onClick={() =>
+                ejecutar(
+                  () => sincronizarIps(),
+                  (s) => `La IPS envió su actualización. ${s.detalle} Se generaron ${s.franjas_creadas} horarios nuevos.`
+                )
+              }
+            >
+              {ocupado ? "Cargando…" : "Cargar actualizaciones de la IPS"}
+            </button>
+            {/* En el proyecto la IPS no está conectada: la actualización es simulada (ips_simulada_service). */}
+            <span id="nota-ips" className="accion-con-nota__nota">
+              Simulación de la actualización que envía la IPS
+            </span>
+          </div>
         </div>
       </div>
 

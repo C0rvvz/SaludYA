@@ -19,7 +19,7 @@ export default function VentanaCancelar({ cita, ocupado, error, onConfirmar, onC
       </p>
 
       <fieldset className="opciones-ventana">
-        <legend>Motivo (opcional)</legend>
+        <legend>Motivo <span className="opcional">(opcional)</span></legend>
         <div className="opciones-ventana__lista">
           {MOTIVOS.map((m) => (
             <label key={m} className="opcion-radio">

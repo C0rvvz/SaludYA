@@ -58,7 +58,7 @@ export default function VentanaCalificar({ cita, ocupado, error, onEnviar, onCer
       </fieldset>
 
       <div className="field">
-        <label htmlFor="comentario_calificacion">Comentario (opcional)</label>
+        <label htmlFor="comentario_calificacion">Comentario <span className="opcional">(opcional)</span></label>
         <textarea
           id="comentario_calificacion"
           rows={3}

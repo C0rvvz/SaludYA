@@ -130,7 +130,7 @@ export default function FormulaAdmin({ formula, ocupado, onGuardar }) {
             />
           </div>
           <div className="field">
-            <label htmlFor="formula_nota">Lo que escribió el médico (opcional)</label>
+            <label htmlFor="formula_nota">Lo que escribió el médico <span className="opcional">(opcional)</span></label>
             <textarea
               id="formula_nota"
               rows={3}

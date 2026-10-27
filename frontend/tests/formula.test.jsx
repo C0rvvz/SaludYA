@@ -173,7 +173,7 @@ function detalleAtendida(cambios = {}) {
     acciones: ACCIONES,
     paciente: {
       id: "pac-1", nombre: "Mario Ruiz", tipo_documento: "cedula_ciudadania", numero_documento: "1010",
-      telefono_whatsapp: "3009998877", correo: null, eps: "EPS Sura", estado_afiliacion: "activa",
+      telefono_whatsapp: "3009998877", correo: null, eps: "Sura", estado_afiliacion: "activa",
     },
     motivo_cancelacion: null,
     historial_estado: [],

@@ -195,6 +195,25 @@
   gap: 12px 20px;
 }
 
+/* Los botones del encabezado alineados arriba (uno puede llevar una nota debajo) */
+.admin-encabezado .acciones-admin {
+  align-items: flex-start;
+}
+
+/* Un botón con una aclaración debajo, en letra pequeña */
+.accion-con-nota {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.accion-con-nota__nota {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 .admin-encabezado > div:first-child {
   display: flex;
   flex-direction: column;

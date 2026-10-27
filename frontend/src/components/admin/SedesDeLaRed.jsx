@@ -51,7 +51,7 @@ function FormularioSede({ sede, ocupado, onGuardar, onVolver }) {
           />
         </div>
         <div className="field">
-          <label htmlFor="sede-direccion">Dirección (opcional)</label>
+          <label htmlFor="sede-direccion">Dirección <span className="opcional">(opcional)</span></label>
           <input
             id="sede-direccion"
             value={datos.direccion}

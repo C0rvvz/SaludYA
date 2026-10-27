@@ -103,7 +103,10 @@ describe("Especialistas", () => {
       ],
     });
 
-    await usuario.click(screen.getByRole("button", { name: "Simular actualización de la IPS" }));
+    // Aclara en letra pequeña que es una simulación (la IPS no está conectada).
+    const cargar = screen.getByRole("button", { name: "Cargar actualizaciones de la IPS" });
+    expect(cargar).toHaveAccessibleDescription("Simulación de la actualización que envía la IPS");
+    await usuario.click(cargar);
     expect(await esperarTexto(/La IPS envió su actualización\. Llegaron: Dr\. Camilo Agudelo/)).toBeInTheDocument();
   });
 

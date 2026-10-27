@@ -125,7 +125,7 @@ function PanelRetirar({ solicitud, ocupado, onRetirar, onVolver }) {
           : "Si tenía un cupo ofrecido, este pasa al siguiente paciente de la lista."}
       </p>
       <div className="field">
-        <label htmlFor="motivo">Motivo (opcional)</label>
+        <label htmlFor="motivo">Motivo <span className="opcional">(opcional)</span></label>
         <input id="motivo" value={motivo} maxLength={300} onChange={(e) => setMotivo(e.target.value)} />
       </div>
       <div className="acciones-admin">

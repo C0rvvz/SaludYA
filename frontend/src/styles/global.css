@@ -589,6 +589,12 @@ select:focus-visible {
   gap: var(--space-1);
 }
 
+/* "(opcional)" en las etiquetas de los campos: en gris y sin negrilla, aparte del nombre */
+.opcional {
+  color: var(--color-ink-soft);
+  font-weight: 400;
+}
+
 /* Va justo antes de Cancelar (lo que deshace algo): si cabe en la misma línea,
    lo empuja al borde derecho; si no cabe, Cancelar baja a la siguiente línea
    y empieza a la izquierda, como cualquier botón (el separador se queda arriba). */

@@ -201,7 +201,7 @@ describe("Iniciar sesión con código por WhatsApp", () => {
 });
 
 describe("Registro", () => {
-  const EPS = [{ id: "eps-1", nombre: "EPS Sura" }];
+  const EPS = [{ id: "eps-1", nombre: "Sura" }];
 
   async function llenarPaso1(usuario) {
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");

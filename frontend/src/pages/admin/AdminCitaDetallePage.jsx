@@ -336,7 +336,7 @@ export default function AdminCitaDetallePage() {
                   avisará por {CANALES[cita.canal_recordatorio]}.
                 </p>
                 <div className="field">
-                  <label htmlFor="motivo">Motivo (opcional)</label>
+                  <label htmlFor="motivo">Motivo <span className="opcional">(opcional)</span></label>
                   <input id="motivo" value={motivo} maxLength={300} onChange={(e) => setMotivo(e.target.value)} />
                 </div>
                 <div className="acciones-admin">
@@ -408,7 +408,7 @@ export default function AdminCitaDetallePage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label htmlFor="nota_llamada">Nota (opcional)</label>
+                  <label htmlFor="nota_llamada">Nota <span className="opcional">(opcional)</span></label>
                   <input
                     id="nota_llamada"
                     value={llamada.nota}

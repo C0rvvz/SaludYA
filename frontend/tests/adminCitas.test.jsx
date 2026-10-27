@@ -62,7 +62,7 @@ function detalle(cambios = {}) {
       numero_documento: "1010",
       telefono_whatsapp: "3009998877",
       correo: null,
-      eps: "EPS Sura",
+      eps: "Sura",
       estado_afiliacion: "no_encontrada",
     },
     motivo_cancelacion: null,

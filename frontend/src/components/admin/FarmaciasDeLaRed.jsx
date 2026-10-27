@@ -89,7 +89,7 @@ function FormularioFarmacia({ farmacia, sedes, ocupado, onGuardar, onVolver }) {
           />
         </div>
         <div className="field">
-          <label htmlFor="farmacia-direccion">Dirección (opcional)</label>
+          <label htmlFor="farmacia-direccion">Dirección <span className="opcional">(opcional)</span></label>
           <input
             id="farmacia-direccion"
             value={datos.direccion}

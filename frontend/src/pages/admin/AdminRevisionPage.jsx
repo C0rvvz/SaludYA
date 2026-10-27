@@ -82,7 +82,7 @@ function Decision({ solicitud, ocupado, onAprobar, onRemitir, onNegar }) {
         <span className="opcion-admin__titulo">Marcar como revisión prioritaria</span>
       </label>
       <div className="field">
-        <label htmlFor="respuesta_aprobar">Mensaje para el paciente (opcional)</label>
+        <label htmlFor="respuesta_aprobar">Mensaje para el paciente <span className="opcional">(opcional)</span></label>
         <textarea
           id="respuesta_aprobar"
           rows={2}
@@ -255,7 +255,7 @@ export default function AdminRevisionPage() {
               )}
               {paso === "eps" && (
                 <PanelTexto
-                  etiqueta="Nota para el paciente (opcional)"
+                  etiqueta={<>Nota para el paciente <span className="opcional">(opcional)</span></>}
                   boton="Remitir a la EPS"
                   ocupado={ocupado}
                   onVolver={() => setPaso(null)}

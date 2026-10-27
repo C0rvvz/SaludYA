@@ -286,7 +286,7 @@ export default function RegistroPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="correo">Correo electrónico (opcional)</label>
+              <label htmlFor="correo">Correo electrónico <span className="opcional">(opcional)</span></label>
               <input
                 id="correo"
                 type="email"
