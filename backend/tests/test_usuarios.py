@@ -50,7 +50,9 @@ def test_crear_y_editar_usuarios(cliente, fabrica):
     r = cliente.post("/admin/usuarios", headers=encabezado(admin), json=nuevo)
     assert r.status_code == 201, r.text
     # Call center: solo lo de su función (mínimo privilegio).
-    assert r.json()["permisos"] == ["confirmar_asistencia", "observaciones", "recordatorios", "ver_citas"]
+    assert r.json()["permisos"] == [
+        "confirmar_asistencia", "observaciones", "recordatorios", "reprogramar_cancelar", "ver_citas",
+    ]
 
     assert cliente.post("/admin/usuarios", headers=encabezado(admin), json=nuevo).status_code == 400  # correo repetido
     corta = nuevo | {"correo": "otra@saludya.co", "password": "corta"}

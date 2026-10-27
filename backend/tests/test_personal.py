@@ -47,10 +47,12 @@ def test_cada_rol_solo_hace_lo_de_su_funcion(cliente, fabrica):
     call_center = encabezado(fabrica.personal(RolPersonal.CALL_CENTER))
     agendamiento = encabezado(fabrica.personal(RolPersonal.AGENDAMIENTO))
 
+    # Call center: llamadas y recordatorios, y lo que el paciente pide por teléfono (reprogramar o cancelar);
+    # no la lista de espera (es de Agendamiento).
     acciones = cliente.get(f"/admin/citas/{cita.id}", headers=call_center).json()["acciones"]
     assert (acciones["recordatorio"], acciones["contactar"], acciones["confirmar"]) == (True, True, True)
-    assert (acciones["cancelar"], acciones["reprogramar"]) == (False, False)
-    assert cliente.post(f"/admin/citas/{cita.id}/cancelar", headers=call_center, json={}).status_code == 403
+    assert (acciones["cancelar"], acciones["reprogramar"]) == (True, True)
+    assert cliente.get("/admin/lista-espera", headers=call_center).status_code == 403
 
     acciones = cliente.get(f"/admin/citas/{cita.id}", headers=agendamiento).json()["acciones"]
     assert (acciones["cancelar"], acciones["reprogramar"], acciones["confirmar"]) == (True, True, True)
@@ -59,6 +61,7 @@ def test_cada_rol_solo_hace_lo_de_su_funcion(cliente, fabrica):
     contacto = {"resultado": "contesto"}
     assert cliente.post(f"/admin/citas/{cita.id}/contacto", headers=agendamiento, json=contacto).status_code == 403
     assert cliente.post(f"/admin/citas/{cita.id}/contacto", headers=call_center, json=contacto).status_code == 200
+    assert cliente.post(f"/admin/citas/{cita.id}/cancelar", headers=call_center, json={}).status_code == 200
 
 
 def test_cuenta_desactivada_pierde_el_acceso(cliente, fabrica, db):

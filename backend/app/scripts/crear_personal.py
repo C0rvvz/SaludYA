@@ -7,7 +7,9 @@ Uso, dentro del contenedor (pide la contraseña sin mostrarla):
     docker compose exec api python -m app.scripts.crear_personal \
         --nombre "Ana Pérez" --correo ana@eps.co --rol administrador
 
-Roles: administrador, agendamiento, call_center, coordinador_medico.
+Roles: administrador, agendamiento, call_center, coordinador_medico. Las
+cuentas con el rol medico se crean en Personal › Usuarios, donde se elige
+qué médico de la red es.
 Sin terminal interactiva (p. ej. en un script), la contraseña se puede
 pasar en la variable de entorno SALUDYA_PASSWORD_NUEVA.
 """

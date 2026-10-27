@@ -8,7 +8,8 @@ iniciar sesión) solo para mostrar u ocultar opciones: la seguridad está
 aquí, en el backend.
 
 Mínimo privilegio: cada rol tiene solo lo que su función necesita.
-  - Call center: recordatorios, mensajes programados y llamadas; confirmar asistencia.
+  - Call center: recordatorios, mensajes programados y llamadas; confirmar
+    asistencia, y reprogramar o cancelar lo que el paciente pide por teléfono.
   - Agendamiento: confirmar asistencia, reprogramar, cancelar y la lista de espera.
   - Coordinación médica: atención, prioridad médica, peticiones, reportes e
     historia clínica.
@@ -48,7 +49,9 @@ _TODOS = {Permiso.VER_CITAS, Permiso.OBSERVACIONES}
 
 PERMISOS_POR_ROL: dict[RolPersonal, frozenset[Permiso]] = {
     RolPersonal.ADMINISTRADOR: frozenset(set(Permiso) - {Permiso.HISTORIA_CLINICA}),
-    RolPersonal.CALL_CENTER: frozenset(_TODOS | {Permiso.CONFIRMAR_ASISTENCIA, Permiso.RECORDATORIOS}),
+    RolPersonal.CALL_CENTER: frozenset(
+        _TODOS | {Permiso.CONFIRMAR_ASISTENCIA, Permiso.RECORDATORIOS, Permiso.REPROGRAMAR_CANCELAR}
+    ),
     RolPersonal.AGENDAMIENTO: frozenset(
         _TODOS | {Permiso.CONFIRMAR_ASISTENCIA, Permiso.REPROGRAMAR_CANCELAR, Permiso.LISTA_ESPERA}
     ),
