@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { formatearFechaHora, formatearFechaLarga } from "../../utils/formato";
+import { CIE10_FRECUENTES } from "../../utils/historiaClinica";
 import { BotonIcono, IconoQuitar } from "./IconosAdmin";
 
 /**
- * Fórmula médica de una cita atendida, en el detalle del personal
- * (coordinador médico o administrador: acciones.formula).
+ * Registrar o corregir la fórmula médica de una cita atendida, en
+ * Personal › Historia clínica (Médico o Coordinación médica).
  *
- * Sin fórmula: "Registrar fórmula". Con fórmula: lo que se registró y
- * "Corregir fórmula". El formulario pide lo que escribió el médico (el
- * diagnóstico y su nota), los medicamentos (nombre, dosis, cada cuánto,
- * por cuánto tiempo y cuántos) y las recomendaciones, una por línea.
- * La primera vez se le avisa al paciente que ya puede verla en Mis citas.
+ * Pide lo que escribió el médico (el diagnóstico con su código CIE-10 y su
+ * nota), los medicamentos (nombre, dosis, cada cuánto, por cuánto tiempo y
+ * cuántos) y las recomendaciones, una por línea. La primera vez se le avisa
+ * al paciente que ya puede verla en Mis citas.
  *
- * `onGuardar(datos)` devuelve true si se guardó.
+ * `onGuardar(datos)` devuelve true si se guardó; `onCancelar` cierra el formulario.
  */
 
 const MEDICAMENTO_VACIO = { nombre: "", dosis: "", indicacion: "", duracion: "", cantidad: "" };
@@ -29,59 +28,41 @@ const CAMPOS_MEDICAMENTO = [
 function datosIniciales(formula, particular) {
   return {
     diagnostico: formula?.diagnostico ?? "",
+    cie10: formula?.cie10 ?? "",
     nota: formula?.nota ?? "",
-    medicamentos: formula?.medicamentos.length ? formula.medicamentos : [MEDICAMENTO_VACIO],
+    // Sin "entregado": eso lo marca la farmacia, no quien corrige la fórmula.
+    medicamentos: formula?.medicamentos.length
+      ? formula.medicamentos.map(({ nombre, dosis, indicacion, duracion, cantidad }) => ({
+          nombre,
+          dosis,
+          indicacion,
+          duracion,
+          cantidad,
+        }))
+      : [MEDICAMENTO_VACIO],
     recomendaciones: formula?.recomendaciones.join("\n") ?? "",
     cubierta_por_eps: !particular && (formula?.cubierta_por_eps ?? true),
   };
 }
 
-function Resumen({ formula }) {
-  return (
-    <div className="formula-admin__resumen">
-      <p>
-        <strong>{formula.diagnostico}</strong>
-      </p>
-      {formula.nota && <p className="texto-suave">“{formula.nota}”</p>}
-      {formula.medicamentos.length > 0 && (
-        <ul className="formula-admin__lista">
-          {formula.medicamentos.map((m, i) => (
-            <li key={i}>
-              <strong>
-                {m.nombre} {m.dosis}
-              </strong>{" "}
-              · {[m.indicacion, m.duracion, m.cantidad].filter(Boolean).join(" · ")}
-            </li>
-          ))}
-        </ul>
-      )}
-      {formula.recomendaciones.length > 0 && (
-        <ul className="formula-admin__lista">
-          {formula.recomendaciones.map((r, i) => (
-            <li key={i}>{r}</li>
-          ))}
-        </ul>
-      )}
-      <p className="texto-suave">
-        Código {formula.codigo} · vale hasta el {formatearFechaLarga(formula.vence_en).toLowerCase()} ·{" "}
-        {formula.cubierta_por_eps ? "cubierta por la EPS" : "no la cubre la EPS"}
-        <br />
-        Registrada por {formula.registrada_por} el {formatearFechaHora(formula.registrada_en)}
-      </p>
-    </div>
-  );
-}
-
-export default function FormulaAdmin({ formula, particular = false, ocupado, onGuardar }) {
-  const [datos, setDatos] = useState(null); // null: no se está editando
+export default function FormulaAdmin({ formula, particular = false, ocupado, onGuardar, onCancelar }) {
+  const [datos, setDatos] = useState(() => datosIniciales(formula, particular));
 
   const cambiarMedicamento = (i, campo, valor) =>
     setDatos({ ...datos, medicamentos: datos.medicamentos.map((m, j) => (j === i ? { ...m, [campo]: valor } : m)) });
+
+  // Al elegir un código frecuente, si el diagnóstico está vacío se llena con su nombre.
+  function cambiarCie10(valor) {
+    const codigo = valor.toUpperCase();
+    const frecuente = CIE10_FRECUENTES.find(([c]) => c === codigo);
+    setDatos({ ...datos, cie10: codigo, diagnostico: datos.diagnostico || (frecuente ? frecuente[1] : "") });
+  }
 
   async function guardar(evento) {
     evento.preventDefault();
     const ok = await onGuardar({
       diagnostico: datos.diagnostico.trim(),
+      cie10: datos.cie10.trim(),
       nota: datos.nota.trim() || null,
       // Las filas sin nombre no cuentan (p. ej. la vacía del final).
       medicamentos: datos.medicamentos.filter((m) => m.nombre.trim()),
@@ -91,33 +72,16 @@ export default function FormulaAdmin({ formula, particular = false, ocupado, onG
         .filter(Boolean),
       cubierta_por_eps: datos.cubierta_por_eps,
     });
-    if (ok) setDatos(null);
+    if (ok) onCancelar();
   }
 
   return (
     <section className="card" aria-labelledby="titulo-formula-admin">
       <h2 className="admin-card__titulo" id="titulo-formula-admin">
-        Fórmula médica
+        {formula ? "Corregir la fórmula" : "Registrar la fórmula"}
       </h2>
-
-      {datos === null ? (
-        <>
-          {formula ? (
-            <Resumen formula={formula} />
-          ) : (
-            <p className="texto-suave">
-              Todavía no hay fórmula de esta cita. Al registrarla, el paciente la ve en Mis citas con las farmacias donde
-              reclamar sus medicamentos.
-            </p>
-          )}
-          <div className="acciones-admin">
-            <button type="button" className="btn btn--outline" onClick={() => setDatos(datosIniciales(formula, particular))}>
-              {formula ? "Corregir fórmula" : "Registrar fórmula"}
-            </button>
-          </div>
-        </>
-      ) : (
-        <form className="formula-admin" onSubmit={guardar}>
+      <form className="formula-admin" onSubmit={guardar}>
+        <div className="formula-admin__diagnostico">
           <div className="field">
             <label htmlFor="formula_diagnostico">Diagnóstico</label>
             <input
@@ -130,91 +94,113 @@ export default function FormulaAdmin({ formula, particular = false, ocupado, onG
             />
           </div>
           <div className="field">
-            <label htmlFor="formula_nota">Lo que escribió el médico <span className="opcional">(opcional)</span></label>
-            <textarea
-              id="formula_nota"
-              rows={3}
-              maxLength={2000}
-              value={datos.nota}
-              onChange={(e) => setDatos({ ...datos, nota: e.target.value })}
+            <label htmlFor="formula_cie10">Código CIE-10</label>
+            <input
+              id="formula_cie10"
+              required
+              maxLength={12}
+              list="cie10-frecuentes"
+              placeholder="Ej. J02.9"
+              autoComplete="off"
+              value={datos.cie10}
+              onChange={(e) => cambiarCie10(e.target.value)}
             />
+            <datalist id="cie10-frecuentes">
+              {CIE10_FRECUENTES.map(([codigo, nombre]) => (
+                <option key={codigo} value={codigo}>
+                  {nombre}
+                </option>
+              ))}
+            </datalist>
           </div>
+        </div>
+        <div className="field">
+          <label htmlFor="formula_nota">
+            Lo que escribió el médico <span className="opcional">(opcional)</span>
+          </label>
+          <textarea
+            id="formula_nota"
+            rows={3}
+            maxLength={2000}
+            value={datos.nota}
+            onChange={(e) => setDatos({ ...datos, nota: e.target.value })}
+          />
+        </div>
 
-          <fieldset className="formula-admin__medicamentos">
-            <legend>Medicamentos</legend>
-            {datos.medicamentos.map((m, i) => (
-              <div key={i} className="formula-admin__medicamento">
-                <div className="formula-admin__medicamento-cabeza">
-                  <span>Medicamento {i + 1}</span>
-                  <BotonIcono
-                    nombre={`Quitar el medicamento ${i + 1}`}
-                    peligro
-                    onClick={() => setDatos({ ...datos, medicamentos: datos.medicamentos.filter((_, j) => j !== i) })}
-                  >
-                    <IconoQuitar />
-                  </BotonIcono>
-                </div>
-                <div className="formula-admin__campos">
-                  {CAMPOS_MEDICAMENTO.map(([campo, etiqueta, ejemplo, largo, ancho]) => (
-                    <div className={`field ${ancho ? "formula-admin__campo--ancho" : ""}`} key={campo}>
-                      <label htmlFor={`medicamento_${i}_${campo}`}>{etiqueta}</label>
-                      <input
-                        id={`medicamento_${i}_${campo}`}
-                        maxLength={largo}
-                        placeholder={ejemplo}
-                        // Con nombre, hay que decir cómo tomarlo.
-                        required={campo === "indicacion" && Boolean(m.nombre.trim())}
-                        value={m[campo]}
-                        onChange={(e) => cambiarMedicamento(i, campo, e.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
+        <fieldset className="formula-admin__medicamentos">
+          <legend>Medicamentos</legend>
+          {datos.medicamentos.map((m, i) => (
+            <div key={i} className="formula-admin__medicamento">
+              <div className="formula-admin__medicamento-cabeza">
+                <span>Medicamento {i + 1}</span>
+                <BotonIcono
+                  nombre={`Quitar el medicamento ${i + 1}`}
+                  peligro
+                  onClick={() => setDatos({ ...datos, medicamentos: datos.medicamentos.filter((_, j) => j !== i) })}
+                >
+                  <IconoQuitar />
+                </BotonIcono>
               </div>
-            ))}
-            <button
-              type="button"
-              className="btn btn--outline btn--compacto"
-              disabled={datos.medicamentos.length >= 15}
-              onClick={() => setDatos({ ...datos, medicamentos: [...datos.medicamentos, MEDICAMENTO_VACIO] })}
-            >
-              Agregar medicamento
-            </button>
-          </fieldset>
+              <div className="formula-admin__campos">
+                {CAMPOS_MEDICAMENTO.map(([campo, etiqueta, ejemplo, largo, ancho]) => (
+                  <div className={`field ${ancho ? "formula-admin__campo--ancho" : ""}`} key={campo}>
+                    <label htmlFor={`medicamento_${i}_${campo}`}>{etiqueta}</label>
+                    <input
+                      id={`medicamento_${i}_${campo}`}
+                      maxLength={largo}
+                      placeholder={ejemplo}
+                      // Con nombre, hay que decir cómo tomarlo.
+                      required={campo === "indicacion" && Boolean(m.nombre.trim())}
+                      value={m[campo]}
+                      onChange={(e) => cambiarMedicamento(i, campo, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn--outline btn--compacto"
+            disabled={datos.medicamentos.length >= 15}
+            onClick={() => setDatos({ ...datos, medicamentos: [...datos.medicamentos, MEDICAMENTO_VACIO] })}
+          >
+            Agregar medicamento
+          </button>
+        </fieldset>
 
-          <div className="field">
-            <label htmlFor="formula_recomendaciones">Recomendaciones (una por línea)</label>
-            <textarea
-              id="formula_recomendaciones"
-              rows={3}
-              placeholder={"Ej. Tome mucha agua.\nDescanse."}
-              value={datos.recomendaciones}
-              onChange={(e) => setDatos({ ...datos, recomendaciones: e.target.value })}
+        <div className="field">
+          <label htmlFor="formula_recomendaciones">Recomendaciones (una por línea)</label>
+          <textarea
+            id="formula_recomendaciones"
+            rows={3}
+            placeholder={"Ej. Tome mucha agua.\nDescanse."}
+            value={datos.recomendaciones}
+            onChange={(e) => setDatos({ ...datos, recomendaciones: e.target.value })}
+          />
+        </div>
+        {particular ? (
+          <p className="texto-suave">El paciente es particular (sin EPS): sus medicamentos tienen costo.</p>
+        ) : (
+          <label className="opcion-admin opcion-admin--casilla">
+            <input
+              type="checkbox"
+              checked={datos.cubierta_por_eps}
+              onChange={(e) => setDatos({ ...datos, cubierta_por_eps: e.target.checked })}
             />
-          </div>
-          {particular ? (
-            <p className="texto-suave">El paciente es particular (sin EPS): sus medicamentos tienen costo.</p>
-          ) : (
-            <label className="opcion-admin opcion-admin--casilla">
-              <input
-                type="checkbox"
-                checked={datos.cubierta_por_eps}
-                onChange={(e) => setDatos({ ...datos, cubierta_por_eps: e.target.checked })}
-              />
-              <span className="opcion-admin__titulo">Medicamentos cubiertos por la EPS (gratis en farmacias aliadas)</span>
-            </label>
-          )}
+            <span className="opcion-admin__titulo">Medicamentos cubiertos por la EPS (gratis en farmacias aliadas)</span>
+          </label>
+        )}
 
-          <div className="acciones-admin">
-            <button type="submit" className="btn btn--primary" disabled={ocupado}>
-              Guardar fórmula
-            </button>
-            <button type="button" className="btn btn--outline btn--texto-peligro" onClick={() => setDatos(null)}>
-              No, volver
-            </button>
-          </div>
-        </form>
-      )}
+        <div className="acciones-admin">
+          <button type="submit" className="btn btn--primary" disabled={ocupado}>
+            Guardar fórmula
+          </button>
+          <button type="button" className="btn btn--outline btn--texto-peligro" onClick={onCancelar}>
+            No, volver
+          </button>
+        </div>
+      </form>
     </section>
   );
 }

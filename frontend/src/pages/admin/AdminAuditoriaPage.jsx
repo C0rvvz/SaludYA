@@ -40,6 +40,9 @@ const ACCIONES_CITAS = {
   calificar: "Calificar la atención",
   recuperar_cupo: "Recuperar cupo (lista de espera)",
   registrar_formula: "Fórmula médica",
+  ver_historia_clinica: "Consultar historia clínica",
+  reenviar_codigo_formula: "Reenviar código de la fórmula",
+  entrega_farmacia: "Entrega en farmacia",
   pagar_cita: "Pago en línea",
   pago_rechazado: "Pago no aprobado",
 };

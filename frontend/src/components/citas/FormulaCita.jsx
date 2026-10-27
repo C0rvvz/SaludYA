@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { flushSync } from "react-dom";
 import { obtenerFormula } from "../../api/citas";
 import { useAuth } from "../../context/AuthContext";
 import { enlaceAFarmacia } from "../../utils/citas";
 import { formatearDiaMes, formatearHora } from "../../utils/formato";
 import { IconoDescargar, IconoPastilla, IconoUbicacion } from "../Iconos";
+import FormulaImpresa from "./FormulaImpresa";
 
 /**
  * Fórmula médica de una cita atendida, en su detalle de "Mis citas":
@@ -91,57 +92,6 @@ function Farmacia({ farmacia: f, gratis }) {
         </a>
       </div>
     </li>
-  );
-}
-
-/** La fórmula para imprimir o guardar en PDF ("Descargar fórmula"): solo existe mientras se imprime. */
-function FormulaImpresa({ formula, paciente }) {
-  return createPortal(
-    <div className="formula-impresa">
-      <p className="formula-impresa__marca">SaludYA · Fórmula médica</p>
-      <h1>{formula.especialidad}</h1>
-      <p>
-        {formula.especialista} · {formatearDiaMes(formula.fecha)}, {formatearHora(formula.hora)} · {formula.sede}
-      </p>
-      {paciente && <p>Paciente: {paciente.nombre}</p>}
-      <h2>Diagnóstico</h2>
-      <p>{formula.diagnostico}</p>
-      {formula.nota && <p>“{formula.nota}”</p>}
-      {formula.medicamentos.length > 0 && (
-        <>
-          <h2>Medicamentos</h2>
-          <ul>
-            {formula.medicamentos.map((m, i) => (
-              <li key={i}>
-                <strong>
-                  {m.nombre} {m.dosis}
-                </strong>{" "}
-                — {[m.indicacion, m.duracion, m.cantidad].filter(Boolean).join(" · ")}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {formula.recomendaciones.length > 0 && (
-        <>
-          <h2>Recomendaciones</h2>
-          <ul>
-            {formula.recomendaciones.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      <div className="formula-impresa__codigo">
-        <img src={formula.qr} width="140" height="140" alt="" />
-        <p>
-          Código <strong>{formula.codigo}</strong>
-          <br />
-          Vale hasta el {formatearDiaMes(formula.vence_en)}
-        </p>
-      </div>
-    </div>,
-    document.body
   );
 }
 
@@ -271,7 +221,7 @@ export default function FormulaCita({ citaId }) {
         </section>
       )}
 
-      {imprimiendo && <FormulaImpresa formula={formula} paciente={paciente} />}
+      {imprimiendo && <FormulaImpresa formula={formula} qr={formula.qr} paciente={paciente?.nombre} />}
     </>
   );
 }

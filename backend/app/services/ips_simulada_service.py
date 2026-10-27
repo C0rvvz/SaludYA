@@ -16,6 +16,9 @@ tarea de fondo) o cuando el administrador la pide desde "Especialistas":
 - Se genera la agenda de todos para los próximos 10 días hábiles.
 - Llegan las fórmulas médicas de las citas atendidas que todavía no la
   tienen (formulas_service.simular_desde_ips).
+- Las farmacias aliadas entregan medicamentos de algunas fórmulas vigentes
+  (formulas_service.simular_entregas): así la historia clínica muestra
+  entregas completas, parciales y por reclamar.
 
 Cada actualización queda en sincronizaciones_ips y en la auditoría.
 """
@@ -109,6 +112,7 @@ def sincronizar(db: Session, quien: Personal | None, rng: random.Random | None =
     nuevos = _llegan_nuevos(db, rng, cuantos)
     tanda = disponibilidad_service.generar_franjas(db)
     formulas = formulas_service.simular_desde_ips(db, IPS, rng)
+    entregas = formulas_service.simular_entregas(db, rng)
 
     partes = []
     if nuevos:
@@ -120,6 +124,8 @@ def sincronizar(db: Session, quien: Personal | None, rng: random.Random | None =
     if formulas:
         partes.append(f"Llegaron {formulas} fórmula{'s' if formulas != 1 else ''} médica{'s' if formulas != 1 else ''} "
                       "de citas atendidas")
+    if entregas:
+        partes.append(f"Las farmacias aliadas entregaron medicamentos de {entregas} fórmula{'s' if entregas != 1 else ''}")
     sincronizacion = SincronizacionIps(
         origen="manual" if quien else "automatica",
         solicitada_por=nombre_personal(quien) if quien else None,

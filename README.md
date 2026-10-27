@@ -17,14 +17,15 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
 - Calificar la atención de una cita atendida (HU-71).
 
 **Personal administrativo** (`/admin`)
-- Gestión de citas, contacto, observaciones, resultado de la atención y fórmula médica (HU-34 a HU-43).
+- Gestión de citas, contacto, observaciones y resultado de la atención (HU-34 a HU-43).
+- Historia clínica (acceso restringido): solo la ven los roles Médico y Coordinación médica, con un candado en el menú; los demás ven "No tiene permiso para ver esta información". Pacientes atendidos con buscador y filtros (especialidad, EPS y periodo); en el detalle, el diagnóstico con su código CIE-10, la nota del médico, los medicamentos con el estado de entrega de cada uno, las recomendaciones, la entrega en farmacia ("Descargar fórmula" y "Reenviar código al paciente") y "Quién ha consultado esta fórmula". Cada consulta queda en la auditoría. Una cuenta Médico es la de un médico de la red: solo ve a sus pacientes (los que atendió o tienen cita con él) y solo corrige la fórmula de sus consultas. El administrador no ve la historia clínica.
 - Resumen y reportes por periodo (HU-44 a HU-52, HU-68 a HU-75).
-- Especialistas con su horario semanal, sedes de la red y la actualización simulada de la IPS (que también trae las fórmulas de las citas atendidas).
+- Especialistas con su horario semanal, sedes de la red y la actualización simulada de la IPS (que también trae las fórmulas de las citas atendidas y las entregas de las farmacias aliadas).
 - Lista de espera (HU-45, HU-53 a HU-61) y centro de recordatorios (HU-62 a HU-67).
 - Solicitudes y revisión clínica (HU-76 a HU-79).
 - Auditoría de todas las acciones sobre las citas (HU-80 a HU-85).
 - Seguridad: ingresos fallidos, cuentas bloqueadas, sesiones abiertas y alertas; los datos médicos se guardan cifrados (AES-256).
-- Usuarios del personal con roles: administrador, agendamiento, call center y coordinador médico.
+- Usuarios del personal con roles: administrador, agendamiento, call center, Coordinación médica y médico.
 
 ## Tecnologías
 

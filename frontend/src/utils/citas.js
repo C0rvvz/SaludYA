@@ -1,6 +1,14 @@
 // Constantes y ayudas compartidas por "Mis citas" y el asistente.
 import { formatearHora } from "./formato";
 
+// Sigla del tipo de documento, para las tablas y encabezados del personal: "CC 1038456210".
+export const SIGLA_DOCUMENTO = {
+  cedula_ciudadania: "CC",
+  cedula_extranjeria: "CE",
+  tarjeta_identidad: "TI",
+  pasaporte: "Pasaporte",
+};
+
 export const CANALES = {
   whatsapp: "WhatsApp",
   sms: "Mensaje de texto",

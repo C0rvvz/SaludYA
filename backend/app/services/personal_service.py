@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.permisos import NOMBRE_ROL
+from app.models.especialista import Especialista
 from app.core.security import TIPO_PERSONAL, hash_password, verificar_password
 from app.models.personal import Personal, RolPersonal
 from app.models.sesion import MotivoCierre
@@ -115,8 +116,35 @@ def autenticar(db: Session, correo: str, password: str) -> Personal:
     return personal
 
 
+def _medico_de_la_cuenta(
+    db: Session, rol: RolPersonal, especialista_id: uuid.UUID | None, cuenta_id: uuid.UUID | None = None
+) -> Especialista | None:
+    """
+    Con el rol Médico, la cuenta es la de un médico de la red (activo y sin
+    otra cuenta): en la historia clínica solo verá a sus pacientes. Con
+    otro rol, ninguno.
+    """
+    if rol != RolPersonal.MEDICO:
+        return None
+    if especialista_id is None:
+        raise PersonalInvalidoError("Con el rol Médico, elija qué médico de la red es.")
+    especialista = db.get(Especialista, especialista_id)
+    if especialista is None or not especialista.activo:
+        raise PersonalInvalidoError("Ese médico no está activo en la red.")
+    otra = db.query(Personal).filter(Personal.especialista_id == especialista_id, Personal.id != cuenta_id).first()
+    if otra is not None:
+        raise PersonalInvalidoError(f"{especialista.nombre} ya tiene una cuenta: la de {otra.nombre}.")
+    return especialista
+
+
 def crear(
-    db: Session, nombre: str, correo: str, rol: RolPersonal, password: str, quien_crea: Personal | None = None
+    db: Session,
+    nombre: str,
+    correo: str,
+    rol: RolPersonal,
+    password: str,
+    quien_crea: Personal | None = None,
+    especialista_id: uuid.UUID | None = None,
 ) -> Personal:
     """`quien_crea`: el administrador que la crea; None si se crea desde la consola (scripts/crear_personal.py)."""
     correo = _normalizar_correo(correo)
@@ -125,6 +153,7 @@ def crear(
     _validar_password(password, correo)
     if personal_repository.obtener_por_correo(db, correo) is not None:
         raise PersonalInvalidoError("Ya existe una cuenta con ese correo.")
+    medico = _medico_de_la_cuenta(db, rol, especialista_id)
 
     personal = Personal(
         nombre=nombre.strip(),
@@ -132,12 +161,14 @@ def crear(
         password_hash=hash_password(password),
         rol=rol,
         activo=True,
+        especialista=medico,
     )
     db.add(personal)
     db.flush()  # para guardar el id de la cuenta en la auditoría
     auditoria_service.registrar(
         db, Actor.de_personal(quien_crea) if quien_crea else SISTEMA, "crear_cuenta",
         f"Creó la cuenta de {personal.nombre} con el rol {NOMBRE_ROL[rol]}"
+        + (f" ({medico.nombre})" if medico else "")
         + ("" if quien_crea else " (desde la consola del servidor)"),
         cuenta=personal,
     )
@@ -188,10 +219,21 @@ def actualizar(
     rol: RolPersonal | None = None,
     activo: bool | None = None,
     password: str | None = None,
+    especialista_id: uuid.UUID | None = None,
 ) -> Personal:
+    """`especialista_id`: qué médico es, al pasar al rol Médico (o para cambiarlo, si ya lo es)."""
     personal = personal_repository.obtener_por_id(db, personal_id)
     if personal is None:
         raise PersonalInvalidoError("No existe esa cuenta.")
+    rol_final = rol if rol is not None else personal.rol
+    cambia_medico = rol_final == RolPersonal.MEDICO and (
+        personal.rol != RolPersonal.MEDICO or (especialista_id is not None and especialista_id != personal.especialista_id)
+    )
+    medico = (
+        _medico_de_la_cuenta(db, rol_final, especialista_id or personal.especialista_id, personal.id)
+        if cambia_medico or rol_final != personal.rol
+        else personal.especialista
+    )
 
     deja_de_ser_admin_activo = personal.rol == RolPersonal.ADMINISTRADOR and personal.activo and (
         activo is False or (rol is not None and rol != RolPersonal.ADMINISTRADOR)
@@ -213,12 +255,20 @@ def actualizar(
         (rol is not None and rol != personal.rol)
         or (activo is False and personal.activo)
         or password is not None
+        or cambia_medico  # otro médico: otros pacientes en la historia clínica
     )
     _auditar_cambios(db, personal, Actor.de_personal(quien_modifica), nombre, rol, activo, password is not None)
+    if cambia_medico and rol == personal.rol:
+        auditoria_service.registrar(
+            db, Actor.de_personal(quien_modifica), "cambiar_rol", f"Cambió el médico de la cuenta de {personal.nombre}",
+            cuenta=personal, estado_anterior=personal.especialista.nombre[:60] if personal.especialista else None,
+            estado_nuevo=medico.nombre[:60],
+        )
     if nombre is not None:
         personal.nombre = nombre.strip()
     if rol is not None:
         personal.rol = rol
+    personal.especialista = medico
     if activo is not None:
         personal.activo = activo
     if password is not None:

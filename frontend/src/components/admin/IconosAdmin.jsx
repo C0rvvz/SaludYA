@@ -69,8 +69,16 @@ export const IconoInfo = () => (
   </Svg>
 );
 
+/** Información reservada (Historia clínica): en el menú y en "No tiene permiso". */
+export const IconoCandado = ({ tamano = 13 }) => (
+  <Svg tamano={tamano}>
+    <rect x="5" y="10.5" width="14" height="10" rx="2.5" {...trazo} />
+    <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" {...trazo} />
+  </Svg>
+);
+
 /**
- * Acción secundaria de una fila: botón cuadrado de 32 px con ícono.
+ * Acción secundaria de una fila: botón redondo de 32 px con ícono.
  * `nombre` es lo que se lee (title y aria-label). Con `href` es un enlace
  * (p. ej. "tel:" para llamar). `peligro`: en rojo (cancelar, retirar).
  */

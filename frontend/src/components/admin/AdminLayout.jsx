@@ -2,11 +2,13 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { usePersonal } from "../../context/personal";
 import { iniciales } from "../../utils/avatar";
 import { IconoSalir } from "../Iconos";
+import { IconoCandado } from "./IconosAdmin";
 import "../../styles/admin.css";
 
 // Solo aparecen las secciones que el rol puede usar (mínimo privilegio: ver
 // core/permisos.py en el backend). Cada una dice debajo, en pocas palabras,
-// para qué sirve: nadie tiene que entrar a adivinarlo.
+// para qué sirve: nadie tiene que entrar a adivinarlo. Las de información
+// reservada llevan un candado (`reservada`).
 const SECCIONES = [
   { to: "/admin/dashboard", texto: "Resumen", ayuda: "Indicadores del día y del mes", permiso: "ver_reportes" },
   { to: "/admin/reportes", texto: "Reportes", ayuda: "Indicadores por periodo", permiso: "ver_reportes" },
@@ -28,6 +30,13 @@ const SECCIONES = [
     texto: "Solicitudes",
     ayuda: "Peticiones de los pacientes",
     permiso: "revisar_solicitudes",
+  },
+  {
+    to: "/admin/historia-clinica",
+    texto: "Historia clínica",
+    ayuda: "Fórmulas y diagnósticos",
+    permiso: "historia_clinica",
+    reservada: true,
   },
   { to: "/admin/especialistas", texto: "Especialistas", ayuda: "Médicos, sedes y farmacias", permiso: "gestionar_especialistas" },
   { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
@@ -85,7 +94,15 @@ export default function AdminLayout() {
               to={s.to}
               className={({ isActive }) => `admin-nav__enlace ${isActive ? "is-active" : ""}`}
             >
-              <span>{s.texto}</span>
+              <span className={s.reservada ? "admin-nav__reservada" : undefined}>
+                {s.texto}
+                {s.reservada && (
+                  <>
+                    <IconoCandado />
+                    <span className="sr-only">, información reservada</span>
+                  </>
+                )}
+              </span>
               <span className="admin-nav__ayuda">{s.ayuda}</span>
             </NavLink>
           ))}

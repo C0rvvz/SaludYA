@@ -5,6 +5,7 @@ import RutaProtegida from "./components/RutaProtegida";
 import SubirAlCambiarDePagina from "./components/SubirAlCambiarDePagina";
 import RutaPersonal from "./components/admin/RutaPersonal";
 import AdminLayout from "./components/admin/AdminLayout";
+import SinPermisoHistoria from "./components/admin/SinPermisoHistoria";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegistroPage from "./pages/RegistroPage";
@@ -29,6 +30,8 @@ import AdminRecordatoriosPage from "./pages/admin/AdminRecordatoriosPage";
 import AdminListaEsperaPage from "./pages/admin/AdminListaEsperaPage";
 import AdminSolicitudesPage from "./pages/admin/AdminSolicitudesPage";
 import AdminRevisionPage from "./pages/admin/AdminRevisionPage";
+import AdminHistoriaClinicaPage from "./pages/admin/AdminHistoriaClinicaPage";
+import AdminHistoriaDetallePage from "./pages/admin/AdminHistoriaDetallePage";
 
 export default function App() {
   return (
@@ -159,6 +162,16 @@ export default function App() {
                   </RutaPersonal>
                 }
               />
+              {/* Información reservada: sin el permiso, "No tiene permiso para ver esta información" */}
+              <Route
+                path="historia-clinica"
+                element={
+                  <RutaPersonal permiso="historia_clinica" sinPermiso={<SinPermisoHistoria />}>
+                    <AdminHistoriaClinicaPage />
+                  </RutaPersonal>
+                }
+              />
+              <Route path="historia-clinica/:citaId" element={<AdminHistoriaDetallePage />} />
               <Route
                 path="especialistas"
                 element={

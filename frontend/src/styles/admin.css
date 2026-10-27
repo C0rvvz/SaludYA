@@ -1293,21 +1293,215 @@
   align-self: flex-start;
 }
 
-/* --- Fórmula médica de una cita atendida --- */
-.formula-admin,
-.formula-admin__resumen {
+/* --- Fórmula médica de una cita atendida (registrar o corregir) --- */
+.formula-admin {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.formula-admin__resumen p {
+/* Diagnóstico y su código CIE-10, lado a lado */
+.formula-admin__diagnostico {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr);
+  gap: 12px;
+}
+
+.formula-admin__diagnostico .field {
   margin: 0;
 }
 
-.formula-admin__lista {
+/* --- Historia clínica (información reservada) --- */
+.admin-nav__reservada {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-nav__reservada > svg {
+  color: var(--admin-texto-tenue);
+}
+
+.info-admin--reservado > svg,
+.titulo-reservado > svg {
+  color: var(--color-ink-soft);
+}
+
+.titulo-reservado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-encabezado__estado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.historia-clinica {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.historia-clinica__principal,
+.historia-clinica__lado {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.datos-hc {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.datos-hc--diagnostico {
+  grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr);
+}
+
+.dato-hc dt {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dato-hc dd {
+  margin: 2px 0 0;
+  font-size: 0.875rem;
+}
+
+.codigo-cie10 {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-surface-2);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.nota-medico {
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 8px 8px 0;
+  background: var(--color-surface-2);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.lista-hc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding-left: 20px;
+  font-size: 0.875rem;
+}
+
+.accesos-hc,
+.consultas-hc {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accesos-hc li,
+.consultas-hc li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--admin-borde);
+  font-size: 0.8125rem;
+}
+
+.accesos-hc li:last-child,
+.consultas-hc li:last-child {
+  border-bottom: 0;
+}
+
+.accesos-hc__fecha {
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+
+.consultas-hc li.is-actual {
+  font-weight: 600;
+}
+
+/* "No tiene permiso para ver esta información" */
+.sin-permiso {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 680px;
+  padding: 32px;
+}
+
+.sin-permiso__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-ink-soft);
+}
+
+.sin-permiso__titulo {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.sin-permiso__texto {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.paginacion-admin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.celda-nowrap {
+  white-space: nowrap;
+}
+
+.enlace-fila {
+  color: inherit;
+  text-decoration: none;
+}
+
+.enlace-fila:hover,
+.enlace-fila:focus-visible {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+  .historia-clinica,
+  .formula-admin__diagnostico,
+  .datos-hc--diagnostico {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .formula-admin__medicamentos {
@@ -1373,6 +1567,11 @@
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   align-items: end;
   gap: 12px;
+}
+
+/* Rol Médico: un campo más ("¿Qué médico es?") */
+.nueva-cuenta--medico {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
 }
 
 @media (max-width: 1100px) {

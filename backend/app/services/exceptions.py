@@ -147,6 +147,10 @@ class SedeInvalidaError(Exception):
     """Datos de una sede que no se pueden guardar, o una sede que todavía tiene turnos (RF-89)."""
 
 
+class HistoriaClinicaRestringidaError(Exception):
+    """El médico intenta ver o corregir la historia clínica de alguien que no es su paciente."""
+
+
 class PagoInvalidoError(Exception):
     """Un pago que no se puede hacer: la cita no se ha atendido, ya está pagada o la tarjeta no sirve."""
 

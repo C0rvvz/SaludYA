@@ -14,7 +14,7 @@ from collections import defaultdict
 from sqlalchemy.orm import Session
 
 from app.core.permisos import PERMISOS_POR_ROL, Permiso
-from app.models.cita import Cita, EstadoCita
+from app.models.cita import Cita
 from app.models.observacion import Observacion
 from app.models.personal import Personal
 from app.repositories import cita_repository, observacion_repository, paciente_repository
@@ -42,8 +42,6 @@ def acciones_para(cita: Cita, personal: Personal) -> dict[str, bool]:
         "contactar": Permiso.RECORDATORIOS in permisos,
         "registrar_resultado": Permiso.REGISTRAR_ATENCION in permisos and citas_service.puede_registrar_resultado(cita),
         "observar": Permiso.OBSERVACIONES in permisos,
-        # Registrar o corregir la fórmula médica (formulas_service): solo de una cita atendida.
-        "formula": Permiso.REGISTRAR_ATENCION in permisos and cita.estado == EstadoCita.ATENDIDA,
     }
 
 

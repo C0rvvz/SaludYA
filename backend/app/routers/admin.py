@@ -22,7 +22,7 @@ Gestión de citas
   POST  /admin/citas/{id}/recordatorio    HU-36
   POST  /admin/citas/{id}/contacto        HU-37
   POST  /admin/citas/{id}/resultado       HU-25 / HU-43 (atendida o no asistió)
-  PUT   /admin/citas/{id}/formula         fórmula médica de una cita atendida
+  (el diagnóstico y la fórmula médica están en routers/historia_clinica.py: acceso restringido)
   POST  /admin/pacientes/{id}/observaciones  HU-41
 
 Auditoría
@@ -123,7 +123,6 @@ from app.schemas.admin import (
     RolOut,
 )
 from app.schemas.cita import CancelarCitaRequest, EstadoVisible, ReprogramarCitaRequest
-from app.schemas.formula import FormulaRequest
 from app.schemas.especialistas import (
     CrearEspecialistaRequest,
     EspecialistaAdminOut,
@@ -170,7 +169,6 @@ from app.services import (
     comprobante_service,
     especialistas_service,
     farmacias_service,
-    formulas_service,
     ips_simulada_service,
     sedes_service,
     personal_service,
@@ -240,6 +238,8 @@ def _personal_out(p: Personal) -> PersonalOut:
         correo=p.correo,
         rol=p.rol,
         rol_texto=NOMBRE_ROL[p.rol],
+        especialista_id=p.especialista_id,
+        especialista=p.especialista.nombre if p.especialista else None,
         activo=p.activo,
         permisos=sorted(permiso.value for permiso in PERMISOS_POR_ROL[p.rol]),
         creado_en=p.creado_en,
@@ -377,7 +377,6 @@ def _detalle(db: Session, cita_id: uuid.UUID, personal: Personal) -> CitaAdminDe
             _observacion_out(o) for o in admin_citas_service.observaciones_del_paciente(db, paciente.id)
         ],
         auditoria=auditoria,
-        formula=formulas_service.datos(cita.formula) if campos["acciones"].formula and cita.formula else None,
     )
 
 
@@ -476,7 +475,10 @@ def crear_usuario(
 ):
     try:
         return _personal_out(
-            personal_service.crear(db, datos.nombre, datos.correo, datos.rol, datos.password, quien_crea=admin)
+            personal_service.crear(
+                db, datos.nombre, datos.correo, datos.rol, datos.password, quien_crea=admin,
+                especialista_id=datos.especialista_id,
+            )
         )
     except PersonalInvalidoError as e:
         raise _http(e)
@@ -494,6 +496,7 @@ def actualizar_usuario(
             personal_service.actualizar(
                 db, personal_id, admin,
                 nombre=datos.nombre, rol=datos.rol, activo=datos.activo, password=datos.password,
+                especialista_id=datos.especialista_id,
             )
         )
     except PersonalInvalidoError as e:
@@ -625,24 +628,6 @@ def registrar_resultado(
     resultado = EstadoCita.ATENDIDA if datos.resultado == "atendida" else EstadoCita.NO_ASISTIO
     try:
         citas_service.registrar_resultado(db, cita_id, resultado, actor=Actor.de_personal(personal))
-        return _detalle(db, cita_id, personal)
-    except _ERRORES as e:
-        raise _http(e)
-
-
-@router.put("/citas/{cita_id}/formula", response_model=CitaAdminDetalleOut)
-def registrar_formula(
-    cita_id: uuid.UUID,
-    datos: FormulaRequest,
-    personal: Personal = Depends(requiere(Permiso.REGISTRAR_ATENCION)),
-    db: Session = Depends(get_db),
-):
-    """Registrar o corregir lo que formuló el médico; la primera vez se le avisa al paciente."""
-    try:
-        formulas_service.registrar(
-            db, Actor.de_personal(personal), cita_id, datos.diagnostico, datos.nota,
-            [m.model_dump() for m in datos.medicamentos], datos.recomendaciones, datos.cubierta_por_eps,
-        )
         return _detalle(db, cita_id, personal)
     except _ERRORES as e:
         raise _http(e)

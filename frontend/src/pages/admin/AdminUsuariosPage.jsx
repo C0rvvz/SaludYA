@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { actualizarUsuario, crearUsuario, listarRoles, listarUsuarios } from "../../api/admin";
+import {
+  actualizarUsuario,
+  crearUsuario,
+  listarEspecialistasAdmin,
+  listarRoles,
+  listarUsuarios,
+} from "../../api/admin";
 import { BotonIcono, IconoLlave } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
 import { usePersonal } from "../../context/personal";
@@ -8,13 +14,16 @@ import { iniciales } from "../../utils/avatar";
 /**
  * Cuentas del personal (solo administradores). Las cuentas no se borran:
  * se desactivan, para que la auditoría conserve quién hizo cada acción.
+ * Una cuenta con el rol Médico es la de un médico de la red: en la
+ * historia clínica solo ve a sus pacientes.
  */
 
 const ROLES = [
   ["administrador", "Administrador"],
   ["agendamiento", "Agendamiento"],
   ["call_center", "Call center"],
-  ["coordinador_medico", "Coordinador médico"],
+  ["coordinador_medico", "Coordinación médica"],
+  ["medico", "Médico"],
 ];
 
 const NOMBRE_ROL = Object.fromEntries(ROLES);
@@ -30,6 +39,7 @@ const QUE_PUEDE = [
   ["asignar_prioridad", "Prioridad médica en la lista de espera"],
   ["revisar_solicitudes", "Revisar y decidir las peticiones"],
   ["registrar_atencion", "Registrar si fue atendido o no asistió"],
+  ["historia_clinica", "Historia clínica: diagnósticos y fórmulas"],
   ["ver_reportes", "Resumen y reportes"],
   ["gestionar_especialistas", "Especialistas, sus horarios y la IPS"],
   ["ver_auditoria", "Auditoría"],
@@ -92,7 +102,21 @@ function TablaRoles({ roles }) {
 // Debe coincidir con MIN_LONGITUD_PASSWORD del backend (personal_service.py).
 const MIN_CLAVE = 12;
 
-const NUEVO = { nombre: "", correo: "", rol: "agendamiento", password: "" };
+const NUEVO = { nombre: "", correo: "", rol: "agendamiento", password: "", especialista_id: "" };
+
+/** "¿Qué médico es?": los médicos activos de la red que todavía no tienen cuenta (más el elegido). */
+function SelectorMedico({ id, especialistas, valor, onCambiar }) {
+  return (
+    <select id={id} value={valor} required onChange={(e) => onCambiar(e.target.value)}>
+      <option value="">Elija el médico</option>
+      {especialistas.map((e) => (
+        <option key={e.id} value={e.id}>
+          {e.nombre} · {e.especialidad.nombre}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 /**
  * Cambiar el rol o desactivar una cuenta cambia lo que esa persona puede
@@ -104,7 +128,10 @@ function confirmacionPara(usuario, cambios) {
   if ("rol" in cambios) {
     return {
       pregunta: `¿Desea cambiar el rol de ${usuario.nombre} de ${NOMBRE_ROL[usuario.rol]} a ${NOMBRE_ROL[cambios.rol]}?`,
-      detalle: "Sus permisos cambian de inmediato y su sesión abierta se cierra.",
+      detalle:
+        cambios.rol === "medico"
+          ? "Elija qué médico de la red es: en la historia clínica solo verá a sus pacientes. Su sesión abierta se cierra."
+          : "Sus permisos cambian de inmediato y su sesión abierta se cierra.",
       boton: "Sí, cambiar el rol",
       exito: `Rol de ${usuario.nombre} actualizado.`,
     };
@@ -135,6 +162,7 @@ export default function AdminUsuariosPage() {
   const [claveDe, setClaveDe] = useState(null); // id del usuario al que se le cambia la contraseña
   const [clave, setClave] = useState("");
   const [porConfirmar, setPorConfirmar] = useState(null); // { usuario, cambios, pregunta, ... }
+  const [especialistas, setEspecialistas] = useState([]);
 
   const cargar = useCallback(
     () =>
@@ -150,7 +178,14 @@ export default function AdminUsuariosPage() {
     listarRoles()
       .then(setRoles)
       .catch(() => setRoles([]));
+    listarEspecialistasAdmin()
+      .then((lista) => setEspecialistas(lista.filter((e) => e.activo)))
+      .catch(() => setEspecialistas([]));
   }, [cargar]);
+
+  // Para el rol Médico: los que todavía no tienen cuenta (un médico, una cuenta).
+  const conCuenta = new Set(usuarios.map((u) => u.especialista_id).filter(Boolean));
+  const medicosSinCuenta = especialistas.filter((e) => !conCuenta.has(e.id));
 
   async function ejecutar(accion, texto) {
     setOcupado(true);
@@ -170,7 +205,8 @@ export default function AdminUsuariosPage() {
 
   async function crear(evento) {
     evento.preventDefault();
-    if (await ejecutar(() => crearUsuario(nuevo), `Cuenta creada para ${nuevo.nombre}.`)) setNuevo(NUEVO);
+    const datos = { ...nuevo, especialista_id: nuevo.rol === "medico" ? nuevo.especialista_id : null };
+    if (await ejecutar(() => crearUsuario(datos), `Cuenta creada para ${nuevo.nombre}.`)) setNuevo(NUEVO);
   }
 
   function pedirConfirmacion(usuario, cambios) {
@@ -197,7 +233,8 @@ export default function AdminUsuariosPage() {
         <div>
           <h1 className="admin-titulo">Usuarios del personal</h1>
           <p className="admin-subtitulo">
-            Creación de cuentas y asignación de roles. Al desactivar una cuenta, el acceso se revoca de inmediato.
+            Creación de cuentas y asignación de roles. Solo los roles Médico y Coordinación médica pueden ver la historia
+            clínica. Al desactivar una cuenta, el acceso se revoca de inmediato.
           </p>
         </div>
       </div>
@@ -213,10 +250,21 @@ export default function AdminUsuariosPage() {
           <p id="confirmar-cuenta">
             <strong>{porConfirmar.pregunta}</strong> {porConfirmar.detalle}
           </p>
+          {porConfirmar.cambios.rol === "medico" && (
+            <div className="field">
+              <label htmlFor="medico_de_la_cuenta">¿Qué médico es?</label>
+              <SelectorMedico
+                id="medico_de_la_cuenta"
+                especialistas={medicosSinCuenta}
+                valor={porConfirmar.cambios.especialista_id ?? ""}
+                onCambiar={(id) => setPorConfirmar({ ...porConfirmar, cambios: { ...porConfirmar.cambios, especialista_id: id } })}
+              />
+            </div>
+          )}
           <div className="acciones-admin">
             <button
               className={`btn ${porConfirmar.peligro ? "btn--peligro" : "btn--primary"}`}
-              disabled={ocupado}
+              disabled={ocupado || (porConfirmar.cambios.rol === "medico" && !porConfirmar.cambios.especialista_id)}
               onClick={confirmar}
               // El foco salta aquí: quien cambió el rol ve la pregunta aunque esté más abajo en la tabla.
               autoFocus
@@ -234,7 +282,7 @@ export default function AdminUsuariosPage() {
         <h2 className="admin-card__titulo" id="titulo-nueva-cuenta">
           Nueva cuenta
         </h2>
-        <div className="nueva-cuenta">
+        <div className={`nueva-cuenta ${nuevo.rol === "medico" ? "nueva-cuenta--medico" : ""}`}>
           <div className="field">
             <label htmlFor="nombre">Nombre completo</label>
             <input
@@ -266,6 +314,17 @@ export default function AdminUsuariosPage() {
               ))}
             </select>
           </div>
+          {nuevo.rol === "medico" && (
+            <div className="field">
+              <label htmlFor="medico_nuevo">¿Qué médico es?</label>
+              <SelectorMedico
+                id="medico_nuevo"
+                especialistas={medicosSinCuenta}
+                valor={nuevo.especialista_id}
+                onCambiar={(id) => setNuevo({ ...nuevo, especialista_id: id })}
+              />
+            </div>
+          )}
           <div className="field">
             <label htmlFor="clave_nueva">Contraseña inicial</label>
             <input
@@ -320,18 +379,21 @@ export default function AdminUsuariosPage() {
                         <span className="celda-doble__dato">Su cuenta</span>
                       </span>
                     ) : (
-                      <select
-                        aria-label={`Rol de ${u.nombre}`}
-                        value={u.rol}
-                        disabled={ocupado}
-                        onChange={(e) => pedirConfirmacion(u, { rol: e.target.value })}
-                      >
-                        {ROLES.map(([valor, texto]) => (
-                          <option key={valor} value={valor}>
-                            {texto}
-                          </option>
-                        ))}
-                      </select>
+                      <span className="celda-doble">
+                        <select
+                          aria-label={`Rol de ${u.nombre}`}
+                          value={u.rol}
+                          disabled={ocupado}
+                          onChange={(e) => pedirConfirmacion(u, { rol: e.target.value })}
+                        >
+                          {ROLES.map(([valor, texto]) => (
+                            <option key={valor} value={valor}>
+                              {texto}
+                            </option>
+                          ))}
+                        </select>
+                        {u.especialista && <span className="celda-doble__dato">{u.especialista}</span>}
+                      </span>
                     )}
                   </td>
                   <td>

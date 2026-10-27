@@ -74,9 +74,24 @@ export function registrarResultadoAdmin(id, resultado) {
   return conPersonal(`/admin/citas/${id}/resultado`, { method: "POST", body: { resultado } });
 }
 
-// Registrar o corregir la fórmula médica de una cita atendida.
-export function registrarFormulaAdmin(id, datos) {
-  return conPersonal(`/admin/citas/${id}/formula`, { method: "PUT", body: datos });
+// --- Historia clínica (acceso restringido: Médico y Coordinación médica) ---
+// filtros: { buscar, especialidad_id, eps (id o "particular"), periodo ("7", "30", "90", "365", "todo"), pagina }
+export function listarHistoriaClinica(filtros = {}) {
+  return conPersonal(conFiltros("/admin/historia-clinica", filtros));
+}
+
+// Cada consulta queda en la auditoría ("Quién ha consultado esta fórmula").
+export function obtenerHistoriaClinica(citaId) {
+  return conPersonal(`/admin/historia-clinica/${citaId}`);
+}
+
+// Registrar o corregir la fórmula médica de una cita atendida (con su código CIE-10).
+export function registrarFormulaAdmin(citaId, datos) {
+  return conPersonal(`/admin/historia-clinica/${citaId}/formula`, { method: "PUT", body: datos });
+}
+
+export function reenviarCodigoFormula(citaId) {
+  return conPersonal(`/admin/historia-clinica/${citaId}/reenviar-codigo`, { method: "POST" });
 }
 
 export function agregarObservacionAdmin(pacienteId, texto, citaId) {

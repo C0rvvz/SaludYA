@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.personal import RolPersonal
 from app.schemas.cita import EstadoVisible, EventoCitaOut
-from app.schemas.formula import FormulaOut
 
 # --- Cuentas del personal ---
 
@@ -28,6 +27,9 @@ class PersonalOut(BaseModel):
     correo: str
     rol: RolPersonal
     rol_texto: str
+    # Rol Médico: qué médico de la red es (en la historia clínica solo ve a sus pacientes).
+    especialista_id: uuid.UUID | None = None
+    especialista: str | None = None
     activo: bool
     # El frontend solo los usa para mostrar u ocultar opciones; cada
     # endpoint vuelve a verificar el permiso.
@@ -57,6 +59,7 @@ class CrearPersonalRequest(BaseModel):
     correo: EmailStr
     rol: RolPersonal
     password: str = Field(min_length=12, max_length=128)
+    especialista_id: uuid.UUID | None = None  # obligatorio con el rol Médico
 
 
 class ActualizarPersonalRequest(BaseModel):
@@ -66,6 +69,7 @@ class ActualizarPersonalRequest(BaseModel):
     rol: RolPersonal | None = None
     activo: bool | None = None
     password: str | None = Field(default=None, min_length=12, max_length=128)
+    especialista_id: uuid.UUID | None = None  # al pasar al rol Médico
 
 
 # --- Gestión de citas (HU-34 a HU-43) ---
@@ -97,7 +101,6 @@ class AccionesCitaOut(BaseModel):
     contactar: bool
     registrar_resultado: bool
     observar: bool
-    formula: bool
 
 
 class CitaAdminOut(BaseModel):
@@ -185,8 +188,6 @@ class CitaAdminDetalleOut(CitaAdminOut):
     contactos: list[RegistroAuditoriaOut]  # HU-37 criterio 4
     observaciones: list[ObservacionOut]  # HU-41
     auditoria: list[RegistroAuditoriaOut]  # HU-43 criterio 4
-    # Datos médicos: solo para quien registra la atención (acciones.formula).
-    formula: FormulaOut | None = None
 
 
 class ContactoRequest(BaseModel):

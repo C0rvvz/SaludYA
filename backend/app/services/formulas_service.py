@@ -1,13 +1,20 @@
 """
 Fórmula médica de una cita atendida y dónde reclamarla.
 
-- registrar(): el personal (coordinador médico o administrador) escribe o
-  corrige lo que formuló el médico. Solo para citas atendidas. La primera
-  vez se le avisa al paciente por el canal de su cita.
+- registrar(): el personal con acceso a la historia clínica (médico o
+  Coordinación médica; ver historia_clinica_service) escribe o corrige lo
+  que formuló el médico, con el código CIE-10 del diagnóstico. Solo para
+  citas atendidas. La primera vez se le avisa al paciente por el canal de
+  su cita. Al corregirla, lo que ya se entregó sigue entregado.
 - de_mi_cita(): lo que ve el paciente en Mis citas: la fórmula, el QR de su
   código y las farmacias donde reclamar (las cercanas a su sede primero).
 - simular_desde_ips(): la IPS (simulada) manda la fórmula de las citas
   atendidas que todavía no la tienen, como si llegara del sistema del médico.
+- simular_entregas(): las farmacias aliadas (simuladas) entregan algunos
+  medicamentos de las fórmulas vigentes, con el código del paciente.
+- estado_entrega(): entregada, parcial, por reclamar, vencida o sin
+  medicamentos.
+- reenviar_codigo(): le vuelve a mandar al paciente el código de su fórmula.
 
 El código del QR va firmado (HMAC): una farmacia puede comprobar que lo
 generó SaludYA y que no lo cambiaron.
@@ -19,6 +26,7 @@ import hashlib
 import hmac
 import json
 import random
+import re
 import secrets
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -30,12 +38,23 @@ from app.core.config import settings
 from app.integrations.notificaciones import enviar_por_canal
 from app.models.cita import Cita, EstadoCita
 from app.models.formula_medica import Farmacia, FormulaMedica
+from app.models.auditoria import TipoActor
 from app.services import auditoria_service, citas_service
 from app.services.auditoria_service import Actor
 from app.services.exceptions import CitaNoEncontradaError, FormulaInvalidaError
 from app.utils.tiempo import fecha_legible, hoy_en_colombia
 
 VIGENCIA_DIAS = 30
+# CIE-10: una letra, dos números y, opcional, un punto con 1 a 4 caracteres ("J02.9", "I10", "S93.40").
+FORMATO_CIE10 = re.compile(r"^[A-Z][0-9]{2}(\.[0-9A-Z]{1,4})?$")
+
+ESTADOS_ENTREGA = {
+    "entregada": "Fórmula entregada",
+    "parcial": "Entrega parcial",
+    "por_reclamar": "Por reclamar",
+    "vencida": "Vencida sin reclamar",
+    "sin_medicamentos": "Sin medicamentos",
+}
 
 
 def _codigo_nuevo(db: Session) -> str:
@@ -72,6 +91,20 @@ def _limpiar_medicamentos(medicamentos: list[dict]) -> list[dict]:
     return limpios
 
 
+def _cie10(codigo: str | None) -> str:
+    codigo = "".join((codigo or "").split()).upper()
+    if not codigo:
+        raise FormulaInvalidaError("Escriba el código CIE-10 del diagnóstico (p. ej. J02.9).")
+    if not FORMATO_CIE10.match(codigo):
+        raise FormulaInvalidaError(f"«{codigo}» no es un código CIE-10: es una letra y números, como J02.9 o I10.")
+    return codigo
+
+
+def medicamentos_de(formula: FormulaMedica) -> list[dict]:
+    """Los medicamentos, cada uno con "entregado" (True si la farmacia ya lo entregó)."""
+    return [{**m, "entregado": bool(m.get("entregado"))} for m in json.loads(formula.medicamentos)]
+
+
 def registrar(
     db: Session,
     actor: Actor,
@@ -81,6 +114,7 @@ def registrar(
     medicamentos: list[dict],
     recomendaciones: list[str],
     cubierta_por_eps: bool = True,
+    cie10: str | None = None,
 ) -> FormulaMedica:
     cita = db.get(Cita, cita_id)
     if cita is None:
@@ -90,6 +124,7 @@ def registrar(
     diagnostico = " ".join(diagnostico.split())
     if not diagnostico:
         raise FormulaInvalidaError("Escriba el diagnóstico.")
+    cie10 = _cie10(cie10)
     medicamentos = _limpiar_medicamentos(medicamentos)
     recomendaciones = [r.strip() for r in recomendaciones if r and r.strip()]
     if not medicamentos and not recomendaciones:
@@ -100,7 +135,14 @@ def registrar(
     if nueva:
         formula = FormulaMedica(cita=cita, codigo=_codigo_nuevo(db))
         db.add(formula)
+    else:
+        # Lo que la farmacia ya entregó sigue entregado (mismo medicamento, por nombre).
+        entregados = {m["nombre"].lower() for m in medicamentos_de(formula) if m["entregado"]}
+        for m in medicamentos:
+            if m["nombre"].lower() in entregados:
+                m["entregado"] = True
     formula.diagnostico = diagnostico
+    formula.diagnostico_cie10 = cie10
     formula.nota = (nota or "").strip() or None
     formula.medicamentos = json.dumps(medicamentos, ensure_ascii=False)
     formula.recomendaciones = json.dumps(recomendaciones, ensure_ascii=False)
@@ -135,15 +177,37 @@ def farmacias_para(db: Session, sede_id: uuid.UUID | None) -> list[Farmacia]:
     return sorted(farmacias, key=lambda f: (f.sede_id != sede_id, f.distancia_km))
 
 
+def estado_entrega(formula: FormulaMedica) -> str:
+    medicamentos = medicamentos_de(formula)
+    entregados = sum(m["entregado"] for m in medicamentos)
+    if not medicamentos:
+        return "sin_medicamentos"
+    if entregados == len(medicamentos):
+        return "entregada"
+    if entregados:
+        return "parcial"
+    return "vencida" if formula.vence_en < hoy_en_colombia() else "por_reclamar"
+
+
 def datos(formula: FormulaMedica) -> dict:
     franja = formula.cita.disponibilidad
+    medicamentos = medicamentos_de(formula)
+    estado = estado_entrega(formula)
+    farmacia = formula.farmacia_entrega
     return {
         "codigo": formula.codigo,
         "vence_en": formula.vence_en,
+        "vigente": formula.vence_en >= hoy_en_colombia(),
         "cubierta_por_eps": formula.cubierta_por_eps,
         "diagnostico": formula.diagnostico,
+        "cie10": formula.diagnostico_cie10,
         "nota": formula.nota,
-        "medicamentos": json.loads(formula.medicamentos),
+        "medicamentos": medicamentos,
+        "entregados": sum(m["entregado"] for m in medicamentos),
+        "estado_entrega": estado,
+        "estado_entrega_texto": ESTADOS_ENTREGA[estado],
+        "farmacia_entrega": f"{farmacia.nombre}{' · aliada' if farmacia.aliada else ''}" if farmacia else None,
+        "ultima_entrega_en": formula.ultima_entrega_en,
         "recomendaciones": json.loads(formula.recomendaciones),
         "registrada_en": formula.registrada_en,
         "registrada_por": formula.registrada_por,
@@ -185,6 +249,7 @@ def de_mi_cita(db: Session, paciente_id: uuid.UUID, cita_id: uuid.UUID) -> dict:
 EJEMPLOS = {
     "Médico general": [{
         "diagnostico": "Faringitis aguda",
+        "cie10": "J02.9",
         "nota": "Dolor de garganta y fiebre desde hace dos días, sin dificultad para respirar. "
                 "Tratamiento por 7 días. Si la fiebre sigue después de 3 días, volver a consulta.",
         "medicamentos": [
@@ -198,6 +263,7 @@ EJEMPLOS = {
     }],
     "Cardiología": [{
         "diagnostico": "Hipertensión arterial en control",
+        "cie10": "I10",
         "nota": "Presión en metas con el tratamiento actual. Se continúa igual y control en 3 meses.",
         "medicamentos": [
             {"nombre": "Losartán", "dosis": "50 mg", "indicacion": "1 tableta cada 12 horas",
@@ -208,6 +274,7 @@ EJEMPLOS = {
     }],
     "Dermatología": [{
         "diagnostico": "Dermatitis de contacto",
+        "cie10": "L25.9",
         "nota": "Brote en el antebrazo después de cambiar de jabón. Se suspende el producto y se trata por una semana.",
         "medicamentos": [
             {"nombre": "Hidrocortisona crema", "dosis": "1 %", "indicacion": "Aplicar una capa delgada 2 veces al día",
@@ -220,6 +287,7 @@ EJEMPLOS = {
     }],
     "Pediatría": [{
         "diagnostico": "Resfriado común",
+        "cie10": "J00",
         "nota": "Congestión nasal y fiebre baja. Buen estado general. Manejo en casa.",
         "medicamentos": [
             {"nombre": "Acetaminofén jarabe", "dosis": "150 mg / 5 ml", "indicacion": "5 ml cada 6 horas si tiene fiebre",
@@ -231,6 +299,7 @@ EJEMPLOS = {
     }],
     "Ortopedia": [{
         "diagnostico": "Esguince de tobillo leve",
+        "cie10": "S93.4",
         "nota": "Torcedura hace un día, sin fractura. Inmovilización suave y control si no mejora en 2 semanas.",
         "medicamentos": [
             {"nombre": "Naproxeno", "dosis": "250 mg", "indicacion": "1 tableta cada 12 horas, después de comer",
@@ -264,6 +333,70 @@ def simular_desde_ips(db: Session, ips: Actor, rng: random.Random | None = None,
             continue
         ejemplo = rng.choice(ejemplos)
         registrar(db, ips, cita.id, ejemplo["diagnostico"], ejemplo["nota"], ejemplo["medicamentos"],
-                  ejemplo["recomendaciones"])
+                  ejemplo["recomendaciones"], cie10=ejemplo["cie10"])
         recibidas += 1
     return recibidas
+
+
+def entregar(db: Session, formula: FormulaMedica, farmacia: Farmacia, nombres: list[str]) -> None:
+    """
+    La farmacia entrega esos medicamentos con el código del paciente. Queda
+    en la auditoría con el nombre de la farmacia ("Quién ha consultado esta
+    fórmula"), sin decir cuáles (es dato médico).
+    """
+    medicamentos = medicamentos_de(formula)
+    for m in medicamentos:
+        if m["nombre"] in nombres:
+            m["entregado"] = True
+    formula.medicamentos = json.dumps(medicamentos, ensure_ascii=False)
+    formula.farmacia_entrega = farmacia
+    formula.ultima_entrega_en = datetime.now(timezone.utc)
+    n = len(nombres)
+    auditoria_service.registrar(
+        db, Actor(TipoActor.SISTEMA, None, f"{farmacia.nombre} (farmacia)"), "entrega_farmacia",
+        f"Entregó {n} medicamento{'' if n == 1 else 's'} con el código {formula.codigo}",
+        cita=formula.cita,
+    )
+
+
+def simular_entregas(db: Session, rng: random.Random | None = None) -> int:
+    """
+    Las farmacias aliadas (simuladas) entregan los medicamentos de algunas
+    fórmulas vigentes que tienen algo por reclamar: a veces todos, a veces
+    solo una parte. Devuelve cuántas entregas hubo.
+    """
+    rng = rng or random.Random()
+    aliadas = db.query(Farmacia).filter(Farmacia.aliada.is_(True), Farmacia.activa.is_(True)).all()
+    if not aliadas:
+        return 0
+    entregas = 0
+    for formula in db.query(FormulaMedica).filter(FormulaMedica.vence_en >= hoy_en_colombia()).all():
+        pendientes = [m["nombre"] for m in medicamentos_de(formula) if not m["entregado"]]
+        if not pendientes or rng.random() < 0.4:
+            continue
+        sede_id = formula.cita.disponibilidad.sede_id
+        cercanas = [f for f in aliadas if f.sede_id == sede_id] or aliadas
+        cuantos = len(pendientes) if len(pendientes) == 1 or rng.random() < 0.6 else rng.randint(1, len(pendientes) - 1)
+        entregar(db, formula, rng.choice(cercanas), pendientes[:cuantos])
+        entregas += 1
+    return entregas
+
+
+def reenviar_codigo(db: Session, actor: Actor, cita: Cita) -> str:
+    """Le vuelve a mandar al paciente el código de su fórmula (por el canal de su cita)."""
+    formula = cita.formula
+    if formula is None:
+        raise FormulaInvalidaError("Esta cita todavía no tiene fórmula médica.")
+    if formula.vence_en < hoy_en_colombia():
+        raise FormulaInvalidaError("La fórmula ya venció: el código no sirve para reclamar.")
+    enviado = enviar_por_canal(
+        cita.paciente, cita.canal_recordatorio,
+        f"SaludYA: el código de su fórmula es {formula.codigo} y vale hasta el {fecha_legible(formula.vence_en)}. "
+        f"Muéstrelo (o el QR) en una farmacia aliada. Véalo en {settings.frontend_url}/mis-citas",
+    )
+    if not enviado:
+        raise FormulaInvalidaError("No pudimos enviar el código. Intente de nuevo en unos minutos.")
+    auditoria_service.registrar(db, actor, "reenviar_codigo_formula", "Reenvió al paciente el código de la fórmula",
+                                cita=cita)
+    db.commit()
+    return cita.canal_recordatorio.value

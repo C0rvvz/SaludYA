@@ -208,13 +208,17 @@ class Fabrica:
             cerrada_en=datetime.now(timezone.utc) if estado in (EstadoCita.ATENDIDA, EstadoCita.NO_ASISTIO) else None,
         ))
 
-    def personal(self, rol: RolPersonal = RolPersonal.ADMINISTRADOR) -> Personal:
+    def personal(self, rol: RolPersonal = RolPersonal.ADMINISTRADOR, especialista=None) -> Personal:
+        """Con el rol Médico, por defecto es la cuenta del médico de ejemplo (self.especialista)."""
+        if rol == RolPersonal.MEDICO and especialista is None:
+            especialista = self.especialista
         return self._guardar(Personal(
             nombre=f"Personal {rol.value}",
             correo=f"{uuid.uuid4().hex[:10]}@saludya.test",
             password_hash=hash_password("clave-de-prueba-123"),
             rol=rol,
             activo=True,
+            especialista_id=especialista.id if especialista else None,
         ))
 
     def _guardar(self, objeto):

@@ -1,15 +1,17 @@
 """
 Fórmula médica de una cita atendida y farmacias donde reclamarla.
 
-FormulaMedica: lo que escribió el médico (diagnóstico y nota), los
-medicamentos (nombre, dosis, cada cuánto, duración y cantidad) y las
-recomendaciones. Todo eso son datos médicos: se guardan cifrados
-(RNF-23, core/cifrado.py). Los medicamentos y las recomendaciones van como
-listas en JSON. El código (FM-2026-07733) es el que el paciente muestra
-en una farmacia aliada, junto con su QR, hasta la fecha en que vence.
+FormulaMedica: lo que escribió el médico (diagnóstico con su código
+CIE-10, y nota), los medicamentos (nombre, dosis, cada cuánto, duración y
+cantidad, y si ya se entregó) y las recomendaciones. Todo eso son datos
+médicos: se guardan cifrados (RNF-23, core/cifrado.py). Los medicamentos y
+las recomendaciones van como listas en JSON. El código (FM-2026-07733) es
+el que el paciente muestra en una farmacia aliada, junto con su QR, hasta
+la fecha en que vence. De la entrega queda en qué farmacia y cuándo fue la
+última (farmacia_entrega, ultima_entrega_en).
 
-La registra el personal (coordinador médico o administrador) o llega de
-la IPS (simulada); ver formulas_service.
+La registra el personal con acceso a la historia clínica (médico o
+Coordinación médica) o llega de la IPS (simulada); ver formulas_service.
 
 Farmacia: dónde reclamar los medicamentos. En las aliadas se entregan
 gratis con el código; las demás cobran. Cada una está cerca de una sede
@@ -37,6 +39,10 @@ class FormulaMedica(Base):
     codigo: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
 
     diagnostico: Mapped[str] = mapped_column(TextoCifrado("formulas_medicas.diagnostico"), nullable=False)
+    # "J02.9": también es dato médico (dice el diagnóstico), así que va cifrado.
+    diagnostico_cie10: Mapped[str | None] = mapped_column(
+        TextoCifrado("formulas_medicas.diagnostico_cie10"), nullable=True
+    )
     nota: Mapped[str | None] = mapped_column(TextoCifrado("formulas_medicas.nota"), nullable=True)
     medicamentos: Mapped[str] = mapped_column(TextoCifrado("formulas_medicas.medicamentos"), nullable=False)
     recomendaciones: Mapped[str] = mapped_column(TextoCifrado("formulas_medicas.recomendaciones"), nullable=False)
@@ -47,8 +53,13 @@ class FormulaMedica(Base):
     )
     registrada_por: Mapped[str] = mapped_column(String(150), nullable=False)  # quién la registró (o "IPS")
     vence_en: Mapped[date] = mapped_column(Date, nullable=False)
+    farmacia_entrega_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farmacias.id"), nullable=True
+    )
+    ultima_entrega_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     cita: Mapped["Cita"] = relationship(back_populates="formula")
+    farmacia_entrega: Mapped["Farmacia | None"] = relationship()
 
 
 class Farmacia(Base):

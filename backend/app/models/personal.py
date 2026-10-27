@@ -7,15 +7,18 @@ el script app/scripts/crear_personal.py y los demás los crea un
 administrador desde la pantalla "Usuarios". El rol viene de la cuenta
 (nunca se elige al iniciar sesión) y define qué puede hacer cada uno
 (ver app/core/permisos.py).
+
+Una cuenta con el rol Médico es la de uno de los médicos de la red
+(especialista_id): en la historia clínica solo ve a sus pacientes.
 """
 
 import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, String
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -25,6 +28,7 @@ class RolPersonal(str, enum.Enum):
     AGENDAMIENTO = "agendamiento"
     CALL_CENTER = "call_center"
     COORDINADOR_MEDICO = "coordinador_medico"
+    MEDICO = "medico"
 
 
 class Personal(Base):
@@ -48,3 +52,9 @@ class Personal(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     ultimo_acceso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Solo el rol Médico: qué médico de la red es (personal_service lo exige).
+    especialista_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("especialistas.id"), nullable=True
+    )
+
+    especialista: Mapped["Especialista | None"] = relationship()

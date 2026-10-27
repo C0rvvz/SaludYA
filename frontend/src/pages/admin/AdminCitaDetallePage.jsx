@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import FormulaAdmin from "../../components/admin/FormulaAdmin";
+import { IconoCandado } from "../../components/admin/IconosAdmin";
 import IndicadorRiesgo from "../../components/admin/IndicadorRiesgo";
 import { Cifra } from "../../components/admin/Reportes";
 import TablaHistorial from "../../components/admin/TablaHistorial";
@@ -14,11 +14,10 @@ import {
   enviarRecordatorioAdmin,
   obtenerCitaAdmin,
   registrarContactoAdmin,
-  registrarFormulaAdmin,
   registrarResultadoAdmin,
   reprogramarCitaAdmin,
 } from "../../api/admin";
-import { AFILIACION, CANALES, epsDelPaciente } from "../../utils/citas";
+import { AFILIACION, CANALES, SIGLA_DOCUMENTO, epsDelPaciente } from "../../utils/citas";
 import { formatearFechaHora, formatearFechaLarga, formatearHora } from "../../utils/formato";
 
 /**
@@ -36,13 +35,6 @@ const RESULTADOS_LLAMADA = [
   ["numero_equivocado", "Número equivocado"],
   ["buzon_de_voz", "Buzón de voz"],
 ];
-
-const TIPOS_DOCUMENTO = {
-  cedula_ciudadania: "CC",
-  cedula_extranjeria: "CE",
-  tarjeta_identidad: "TI",
-  pasaporte: "Pasaporte",
-};
 
 function Registro({ registro }) {
   return (
@@ -206,7 +198,7 @@ export default function AdminCitaDetallePage() {
           <section className="card">
             <h2 className="admin-card__titulo">Datos del paciente</h2>
             <Fila etiqueta="Documento">
-              {TIPOS_DOCUMENTO[p.tipo_documento] ?? p.tipo_documento} {p.numero_documento}
+              {SIGLA_DOCUMENTO[p.tipo_documento] ?? p.tipo_documento} {p.numero_documento}
             </Fila>
             <Fila etiqueta="Teléfono (WhatsApp)">{p.telefono_whatsapp}</Fila>
             <Fila etiqueta="Correo electrónico">{p.correo ?? "—"}</Fila>
@@ -448,20 +440,23 @@ export default function AdminCitaDetallePage() {
             />
           )}
 
-          {a.formula && (
-            <FormulaAdmin
-              formula={cita.formula}
-              particular={!p.eps}
-              ocupado={ocupado}
-              onGuardar={(datos) =>
-                ejecutar(
-                  () => registrarFormulaAdmin(cita.id, datos),
-                  cita.formula
-                    ? "Fórmula corregida. El paciente ya ve los cambios en Mis citas."
-                    : `Fórmula registrada. Le avisamos al paciente por ${CANALES[cita.canal_recordatorio]}.`
-                )
-              }
-            />
+          {/* El diagnóstico y la fórmula están en la historia clínica (acceso restringido). */}
+          {cita.estado_visible === "atendida" && (
+            <section className="card" aria-labelledby="titulo-historia-cita">
+              <h2 className="admin-card__titulo titulo-reservado" id="titulo-historia-cita">
+                <IconoCandado tamano={15} />
+                Historia clínica
+              </h2>
+              <p className="texto-suave">
+                El diagnóstico y la fórmula médica de esta cita son información reservada: solo los ven los médicos
+                tratantes y Coordinación médica, y cada consulta queda registrada en Auditoría.
+              </p>
+              <div className="acciones-admin">
+                <Link to={`/admin/historia-clinica/${cita.id}`} className="btn btn--outline">
+                  Ver diagnóstico y fórmula
+                </Link>
+              </div>
+            </section>
           )}
 
           {a.observar && (

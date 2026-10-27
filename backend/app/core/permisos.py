@@ -10,9 +10,14 @@ aquí, en el backend.
 Mínimo privilegio: cada rol tiene solo lo que su función necesita.
   - Call center: recordatorios, mensajes programados y llamadas; confirmar asistencia.
   - Agendamiento: confirmar asistencia, reprogramar, cancelar y la lista de espera.
-  - Coordinador médico: atención, prioridad médica, peticiones y reportes.
+  - Coordinación médica: atención, prioridad médica, peticiones, reportes e
+    historia clínica.
+  - Médico: atención e historia clínica, solo de sus pacientes
+    (historia_clinica_service).
   - Administrador: todo, incluidos los especialistas (y la IPS simulada), la
-    auditoría, la seguridad y las cuentas del personal.
+    auditoría, la seguridad y las cuentas del personal, MENOS la historia
+    clínica: el diagnóstico y la fórmula solo los ven Médico y Coordinación
+    médica, y cada consulta queda en la auditoría.
 Todos ven las citas y dejan observaciones.
 """
 
@@ -36,12 +41,13 @@ class Permiso(str, enum.Enum):
     SEGURIDAD = "seguridad"  # panel "Seguridad": eventos, alertas y cerrar sesiones a distancia
     GESTIONAR_ESPECIALISTAS = "gestionar_especialistas"  # médicos, sus horarios y la actualización de la IPS
     GESTIONAR_USUARIOS = "gestionar_usuarios"
+    HISTORIA_CLINICA = "historia_clinica"  # diagnósticos y fórmulas: ver, registrar y reenviar el código
 
 
 _TODOS = {Permiso.VER_CITAS, Permiso.OBSERVACIONES}
 
 PERMISOS_POR_ROL: dict[RolPersonal, frozenset[Permiso]] = {
-    RolPersonal.ADMINISTRADOR: frozenset(Permiso),
+    RolPersonal.ADMINISTRADOR: frozenset(set(Permiso) - {Permiso.HISTORIA_CLINICA}),
     RolPersonal.CALL_CENTER: frozenset(_TODOS | {Permiso.CONFIRMAR_ASISTENCIA, Permiso.RECORDATORIOS}),
     RolPersonal.AGENDAMIENTO: frozenset(
         _TODOS | {Permiso.CONFIRMAR_ASISTENCIA, Permiso.REPROGRAMAR_CANCELAR, Permiso.LISTA_ESPERA}
@@ -53,15 +59,18 @@ PERMISOS_POR_ROL: dict[RolPersonal, frozenset[Permiso]] = {
             Permiso.ASIGNAR_PRIORIDAD,
             Permiso.REVISAR_SOLICITUDES,
             Permiso.VER_REPORTES,
+            Permiso.HISTORIA_CLINICA,
         }
     ),
+    RolPersonal.MEDICO: frozenset(_TODOS | {Permiso.REGISTRAR_ATENCION, Permiso.HISTORIA_CLINICA}),
 }
 
 NOMBRE_ROL = {
     RolPersonal.ADMINISTRADOR: "Administrador",
     RolPersonal.AGENDAMIENTO: "Agendamiento",
     RolPersonal.CALL_CENTER: "Call center",
-    RolPersonal.COORDINADOR_MEDICO: "Coordinador médico",
+    RolPersonal.COORDINADOR_MEDICO: "Coordinación médica",
+    RolPersonal.MEDICO: "Médico",
 }
 
 

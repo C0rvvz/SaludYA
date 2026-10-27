@@ -17,6 +17,7 @@ from tests.conftest import encabezado
 
 FORMULA = {
     "diagnostico": "Faringitis aguda",
+    "cie10": "j02.9",  # se guarda en mayúsculas
     "nota": "Dolor de garganta desde hace dos días. Tratamiento por 7 días.",
     "medicamentos": [
         {"nombre": "Amoxicilina", "dosis": "500 mg", "indicacion": "1 cápsula cada 8 horas",
@@ -28,7 +29,8 @@ FORMULA = {
 
 
 def _registrar(cliente, quien, cita, datos=FORMULA):
-    return cliente.put(f"/admin/citas/{cita.id}/formula", json=datos, headers=encabezado(quien))
+    """En Personal › Historia clínica (Médico o Coordinación médica)."""
+    return cliente.put(f"/admin/historia-clinica/{cita.id}/formula", json=datos, headers=encabezado(quien))
 
 
 def test_el_coordinador_registra_la_formula_y_el_paciente_la_ve(cliente, fabrica, db, monkeypatch):
@@ -43,6 +45,7 @@ def test_el_coordinador_registra_la_formula_y_el_paciente_la_ve(cliente, fabrica
     formula = r.json()["formula"]
     assert formula["codigo"].startswith(f"FM-{hoy_en_colombia().year}-")
     assert formula["vence_en"] == (hoy_en_colombia() + timedelta(days=30)).isoformat()
+    assert formula["cie10"] == "J02.9" and formula["estado_entrega"] == "por_reclamar"
     assert [m["nombre"] for m in formula["medicamentos"]] == ["Amoxicilina"]  # la fila vacía no cuenta
     assert formula["recomendaciones"] == ["Tome mucha agua."]
     assert len(avisos) == 1 and "/mis-citas" in avisos[0]
@@ -73,18 +76,19 @@ def test_el_coordinador_registra_la_formula_y_el_paciente_la_ve(cliente, fabrica
 
 def test_lo_medico_queda_cifrado_y_la_auditoria_no_lo_repite(cliente, fabrica, db):
     cita = fabrica.cita(fabrica.paciente(), EstadoCita.ATENDIDA)
-    _registrar(cliente, fabrica.personal(), cita)
+    _registrar(cliente, fabrica.personal(RolPersonal.COORDINADOR_MEDICO), cita)
     crudo = db.execute(
-        text("SELECT diagnostico, nota, medicamentos FROM formulas_medicas WHERE cita_id = :id"), {"id": cita.id}
+        text("SELECT diagnostico, diagnostico_cie10, nota, medicamentos FROM formulas_medicas WHERE cita_id = :id"),
+        {"id": cita.id},
     ).one()
-    assert not any("Faringitis" in c or "Amoxicilina" in c or "garganta" in c for c in crudo)
+    assert not any("Faringitis" in c or "J02" in c or "Amoxicilina" in c or "garganta" in c for c in crudo)
     registro = db.query(RegistroAuditoria).filter(RegistroAuditoria.accion == "registrar_formula").one()
     assert "Faringitis" not in registro.descripcion and "(1 medicamento)" in registro.descripcion
 
 
 def test_el_qr_lleva_el_codigo_firmado(fabrica, cliente, db):
     cita = fabrica.cita(fabrica.paciente(), EstadoCita.ATENDIDA)
-    _registrar(cliente, fabrica.personal(), cita)
+    _registrar(cliente, fabrica.personal(RolPersonal.COORDINADOR_MEDICO), cita)
     formula = db.query(FormulaMedica).filter(FormulaMedica.cita_id == cita.id).one()
     prefijo, codigo, vence, firma = formulas_service.contenido_qr(formula).split("|")
     assert (prefijo, codigo, vence) == ("SALUDYA-FORMULA", formula.codigo, formula.vence_en.isoformat())
@@ -93,19 +97,23 @@ def test_el_qr_lleva_el_codigo_firmado(fabrica, cliente, db):
     assert firma == formulas_service._firma(codigo, formula.vence_en)
 
 
-def test_solo_de_citas_atendidas_y_con_algo_formulado(cliente, fabrica):
-    admin = fabrica.personal()
+def test_solo_de_citas_atendidas_con_cie10_y_algo_formulado(cliente, fabrica):
+    coordinador = fabrica.personal(RolPersonal.COORDINADOR_MEDICO)
     paciente = fabrica.paciente()
     futura = fabrica.cita(paciente)
-    r = _registrar(cliente, admin, futura)
+    r = _registrar(cliente, coordinador, futura)
     assert r.status_code == 400 and "atendida" in r.json()["detail"]
 
     atendida = fabrica.cita(paciente, EstadoCita.ATENDIDA)
-    vacia = {"diagnostico": "Control", "medicamentos": [], "recomendaciones": []}
-    assert _registrar(cliente, admin, atendida, vacia).status_code == 400
+    vacia = {"diagnostico": "Control", "cie10": "Z00.0", "medicamentos": [], "recomendaciones": []}
+    assert _registrar(cliente, coordinador, atendida, vacia).status_code == 400
     sin_indicacion = FORMULA | {"medicamentos": [{"nombre": "Losartán", "indicacion": ""}]}
-    r = _registrar(cliente, admin, atendida, sin_indicacion)
+    r = _registrar(cliente, coordinador, atendida, sin_indicacion)
     assert r.status_code == 400 and "cómo tomar Losartán" in r.json()["detail"]
+    r = _registrar(cliente, coordinador, atendida, FORMULA | {"cie10": None})
+    assert r.status_code == 400 and "código CIE-10" in r.json()["detail"]
+    r = _registrar(cliente, coordinador, atendida, FORMULA | {"cie10": "faringitis"})
+    assert r.status_code == 400 and "no es un código CIE-10" in r.json()["detail"]
 
 
 def test_quien_puede_ver_y_registrar_la_formula(cliente, fabrica):
@@ -113,11 +121,14 @@ def test_quien_puede_ver_y_registrar_la_formula(cliente, fabrica):
     cita = fabrica.cita(paciente, EstadoCita.ATENDIDA)
     _registrar(cliente, fabrica.personal(RolPersonal.COORDINADOR_MEDICO), cita)
 
-    # El call center ve la cita, pero no lo médico, y no puede registrarla.
-    call_center = fabrica.personal(RolPersonal.CALL_CENTER)
-    detalle = cliente.get(f"/admin/citas/{cita.id}", headers=encabezado(call_center)).json()
-    assert detalle["formula"] is None and detalle["acciones"]["formula"] is False
-    assert _registrar(cliente, call_center, cita).status_code == 403
+    # El detalle de la cita ya no trae lo médico (está en la historia clínica). El call center y el
+    # administrador no pueden verlo ni registrarlo.
+    for rol in (RolPersonal.CALL_CENTER, RolPersonal.ADMINISTRADOR):
+        otro = fabrica.personal(rol)
+        detalle = cliente.get(f"/admin/citas/{cita.id}", headers=encabezado(otro)).json()
+        assert "formula" not in detalle and "formula" not in detalle["acciones"]
+        assert _registrar(cliente, otro, cita).status_code == 403
+        assert cliente.get(f"/admin/historia-clinica/{cita.id}", headers=encabezado(otro)).status_code == 403
 
     # Otro paciente no la ve; y una cita sin fórmula responde 404.
     assert cliente.get(f"/citas/{cita.id}/formula", headers=encabezado(fabrica.paciente())).status_code == 404
@@ -130,7 +141,7 @@ def test_quien_puede_ver_y_registrar_la_formula(cliente, fabrica):
 def test_las_farmacias_cerradas_no_aparecen(cliente, fabrica, db):
     paciente = fabrica.paciente()
     cita = fabrica.cita(paciente, EstadoCita.ATENDIDA)
-    _registrar(cliente, fabrica.personal(), cita)
+    _registrar(cliente, fabrica.personal(RolPersonal.COORDINADOR_MEDICO), cita)
     cerrada = db.query(Farmacia).order_by(Farmacia.nombre).first()
     cerrada.activa = False
     db.commit()
@@ -170,7 +181,7 @@ def test_el_administrador_agrega_edita_y_cierra_una_farmacia(cliente, fabrica, d
     admin = fabrica.personal()
     paciente = fabrica.paciente()
     cita = fabrica.cita(paciente, EstadoCita.ATENDIDA)
-    _registrar(cliente, admin, cita)
+    _registrar(cliente, fabrica.personal(RolPersonal.COORDINADOR_MEDICO), cita)
 
     def para_el_paciente():
         r = cliente.get(f"/citas/{cita.id}/formula", headers=encabezado(paciente))
@@ -245,7 +256,7 @@ def test_validaciones_y_permisos_de_las_farmacias(cliente, fabrica, db):
 def test_un_particular_no_tiene_medicamentos_cubiertos_por_eps(cliente, fabrica):
     particular = fabrica.paciente(eps_id=None, estado_afiliacion=EstadoAfiliacion.PARTICULAR)
     cita = fabrica.cita(particular, EstadoCita.ATENDIDA)
-    r = _registrar(cliente, fabrica.personal(), cita, FORMULA | {"cubierta_por_eps": True})
+    r = _registrar(cliente, fabrica.personal(RolPersonal.COORDINADOR_MEDICO), cita, FORMULA | {"cubierta_por_eps": True})
     assert r.json()["formula"]["cubierta_por_eps"] is False  # sin EPS no hay cobertura de EPS
     mia = cliente.get(f"/citas/{cita.id}/formula", headers=encabezado(particular)).json()
     assert mia["particular"] is True and mia["cubierta_por_eps"] is False
