@@ -14,7 +14,7 @@ agregan antes para no dejar configuración "muerta" sin usar.
 import base64
 import binascii
 
-from pydantic import model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -58,6 +58,22 @@ class Settings(BaseSettings):
     # aprueban (1x0000000000000000000000000000000AA). Vacía = sin
     # verificación: solo se permite en desarrollo (ver _llaves_obligatorias).
     turnstile_secret: str = ""
+    # Llave pública de la casilla. En desarrollo va en frontend/.env
+    # (VITE_TURNSTILE_SITEKEY); en producción la pone el servidor en la
+    # página (ver servidor.py), así no hay que compilar el frontend con ella.
+    turnstile_sitekey: str = ""
+
+    # --- Versión de demostración publicada en internet ---
+    # Con WhatsApp simulado nadie recibe el código de ingreso: en la versión
+    # de demostración se muestra en pantalla, con el aviso de que se usen
+    # solo datos de prueba. Con WhatsApp real no tiene efecto.
+    modo_demostracion: bool = False
+
+    # --- IP del visitante detrás de un proxy (límite de intentos y auditoría) ---
+    # Vacía: la IP de la conexión (desarrollo). En Render todas las visitas
+    # llegan desde su proxy: ahí se usa "cf-connecting-ip", la cabecera que
+    # pone Cloudflare y que el visitante no puede falsificar.
+    cabecera_ip_cliente: str = ""
 
     # --- Caché del catálogo público (RNF-20 y RNF-21, ver routers/catalogo.py) ---
     # Segundos que se reutiliza una misma respuesta del catálogo y la búsqueda
@@ -94,7 +110,11 @@ class Settings(BaseSettings):
     recordatorio_anticipacion_horas: int = 24
     recordatorio_max_intentos: int = 3
     # Enlace que va en el recordatorio para confirmar la asistencia (HU-23).
-    frontend_url: str = "http://localhost:5173"
+    # En Render, si no se define, se usa la dirección pública que Render
+    # pone en RENDER_EXTERNAL_URL.
+    frontend_url: str = Field(
+        "http://localhost:5173", validation_alias=AliasChoices("frontend_url", "render_external_url")
+    )
 
     # --- Lista de espera (HU-31, HU-32) ---
     # SUPUESTO: ninguna fuente define el plazo; el cupo liberado se le
@@ -141,7 +161,7 @@ class Settings(BaseSettings):
         ni en otro entorno: ahí rige HU-02, criterio 4 (el código no debe
         ser visible dentro de la plataforma).
         """
-        return self.whatsapp_mode == "mock" and self.app_env == "development"
+        return self.whatsapp_mode == "mock" and (self.app_env == "development" or self.modo_demostracion)
 
     @property
     def ia_modelos(self) -> list[str]:
@@ -158,6 +178,12 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @field_validator("database_url")
+    @classmethod
+    def _url_de_sqlalchemy(cls, url: str) -> str:
+        # Algunos servicios entregan "postgres://...", que SQLAlchemy ya no acepta.
+        return "postgresql://" + url.removeprefix("postgres://") if url.startswith("postgres://") else url
 
     @property
     def es_desarrollo(self) -> bool:

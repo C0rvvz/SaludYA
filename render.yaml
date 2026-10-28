@@ -1,0 +1,60 @@
+# Publicación de SaludYA en Render (plan gratuito). Paso a paso en el
+# README, sección "Publicar en internet".
+#
+# Un solo servicio con la página y la API (Dockerfile de la raíz). La base
+# de datos es PostgreSQL en Neon (gratis); su dirección va en DATABASE_URL.
+# Cada push a main se publica solo.
+#
+# Las variables con "sync: false" las pide Render al crear el servicio y
+# nunca quedan en el repositorio.
+
+services:
+  - type: web
+    name: saludya
+    runtime: docker
+    plan: free
+    # Virginia (EE. UU.): la región gratuita más cercana a Colombia. Cree la
+    # base de Neon en la misma zona (AWS US East 1).
+    region: virginia
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      # WhatsApp simulado: el código de ingreso se muestra en pantalla, con
+      # el aviso de usar solo datos de prueba (ver config.py).
+      - key: WHATSAPP_MODE
+        value: mock
+      - key: MODO_DEMOSTRACION
+        value: "true"
+      # La IP real de cada visitante (Render recibe todo por Cloudflare).
+      - key: CABECERA_IP_CLIENTE
+        value: cf-connecting-ip
+
+      # La "connection string" de Neon (postgresql://...?sslmode=require).
+      - key: DATABASE_URL
+        sync: false
+      # Render la genera al crear el servicio.
+      - key: JWT_SECRET
+        generateValue: true
+      # 32 bytes en base64, generada en su equipo (ver README). Guarde una
+      # copia: sin ella no se pueden leer los diagnósticos ni las fórmulas.
+      - key: CLAVE_CIFRADO_DATOS
+        sync: false
+      # "No soy un robot": las llaves de Cloudflare Turnstile (o las de prueba).
+      - key: TURNSTILE_SECRET
+        sync: false
+      - key: TURNSTILE_SITEKEY
+        sync: false
+
+      # Asistente Eli (opcional: sin llave, el chat avisa que no está disponible).
+      - key: IA_API_KEY
+        sync: false
+      - key: IA_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: IA_MODELO
+        value: gemini-3.5-flash-lite
+      - key: IA_MODELOS_RESPALDO
+        value: gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash

@@ -36,7 +36,7 @@ function MensajeEli({ paso, codigoDemo, telefono, compacto = false }) {
       <output className={`burbuja burbuja--oscura eli-codigo ${compacto ? "eli-codigo--compacto" : ""}`}>
         <span className="eli-codigo__intro">{compacto ? "Soy Eli. Este es su código:" : "Listo. Este es su código de acceso:"}</span>
         <strong className="eli-codigo__digitos">{codigoDemo}</strong>
-        <span className="eli-codigo__nota">Modo de prueba: en el servicio real, este código le llega por WhatsApp.</span>
+        <span className="eli-codigo__nota">Versión de demostración: en el servicio real, este código le llega por WhatsApp.</span>
       </output>
     );
   }

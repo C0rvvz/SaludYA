@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { propsPantallaProtegida } from "../utils/campoProtegido";
+import { esDemostracion } from "../utils/entorno";
 import { Chevron } from "./Iconos";
 import Logo from "./Logo";
 
@@ -32,6 +33,11 @@ export default function AuthShell({ children, protegida = false, lado = null, pi
             <div className="auth-card__logo">
               <Logo to="/" size="lg" />
             </div>
+            {esDemostracion() && (
+              <p className="aviso-demostracion" role="note">
+                <strong>Versión de demostración.</strong> Use solo datos de prueba, nunca sus datos reales.
+              </p>
+            )}
             {children}
           </div>
           {pie}

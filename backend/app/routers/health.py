@@ -7,12 +7,16 @@ todavía, que:
 2. FastAPI puede conectarse efectivamente a PostgreSQL.
 """
 
+import logging
+
 from fastapi import APIRouter
 from sqlalchemy import text
 
+from app.core.config import settings
 from app.core.database import engine
 
 router = APIRouter()
+logger = logging.getLogger("saludya.health")
 
 
 @router.get("/health")
@@ -22,7 +26,9 @@ def health_check():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
     except Exception as e:
-        db_status = f"error: {e}"
+        logger.error("La API no se pudo conectar a la base de datos: %s", e)
+        # Fuera de desarrollo, sin el detalle: puede traer el servidor y el usuario de la base.
+        db_status = f"error: {e}" if settings.es_desarrollo else "error"
 
     return {
         "status": "ok",

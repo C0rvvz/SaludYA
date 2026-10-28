@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session
 from app.core import cifrado
 from app.core.config import settings
 from app.core.permisos import NOMBRE_ROL
+from app.core.red import ip_del_cliente
 from app.integrations import verificacion_humana
 from app.models.auditoria import RegistroAuditoria
 from app.models.evento_seguridad import EventoSeguridad
@@ -90,8 +91,7 @@ def reiniciar() -> None:
 
 
 def _ip(request: Request | None) -> str | None:
-    # Igual que limite_intentos.ip_de: no se confía en X-Forwarded-For.
-    return request.client.host if request is not None and request.client else None
+    return ip_del_cliente(request) if request is not None else None
 
 
 def nombre_personal(personal: Personal) -> str:

@@ -2,7 +2,8 @@
 #
 # En cada push a main y en cada pull request se comprueba que el proyecto
 # sigue sano: las pruebas del backend (contra un PostgreSQL de verdad, con
-# todas las migraciones) y el lint, las pruebas y el build del frontend.
+# todas las migraciones), el lint, las pruebas y el build del frontend, y
+# que la imagen de producción (la que publica Render) se construye.
 # Si algo falla, GitHub lo marca en rojo y no se debería unir el cambio.
 
 name: CI
@@ -80,3 +81,12 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  imagen:
+    name: Imagen de producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir (Dockerfile de la raíz)
+        run: docker build -t saludya-produccion .

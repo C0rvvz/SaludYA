@@ -1,7 +1,10 @@
+import { llaveTurnstileDelServidor } from "./entorno";
+
 /**
  * "No soy un robot" con Cloudflare Turnstile: carga el script una sola vez.
- * La llave pública va en VITE_TURNSTILE_SITEKEY; sin ella la casilla no se
- * muestra (el backend tampoco la exige si no tiene TURNSTILE_SECRET).
+ * La llave pública va en VITE_TURNSTILE_SITEKEY (desarrollo) o la pone el
+ * servidor en la página (producción, TURNSTILE_SITEKEY); sin ella la
+ * casilla no se muestra (el backend tampoco la exige si no tiene TURNSTILE_SECRET).
  */
 
 const SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -9,7 +12,7 @@ const SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=exp
 let carga = null;
 
 export function llaveVerificacion() {
-  return import.meta.env.VITE_TURNSTILE_SITEKEY || "";
+  return import.meta.env.VITE_TURNSTILE_SITEKEY || llaveTurnstileDelServidor();
 }
 
 export function cargarTurnstile() {

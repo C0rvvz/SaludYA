@@ -92,7 +92,7 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
 
 ### Ingresar como paciente sin WhatsApp real (modo demostración)
 
-Mientras `WHATSAPP_MODE=mock` y `APP_ENV=development`, los mensajes no se envían y **la pantalla de ingreso muestra el código de verificación** en un aviso de "Modo demostración". Con WhatsApp real o en otro entorno el código nunca se muestra (HU-02, criterio 4).
+Mientras `WHATSAPP_MODE=mock` y `APP_ENV=development`, los mensajes no se envían y **la pantalla de ingreso muestra el código de verificación** en un aviso de "Versión de demostración". En la versión publicada en internet se activa a propósito con `MODO_DEMOSTRACION=true` (ver [Publicar en internet](#publicar-en-internet-render--neon)). Con WhatsApp real el código nunca se muestra (HU-02, criterio 4).
 
 Los demás mensajes (comprobante, recordatorios, cancelaciones) quedan en el log de la API, en las líneas `[WHATSAPP MOCK]`:
 
@@ -209,7 +209,10 @@ Todas están explicadas en [.env.example](.env.example). Las principales:
 | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Credenciales de Meta para el modo real |
 | `IA_API_KEY`, `IA_BASE_URL`, `IA_MODELO` | Asistente conversacional. Sin llave, el chat avisa que no está disponible |
 | `TAREAS_PERIODICAS_ACTIVAS` | Recordatorios y cierre automático de citas en segundo plano |
-| `CORS_ORIGINS`, `FRONTEND_URL` | Dirección del frontend |
+| `CORS_ORIGINS`, `FRONTEND_URL` | Dirección del frontend. En Render, `FRONTEND_URL` toma sola la dirección pública |
+| `TURNSTILE_SECRET`, `TURNSTILE_SITEKEY` | "No soy un robot" (Cloudflare Turnstile). En desarrollo, la llave pública va en `frontend/.env` |
+| `MODO_DEMOSTRACION` | Versión publicada con WhatsApp simulado: muestra el código de ingreso en pantalla |
+| `CABECERA_IP_CLIENTE` | Detrás de un proxy, de qué cabecera sale la IP del visitante (en Render, `cf-connecting-ip`) |
 
 ## WhatsApp real (Meta)
 
@@ -232,6 +235,65 @@ El token generado en **API Setup** dura 24 horas. Para uno permanente, cree un u
 
 Los números se guardan como `3001234567` y se envían con el indicativo de Colombia (`573001234567`).
 
+## Publicar en internet (Render + Neon)
+
+La versión publicada es una **demostración**: WhatsApp y los pagos siguen simulados, el código de ingreso se muestra en pantalla y las pantallas de ingreso y registro piden usar solo datos de prueba. Quien escriba un documento registrado ve su código, así que **nunca se deben registrar datos reales**.
+
+Cómo queda montada:
+
+- **Un solo servicio en Render** (plan gratuito) con la página y la API: la imagen del [Dockerfile](Dockerfile) de la raíz compila el frontend y lo sirve junto con la API ([backend/app/servidor.py](backend/app/servidor.py)). La API queda en `/api`, igual que con Vite en desarrollo, así que no hace falta CORS. La configuración está en [render.yaml](render.yaml).
+- **La base de datos en Neon** (PostgreSQL gratis). Las migraciones corren solas al arrancar, y la agenda de los próximos 10 días hábiles se genera sola.
+- **Cada push a `main` se publica solo.** Para que Render espere a que pase el CI, en el servicio: **Settings › Auto-Deploy › After CI Checks Pass**.
+
+Límites del plan gratuito:
+
+- El servicio se duerme tras 15 minutos sin visitas, y la primera visita después tarda cerca de un minuto.
+- Mientras duerme no corren las tareas de fondo (recordatorios, cierre de citas, lista de espera). Se ponen al día cuando alguien vuelve a entrar.
+
+### Paso a paso
+
+1. **Suba los cambios a GitHub** (rama `main`).
+2. **Base de datos.** Cree una cuenta en [neon.com](https://neon.com) y un proyecto `saludya` en la región **AWS US East 1 (N. Virginia)**, la misma de Render. En **Connect**, desactive **Connection pooling** y copie la dirección (`postgresql://...?sslmode=require`).
+3. **Llave de cifrado.** Genérela en su equipo y guárdela en un lugar seguro, como un gestor de contraseñas. Sin ella no se pueden leer los diagnósticos ni las fórmulas:
+
+   ```bash
+   python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+   ```
+
+4. **"No soy un robot".** En [dash.cloudflare.com](https://dash.cloudflare.com) › **Turnstile** › **Add widget**, con el dominio `saludya.onrender.com` y el modo **Managed**, copie la llave pública (*site key*) y la secreta. Para una primera prueba sirven las llaves de prueba de Cloudflare: siempre aprueban, así que no protegen de nada. Son la pública `1x00000000000000000000AA` y la secreta `1x0000000000000000000000000000000AA`.
+5. **Servicio.** Cree una cuenta en [render.com](https://render.com) con su usuario de GitHub. Luego **New › Blueprint**, elija el repositorio `SaludYA` y llene las variables que pide:
+
+   | Variable | Valor |
+   | --- | --- |
+   | `DATABASE_URL` | La dirección de Neon (paso 2) |
+   | `CLAVE_CIFRADO_DATOS` | La llave del paso 3 |
+   | `TURNSTILE_SITEKEY`, `TURNSTILE_SECRET` | Las llaves del paso 4 |
+   | `IA_API_KEY` | La llave de Gemini (opcional). En el plan gratuito, Google puede usar las conversaciones: solo datos de prueba |
+
+   `JWT_SECRET` la genera Render. La primera publicación tarda unos 5 minutos. La dirección queda como `https://saludya.onrender.com`; si Render le agrega letras al nombre, ponga esa dirección también en el widget de Turnstile.
+6. **Primer administrador.** El plan gratuito no tiene consola, así que se crea desde su equipo con la misma imagen. Cree el archivo `saludya-produccion.env` **fuera del repositorio** (por ejemplo, en la carpeta de arriba):
+
+   ```
+   APP_ENV=production
+   DATABASE_URL=<la dirección de Neon>
+   CLAVE_CIFRADO_DATOS=<la misma llave del paso 3>
+   JWT_SECRET=<cualquier texto aleatorio de 32 caracteres o más; el script no lo usa>
+   TURNSTILE_SECRET=<cualquier valor; el script no lo usa>
+   ```
+
+   Y desde la raíz del proyecto (pide la contraseña sin mostrarla):
+
+   ```bash
+   docker build -t saludya-produccion .
+   ```
+
+   ```bash
+   docker run --rm -it --env-file ../saludya-produccion.env saludya-produccion python -m app.scripts.crear_personal --nombre "Ana Pérez" --correo ana@eps.co --rol administrador
+   ```
+
+   Las demás cuentas del personal se crean desde **Personal › Usuarios**.
+7. **Pruebe** la dirección desde el computador y desde el celular: pacientes en `/`, personal en `/admin/ingresar`.
+
 ## Estructura
 
 ```
@@ -245,6 +307,7 @@ backend/
     routers/        endpoints
     integrations/   WhatsApp, EPS simulada, envío por canal
     scripts/        crear personal, generar disponibilidad
+    servidor.py     producción: la página y la API juntas
   alembic/versions/ migraciones
   tests/            pruebas (pytest)
 frontend/
@@ -256,7 +319,8 @@ frontend/
   tests/            pruebas (Vitest) y backend simulado
 scripts/
   analisis-sonar.sh pruebas con cobertura + análisis en SonarQube
-docker-compose.yml
+docker-compose.yml          desarrollo
+Dockerfile, render.yaml     producción (Render)
 sonar-project.properties
 .env.example
 ```

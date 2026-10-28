@@ -1,0 +1,22 @@
+# Lo que NUNCA entra a la imagen de producción (Dockerfile de la raíz).
+# Las llaves y claves de .env se configuran en la plataforma, no en la imagen.
+**/.env
+**/.env.*
+.git
+.github
+.idea
+.vscode
+.claude
+.venv
+state
+scripts
+saludya.sql
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/coverage
+**/coverage.xml
+.coverage
+.scannerwork
+frontend/dist
+backend/tests

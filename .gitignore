@@ -1,5 +1,7 @@
 # Entorno
 .env
+# Variables de la versión publicada (README, "Publicar en internet"): van fuera del repositorio
+saludya-produccion.env
 
 # Python
 __pycache__/

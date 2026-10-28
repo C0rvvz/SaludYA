@@ -713,6 +713,17 @@ summary:focus-visible {
   margin-bottom: 18px;
 }
 
+/* Versión de demostración publicada (utils/entorno.js) */
+.aviso-demostracion {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
 .logo--lg .logo__mark {
   border-radius: 12px;
   background: var(--color-navy);

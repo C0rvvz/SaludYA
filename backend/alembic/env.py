@@ -21,7 +21,8 @@ config = context.config
 # La URL de conexión viene de nuestra configuración (settings), que a su
 # vez viene de las variables de entorno inyectadas por docker-compose —
 # no se duplica la URL en alembic.ini.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# (Los "%" se duplican: alembic.ini los interpreta, y pueden venir en la clave.)
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

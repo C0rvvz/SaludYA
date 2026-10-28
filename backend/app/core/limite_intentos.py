@@ -18,14 +18,14 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.red import ip_del_cliente
 from app.integrations import verificacion_humana
 from app.services import seguridad_service
 from app.services.exceptions import DemasiadosIntentosError
 
 
 def ip_de(request: Request) -> str:
-    # No se confía en X-Forwarded-For: cualquiera puede escribir esa cabecera.
-    return request.client.host if request.client else "desconocida"
+    return ip_del_cliente(request) or "desconocida"
 
 
 class LimiteIntentos:
