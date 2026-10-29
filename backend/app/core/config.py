@@ -173,7 +173,9 @@ class Settings(BaseSettings):
     # las peticiones entre orígenes distintos si no se habilita) ---
     cors_origins: str = "http://localhost:5173"
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    # hide_input_in_errors: si una variable está mal, el error (que va a los logs de la
+    # plataforma) dice cuál regla falló, nunca los valores, que incluyen llaves y contraseñas.
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, hide_input_in_errors=True)
 
     @property
     def cors_origins_list(self) -> list[str]:

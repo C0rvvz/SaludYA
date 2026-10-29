@@ -94,6 +94,15 @@ def test_modo_demostracion_muestra_el_codigo_solo_con_whatsapp_simulado():
     assert not _produccion(whatsapp_mode="real", modo_demostracion=True).codigo_otp_en_pantalla
 
 
+def test_un_error_de_configuracion_no_muestra_las_llaves():
+    """El error va a los logs de la plataforma: dice qué falló, sin los valores."""
+    with pytest.raises(ValueError) as error:
+        _produccion(database_url="postgresql://u:CONTRASENA-SECRETA@servidor/base", clave_cifrado_datos="corta")
+    texto = str(error.value)
+    assert "32 bytes" in texto
+    assert "CONTRASENA-SECRETA" not in texto and "input_value" not in texto
+
+
 def test_acepta_la_direccion_de_la_base_como_la_entregan_los_servicios():
     assert _produccion(database_url="postgres://u:c@ep-1.neon.tech/neondb?sslmode=require").database_url == (
         "postgresql://u:c@ep-1.neon.tech/neondb?sslmode=require"
