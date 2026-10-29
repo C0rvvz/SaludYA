@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { abrir, backendFalso, error, esperarTexto, llamadasA } from "./backendFalso";
 import { PERSONAL } from "./datos";
+import { Barras } from "../src/components/admin/Reportes";
 
 function reporte(cambios = {}) {
   return {
@@ -143,8 +144,9 @@ describe("Reportes", () => {
     expect(within(satisfaccion).getByText("3 de 9 citas atendidas")).toBeInTheDocument();
     expect(within(satisfaccion).getByRole("img", { name: "5 · Excelente: 2, 4 · Buena: 0, 3 o menos: 1" })).toBeInTheDocument();
 
-    // Barras: la mayor resaltada.
+    // Barras: la mayor resaltada; con pocas filas, sin desplazamiento.
     const demanda = screen.getByRole("heading", { name: "Demanda por especialidad" }).closest("section");
+    expect(within(demanda).queryByRole("region")).not.toBeInTheDocument();
     expect(within(demanda).getByText("Cardiología", { selector: ".barras__nombre" }).closest("li")).toHaveClass("is-mayor");
 
     expect(screen.getByText("Cardiología", { selector: ".reporte__destacado strong" })).toBeInTheDocument();
@@ -262,6 +264,29 @@ describe("Auditoría", () => {
 describe("Usuarios del personal", () => {
   const OTRO = { ...PERSONAL, id: "per-2", nombre: "Carlos Agenda", correo: "carlos@saludya.co", rol: "agendamiento", ultimo_acceso_en: null };
 
+  it("busca las cuentas por nombre o correo, sin importar mayúsculas ni tildes", async () => {
+    const MEDICA = { ...OTRO, id: "per-5", nombre: "María Pérez", correo: "maria.perez@clinica.co", rol: "medico" };
+    backendFalso({ "GET /admin/usuarios": [PERSONAL, OTRO, MEDICA], "GET /admin/roles": [] });
+    const usuario = abrir("/admin/usuarios", { personal: true });
+    await screen.findByText("Carlos Agenda");
+    expect(screen.getByRole("status")).toHaveTextContent("3 cuentas");
+
+    const buscar = screen.getByLabelText("Buscar");
+    await usuario.type(buscar, "MARIA PEREZ");
+    expect(screen.getByText("María Pérez")).toBeInTheDocument();
+    expect(screen.queryByText("Carlos Agenda")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("1 de 3 cuentas");
+
+    await usuario.clear(buscar);
+    await usuario.type(buscar, "carlos@saludya");
+    expect(screen.getByText("Carlos Agenda")).toBeInTheDocument();
+    expect(screen.queryByText("María Pérez")).not.toBeInTheDocument();
+
+    await usuario.clear(buscar);
+    await usuario.type(buscar, "nadie");
+    expect(screen.getByText("No hay cuentas con «nadie» en el nombre ni en el correo.")).toBeInTheDocument();
+  });
+
   it("crear, cambiar rol, desactivar y cambiar contraseña", async () => {
     const llamadas = backendFalso({
       "GET /admin/usuarios": [PERSONAL, OTRO, { ...OTRO, id: "per-3", nombre: "Inactiva", activo: false }],
@@ -366,5 +391,16 @@ describe("Lista de solicitudes del personal", () => {
     backendFalso({ "GET /admin/solicitudes": error(500, "Sin solicitudes") });
     abrir("/admin/solicitudes", { personal: true });
     expect(await esperarTexto("Sin solicitudes")).toBeInTheDocument();
+  });
+});
+
+describe("Barras con muchas filas", () => {
+  it("se desplazan dentro de su tarjeta y se pueden recorrer con el teclado", () => {
+    const datos = Array.from({ length: 27 }, (_, i) => ({ nombre: `Especialidad ${i + 1}`, valor: 27 - i }));
+    render(<Barras datos={datos} etiqueta="Inasistencia por especialidad" />);
+    const lista = screen.getByRole("region", { name: "Inasistencia por especialidad" });
+    expect(lista).toHaveClass("barras-desplazables");
+    expect(lista).toHaveAttribute("tabindex", "0");
+    expect(within(lista).getAllByRole("listitem")).toHaveLength(27); // están todas, solo se desplazan
   });
 });

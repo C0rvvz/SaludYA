@@ -423,6 +423,22 @@
   background: var(--color-navy);
 }
 
+/* Muchas filas: se desplazan dentro de la tarjeta (unas 7 a la vista) */
+.barras-desplazables {
+  max-height: 300px;
+  margin-right: -8px;
+  padding-right: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.barras-desplazables:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
 /* Dona: conic-gradient con el valor en el centro, y su leyenda al lado */
 .dona {
   display: flex;
@@ -1684,6 +1700,18 @@
 /* --- Seguridad --- */
 .filtros-admin--seguridad {
   grid-template-columns: minmax(240px, 2fr) minmax(200px, 1fr);
+}
+
+/* Usuarios: el buscador y, a la derecha, cuántas cuentas se ven */
+.filtros-admin--usuarios {
+  grid-template-columns: minmax(240px, 420px) 1fr;
+}
+
+.filtros-admin__conteo {
+  justify-self: end;
+  margin: 0 0 10px;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
 }
 
 /* La severidad dentro de una celda de dos líneas: del ancho de su texto */

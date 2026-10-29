@@ -391,7 +391,7 @@ def reenviar_codigo(db: Session, actor: Actor, cita: Cita) -> str:
         raise FormulaInvalidaError("La fórmula ya venció: el código no sirve para reclamar.")
     enviado = enviar_por_canal(
         cita.paciente, cita.canal_recordatorio,
-        f"SaludYA: el código de su fórmula es {formula.codigo} y vale hasta el {fecha_legible(formula.vence_en)}. "
+        f"SaludYA: el código de su fórmula es {formula.codigo} y es válido hasta el {fecha_legible(formula.vence_en)}. "
         f"Muéstrelo (o el QR) en una farmacia aliada. Véalo en {settings.frontend_url}/mis-citas",
     )
     if not enviado:

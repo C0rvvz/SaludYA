@@ -53,7 +53,7 @@ export default function FormulaImpresa({ formula, qr, paciente }) {
         <p>
           Código <strong>{formula.codigo}</strong>
           <br />
-          Vale hasta el {formatearDiaMes(formula.vence_en)}
+          Válido hasta el {formatearDiaMes(formula.vence_en)}
         </p>
       </div>
     </div>,

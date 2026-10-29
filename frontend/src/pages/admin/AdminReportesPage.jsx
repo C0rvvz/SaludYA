@@ -158,7 +158,10 @@ export default function AdminReportesPage() {
                     />
                   }
                 />
-                <Barras datos={r.demanda.map((e) => ({ nombre: e.nombre, valor: e.cantidad }))} />
+                <Barras
+                  etiqueta="Demanda por especialidad"
+                  datos={r.demanda.map((e) => ({ nombre: e.nombre, valor: e.cantidad }))}
+                />
               </section>
 
               <section className="card" aria-labelledby="reporte-inasistencia">
@@ -174,6 +177,7 @@ export default function AdminReportesPage() {
                   }
                 />
                 <Barras
+                  etiqueta="Inasistencia por especialidad"
                   datos={r.inasistencia_por_especialidad.map((e) => ({
                     nombre: e.especialidad,
                     valor: e.porcentaje ?? 0,

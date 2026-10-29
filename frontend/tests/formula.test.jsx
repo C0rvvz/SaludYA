@@ -79,7 +79,7 @@ describe("Fórmula médica en Mis citas", () => {
     expect(qr).toHaveAttribute("src", formula().qr);
     expect(within(donde).getAllByRole("img", { name: /Código QR/ })).toHaveLength(1);
     expect(within(donde).getByText("Muestre este código en cualquier farmacia aliada")).toBeInTheDocument();
-    expect(within(donde).getByText("Le entregan sus 2 medicamentos sin costo. Vale hasta el 14 de noviembre.")).toBeInTheDocument();
+    expect(within(donde).getByText("Le entregan sus 2 medicamentos sin costo. Válido hasta el 14 de noviembre.")).toBeInTheDocument();
     expect(within(donde).queryByRole("button", { name: /Ver mi código/ })).not.toBeInTheDocument();
 
     // Debajo, las farmacias: aliada o no, dónde quedan y cómo llegar.

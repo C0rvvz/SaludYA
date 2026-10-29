@@ -144,6 +144,7 @@ export default function AdminDashboardPage() {
                   Inasistencia por especialidad
                 </h2>
                 <Barras
+                  etiqueta="Inasistencia por especialidad"
                   datos={[...r.inasistencia_por_especialidad]
                     .sort((a, b) => b.no_asistio - a.no_asistio)
                     .map((e) => ({ nombre: e.especialidad, valor: e.no_asistio }))}

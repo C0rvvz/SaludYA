@@ -56,7 +56,7 @@ function CodigoFormula({ formula }) {
         </p>
         <p>
           {gratis ? "Le entregan" : "Con él le entregan"} {cuantos === 1 ? "su medicamento" : `sus ${cuantos} medicamentos`}
-          {gratis && " sin costo"}. Vale hasta el {formatearDiaMes(formula.vence_en)}.
+          {gratis && " sin costo"}. Válido hasta el {formatearDiaMes(formula.vence_en)}.
         </p>
         <p className="formula__numero">{formula.codigo}</p>
       </div>

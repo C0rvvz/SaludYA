@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   actualizarUsuario,
   crearUsuario,
@@ -6,16 +6,18 @@ import {
   listarRoles,
   listarUsuarios,
 } from "../../api/admin";
-import { BotonIcono, IconoLlave } from "../../components/admin/IconosAdmin";
+import { BotonIcono, IconoBuscar, IconoLlave } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
 import { usePersonal } from "../../context/personal";
+import { sinTildes } from "../../utils/agendar";
 import { iniciales } from "../../utils/avatar";
 
 /**
  * Cuentas del personal (solo administradores). Las cuentas no se borran:
  * se desactivan, para que la auditoría conserve quién hizo cada acción.
  * Una cuenta con el rol Médico es la de un médico de la red: en la
- * historia clínica solo ve a sus pacientes.
+ * historia clínica solo ve a sus pacientes. Las cuentas se buscan por
+ * nombre o correo (sin importar mayúsculas ni tildes).
  */
 
 const ROLES = [
@@ -163,6 +165,7 @@ export default function AdminUsuariosPage() {
   const [clave, setClave] = useState("");
   const [porConfirmar, setPorConfirmar] = useState(null); // { usuario, cambios, pregunta, ... }
   const [especialistas, setEspecialistas] = useState([]);
+  const [buscar, setBuscar] = useState("");
 
   const cargar = useCallback(
     () =>
@@ -185,6 +188,11 @@ export default function AdminUsuariosPage() {
 
   // Para el rol Médico: los que todavía no tienen cuenta (un médico, una cuenta).
   const conCuenta = new Set(usuarios.map((u) => u.especialista_id).filter(Boolean));
+  const termino = sinTildes(buscar.trim());
+  const visibles = useMemo(
+    () => (termino ? usuarios.filter((u) => sinTildes(`${u.nombre} ${u.correo}`).includes(termino)) : usuarios),
+    [usuarios, termino]
+  );
   const medicosSinCuenta = especialistas.filter((e) => !conCuenta.has(e.id));
 
   async function ejecutar(accion, texto) {
@@ -344,6 +352,26 @@ export default function AdminUsuariosPage() {
         </div>
       </form>
 
+      <div className="filtros-admin filtros-admin--usuarios">
+        <div className="field">
+          <label htmlFor="buscar-usuario">Buscar</label>
+          <div className="campo-con-icono">
+            <IconoBuscar />
+            <input
+              id="buscar-usuario"
+              type="search"
+              value={buscar}
+              onChange={(e) => setBuscar(e.target.value)}
+              placeholder="Nombre o correo"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <p className="filtros-admin__conteo" role="status">
+          {termino ? `${visibles.length} de ${usuarios.length} cuentas` : `${usuarios.length} cuentas`}
+        </p>
+      </div>
+
       <div className="tabla-contenedor">
         <table className="tabla">
           <thead>
@@ -356,7 +384,7 @@ export default function AdminUsuariosPage() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => {
+            {visibles.map((u) => {
               const esYo = u.id === yo.id;
               return (
                 <tr key={u.id}>
@@ -454,6 +482,9 @@ export default function AdminUsuariosPage() {
             })}
           </tbody>
         </table>
+        {termino && visibles.length === 0 && (
+          <p className="tabla-vacia">No hay cuentas con «{buscar.trim()}» en el nombre ni en el correo.</p>
+        )}
       </div>
 
       {roles.length > 0 && <TablaRoles roles={roles} />}

@@ -84,9 +84,17 @@ export function CabezaTarjeta({ titulo, dato, id }) {
 }
 
 /** Barras horizontales finas. Resalta la mayor (p. ej. el canal más usado, HU-49 criterio 2). */
-export function Barras({ datos }) {
+// Con más filas que estas (p. ej. las 27 especialidades), la lista se desplaza
+// dentro de su tarjeta en vez de alargar toda la página.
+const FILAS_SIN_DESPLAZAR = 8;
+
+/**
+ * Barras horizontales, la mayor resaltada. `etiqueta`: el nombre de la lista
+ * para el lector de pantalla cuando se desplaza (se puede recorrer con el teclado).
+ */
+export function Barras({ datos, etiqueta }) {
   const mayor = Math.max(0, ...datos.map((d) => d.valor));
-  return (
+  const lista = (
     <ul className="barras">
       {datos.map((d) => (
         <li key={d.nombre} className={mayor > 0 && d.valor === mayor ? "is-mayor" : undefined}>
@@ -100,6 +108,12 @@ export function Barras({ datos }) {
         </li>
       ))}
     </ul>
+  );
+  if (datos.length <= FILAS_SIN_DESPLAZAR) return lista;
+  return (
+    <div className="barras-desplazables" role="region" aria-label={etiqueta} tabIndex={0}>
+      {lista}
+    </div>
   );
 }
 
