@@ -26,7 +26,7 @@ import {
 } from "../src/utils/formato";
 import { FOTO_INICIO, proximosCupos, textoCuando } from "../src/utils/inicio";
 import { ESTADOS_SOLICITUD } from "../src/utils/solicitudes";
-import { franja, OTRO_ESPECIALISTA, OTRA_SEDE } from "./datos";
+import { ESPECIALISTA, franja, OTRO_ESPECIALISTA, OTRA_SEDE } from "./datos";
 import {
   validarCodigoOtp,
   validarCorreo,
@@ -63,6 +63,19 @@ describe("próximos cupos del Home", () => {
     expect(cupos[0].foto).toContain("unsplash.com");
     expect(cupos[1].foto).not.toBe(FOTO_INICIO); // Dermatología tiene su propia foto
     expect(proximosCupos([], AHORA)).toEqual([]);
+  });
+
+  it("cada especialidad tiene su foto (sin importar tildes); la que no, la de una consulta", () => {
+    const de = (nombre) => ({ ...ESPECIALISTA, especialidad: { id: nombre, nombre } });
+    const nombres = ["Oftalmología", "Ginecología y obstetricia", "Nutrición y dietética", "Psicología", "Odontología"];
+    const fotos = proximosCupos(
+      nombres.map((nombre, i) => franja(`f${i}`, "2026-10-22", `0${8 + i}:00:00`, { especialista: de(nombre) })),
+      AHORA
+    ).map((c) => c.foto);
+    expect(new Set(fotos).size).toBe(nombres.length); // todas distintas
+    expect(fotos).not.toContain(FOTO_INICIO);
+    const [sinFoto] = proximosCupos([franja("x", "2026-10-22", "08:00:00", { especialista: de("Especialidad nueva") })], AHORA);
+    expect(sinFoto.foto).toBe(FOTO_INICIO);
   });
 });
 
