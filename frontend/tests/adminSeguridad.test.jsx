@@ -59,6 +59,27 @@ function panel(cambios = {}) {
   };
 }
 
+describe("Menú del panel en el celular", () => {
+  it("el botón «Menú» despliega las secciones y se recoge al elegir una", async () => {
+    backendFalso({ "GET /admin/auditoria": [], "GET /admin/seguridad": () => panel() });
+    const usuario = abrir("/admin/auditoria", { personal: true });
+    const boton = await screen.findByRole("button", { name: "Menú" });
+    expect(boton).toHaveAttribute("aria-expanded", "false");
+    expect(boton).toHaveAttribute("aria-controls", "admin-menu");
+
+    await usuario.click(boton);
+    expect(screen.getByRole("button", { name: "Cerrar" })).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("admin-menu")).toHaveClass("is-abierto");
+
+    const menu = screen.getByRole("navigation", { name: "Secciones de administración" });
+    await usuario.click(within(menu).getByRole("link", { name: /Auditoría y seguridad/ }));
+    await usuario.click(screen.getByRole("link", { name: /^Seguridad/ })); // otra página: el menú se recoge
+    expect(await screen.findByRole("heading", { name: "Resumen del periodo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Menú" })).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("admin-menu")).not.toHaveClass("is-abierto");
+  });
+});
+
 describe("Auditoría y seguridad: una sola entrada del menú, con dos pestañas", () => {
   it("el menú tiene una sola entrada, marcada en las dos pestañas, y se pasa de una a otra", async () => {
     backendFalso({ "GET /admin/auditoria": [], "GET /admin/seguridad": () => panel() });

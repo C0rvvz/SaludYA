@@ -14,6 +14,13 @@ function Svg({ tamano = 15, children }) {
 
 const trazo = { stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
 
+/** "Menú" del panel en el celular (tres líneas) y "Cerrar" (una equis). */
+export const IconoMenu = ({ abierto = false }) => (
+  <Svg tamano={18}>
+    <path d={abierto ? "M6 6l12 12M18 6 6 18" : "M4 7h16M4 12h16M4 17h16"} {...trazo} />
+  </Svg>
+);
+
 export const IconoConfirmar = () => (
   <Svg>
     <path d="m5 12.5 4.5 4.5L19 7.5" {...trazo} />

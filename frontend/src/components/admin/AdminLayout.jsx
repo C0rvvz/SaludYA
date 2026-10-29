@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { usePersonal } from "../../context/personal";
 import { PESTANAS_AUDITORIA } from "../../utils/auditoriaYSeguridad";
 import { iniciales } from "../../utils/avatar";
 import { IconoSalir } from "../Iconos";
-import { IconoCandado } from "./IconosAdmin";
+import { IconoCandado, IconoMenu } from "./IconosAdmin";
 import "../../styles/admin.css";
 
 // Solo aparecen las secciones que el rol puede usar (mínimo privilegio: ver
@@ -50,11 +51,18 @@ const SECCIONES = [
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];
 
-/** Estructura del panel del personal: menú lateral oscuro y contenido. */
+/**
+ * Estructura del panel del personal: menú lateral oscuro y contenido. En el
+ * celular (hasta 900 px), una franja arriba con la marca y el botón "Menú",
+ * que despliega las secciones; al elegir una, se vuelve a recoger.
+ */
 export default function AdminLayout() {
   const { personal, cerrarSesion, tienePermiso } = usePersonal();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  // El menú del celular queda abierto solo en la página donde se abrió: al pasar a otra, se recoge.
+  const [abiertoEn, setAbiertoEn] = useState(null);
+  const menuAbierto = abiertoEn === pathname;
 
   // Una sección con pestañas va a la primera permitida y queda marcada en cualquiera de ellas.
   const destino = (s) => s.to ?? s.pestanas.find((p) => tienePermiso(p.permiso)).to;
@@ -68,61 +76,75 @@ export default function AdminLayout() {
   return (
     <div className="admin">
       <aside className="admin-sidebar">
-        <Link to="/admin/citas" className="admin-marca" aria-label="SaludYA Personal: ir a Gestión de citas">
-          <span className="admin-marca__icono" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none">
-              <path
-                d="M2 12h4l2-7 4 14 2-7h8"
-                stroke="white"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            SaludYA <span className="admin-marca__sub">Personal</span>
-          </span>
-        </Link>
-
-        <div className="admin-sidebar__usuario">
-          <span className="admin-sidebar__iniciales" aria-hidden="true">
-            {iniciales(personal.nombre)}
-          </span>
-          <div>
-            <p className="admin-sidebar__nombre">{personal.nombre}</p>
-            <p className="admin-sidebar__rol">{personal.rol_texto}</p>
-          </div>
+        <div className="admin-sidebar__cabeza">
+          <Link to="/admin/citas" className="admin-marca" aria-label="SaludYA Personal: ir a Gestión de citas">
+            <span className="admin-marca__icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none">
+                <path
+                  d="M2 12h4l2-7 4 14 2-7h8"
+                  stroke="white"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span>
+              SaludYA <span className="admin-marca__sub">Personal</span>
+            </span>
+          </Link>
+          <button
+            type="button"
+            className="admin-menu-boton"
+            aria-expanded={menuAbierto}
+            aria-controls="admin-menu"
+            onClick={() => setAbiertoEn(menuAbierto ? null : pathname)}
+          >
+            <IconoMenu abierto={menuAbierto} />
+            {menuAbierto ? "Cerrar" : "Menú"}
+          </button>
         </div>
 
-        <nav className="admin-nav" aria-label="Secciones de administración">
-          <span className="admin-nav__titulo" aria-hidden="true">
-            Módulos
-          </span>
-          {SECCIONES.filter((s) => tienePermiso(s.permiso)).map((s) => (
-            <NavLink
-              key={s.texto}
-              to={destino(s)}
-              className={({ isActive }) => `admin-nav__enlace ${activa(s, isActive) ? "is-active" : ""}`}
-            >
-              <span className={s.reservada ? "admin-nav__reservada" : undefined}>
-                {s.texto}
-                {s.reservada && (
-                  <>
-                    <IconoCandado />
-                    <span className="sr-only">, información reservada</span>
-                  </>
-                )}
-              </span>
-              <span className="admin-nav__ayuda">{s.ayuda}</span>
-            </NavLink>
-          ))}
-        </nav>
+        <div id="admin-menu" className={`admin-sidebar__menu ${menuAbierto ? "is-abierto" : ""}`}>
+          <div className="admin-sidebar__usuario">
+            <span className="admin-sidebar__iniciales" aria-hidden="true">
+              {iniciales(personal.nombre)}
+            </span>
+            <div>
+              <p className="admin-sidebar__nombre">{personal.nombre}</p>
+              <p className="admin-sidebar__rol">{personal.rol_texto}</p>
+            </div>
+          </div>
 
-        <button type="button" className="admin-sidebar__salir" onClick={salir}>
-          <IconoSalir />
-          Cerrar sesión
-        </button>
+          <nav className="admin-nav" aria-label="Secciones de administración">
+            <span className="admin-nav__titulo" aria-hidden="true">
+              Módulos
+            </span>
+            {SECCIONES.filter((s) => tienePermiso(s.permiso)).map((s) => (
+              <NavLink
+                key={s.texto}
+                to={destino(s)}
+                className={({ isActive }) => `admin-nav__enlace ${activa(s, isActive) ? "is-active" : ""}`}
+              >
+                <span className={s.reservada ? "admin-nav__reservada" : undefined}>
+                  {s.texto}
+                  {s.reservada && (
+                    <>
+                      <IconoCandado />
+                      <span className="sr-only">, información reservada</span>
+                    </>
+                  )}
+                </span>
+                <span className="admin-nav__ayuda">{s.ayuda}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          <button type="button" className="admin-sidebar__salir" onClick={salir}>
+            <IconoSalir />
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       <main className="admin-main">

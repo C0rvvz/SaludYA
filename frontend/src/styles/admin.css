@@ -172,6 +172,37 @@
   outline-offset: 2px;
 }
 
+/* La marca y el botón "Menú" (este solo en el celular); debajo, el menú */
+.admin-sidebar__cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-menu-boton {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #3a434e;
+  border-radius: 10px;
+  background: var(--admin-oscuro-2);
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-sidebar__menu {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 22px;
+}
+
 /* --- Contenido --- */
 .admin-main {
   display: flex;
@@ -603,6 +634,7 @@
 
 /* --- Tablas --- */
 .tabla-contenedor {
+  position: relative; /* lo absoluto de adentro (p. ej. .sr-only) no estira la página */
   overflow-x: auto;
   border: 1px solid var(--admin-borde);
   border-radius: 12px;
@@ -2016,26 +2048,36 @@ blockquote.revision__motivo::after {
   }
 }
 
-/* --- Pantallas angostas: el menú arriba, en una franja --- */
+/* --- Celular y tableta: una franja arriba con "Menú", que despliega las secciones --- */
 @media (max-width: 900px) {
   .admin {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .admin-sidebar {
-    position: static;
+    z-index: 20;
+    gap: 0;
     height: auto;
+    max-height: 100vh;
+    padding: 10px 16px;
+  }
+
+  .admin-menu-boton {
+    display: inline-flex;
+  }
+
+  .admin-sidebar__menu {
+    display: none;
     gap: 14px;
-    padding: 16px;
+    padding: 14px 0 6px;
   }
 
-  .admin-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .admin-sidebar__menu.is-abierto {
+    display: flex;
+    overflow-y: auto;
   }
 
-  .admin-nav__titulo,
-  .admin-nav__ayuda {
+  .admin-nav__titulo {
     display: none;
   }
 
@@ -2045,6 +2087,23 @@ blockquote.revision__motivo::after {
 
   .admin-main {
     padding: 20px 16px 32px;
+  }
+
+  /* Tablas anchas: se desplazan de lado dentro de su recuadro, y la primera
+     columna (el paciente, la persona o la fecha) se queda fija para no perder la fila. */
+  .tabla th:first-child,
+  .tabla td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 9rem;
+    max-width: 11rem;
+    box-shadow: inset -1px 0 0 var(--admin-borde);
+    overflow-wrap: break-word;
+  }
+
+  .tabla td:first-child {
+    background: #fff;
   }
 
   .cifras {
