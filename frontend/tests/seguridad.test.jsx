@@ -44,9 +44,9 @@ describe("RNF-16: ingreso sin copiar, pegar ni seleccionar", () => {
   it("el registro sí permite pegar (no es el ingreso)", async () => {
     backendFalso({ "GET /eps": [] });
     const usuario = abrir("/registrarse");
-    await usuario.click(screen.getByLabelText("Nombre completo"));
-    await usuario.paste("Laura Gómez");
-    expect(screen.getByLabelText("Nombre completo")).toHaveValue("Laura Gómez");
+    await usuario.click(screen.getByLabelText("Apellidos"));
+    await usuario.paste("Gómez Ruiz");
+    expect(screen.getByLabelText("Apellidos")).toHaveValue("Gómez Ruiz");
   });
 });
 

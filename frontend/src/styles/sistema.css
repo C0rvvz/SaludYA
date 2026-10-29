@@ -1836,6 +1836,33 @@ summary:focus-visible {
   scroll-margin-top: 24px;
 }
 
+/* --- Registro: "Quitar la EPS elegida" / "Sí tengo EPS, elegirla" --- */
+.registro-eps__cambiar {
+  align-self: flex-start;
+  width: fit-content;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.registro-eps__particular {
+  display: flex;
+  flex-direction: column;
+  margin: -0.5rem 0 1rem;
+}
+
+.registro-eps__particular .field__hint {
+  margin: 0;
+}
+
 /* --- "Por el momento no hay médicos de …" (Agendar y lista de espera) --- */
 .aviso-sin-medicos {
   display: flex;

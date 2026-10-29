@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import EliAvatar from "../components/EliAvatar";
@@ -9,7 +9,8 @@ import { registrarPaciente } from "../api/pacientes";
 import { listarEps } from "../api/eps";
 import {
   validarNumeroDocumento,
-  validarNombre,
+  unirNombre,
+  validarParteDelNombre,
   validarTelefonoWhatsapp,
   validarCorreo,
 } from "../utils/validaciones";
@@ -24,7 +25,9 @@ const TIPOS_DOCUMENTO = [
 
 const ERRORES_CAMPO_VACIOS = {
   numero_documento: "",
-  nombre: "",
+  primer_nombre: "",
+  segundo_nombre: "",
+  apellidos: "",
   telefono_whatsapp: "",
   correo: "",
   eps_id: "",
@@ -104,11 +107,16 @@ export default function RegistroPage() {
   // "No soy un robot": el token se gasta en cada envío; `intentos` vuelve a montar la casilla.
   const [verificacion, setVerificacion] = useState(null);
   const [intentos, setIntentos] = useState(0);
+  // Tras deshacer la elección de EPS, el foco va a lo que vuelve a aparecer.
+  const listaEpsRef = useRef(null);
 
   const [form, setForm] = useState({
     tipo_documento: "cedula_ciudadania",
     numero_documento: "",
-    nombre: "",
+    // El nombre va en tres casillas; al backend llega unido (unirNombre).
+    primer_nombre: "",
+    segundo_nombre: "",
+    apellidos: "",
     telefono_whatsapp: "",
     correo: "",
     eps_id: "",
@@ -133,10 +141,30 @@ export default function RegistroPage() {
     }
   }
 
+  // EPS: se elige una de la lista O se marca "No tengo EPS"; elegida una, la
+  // otra opción se oculta, y se puede deshacer para volver a ver las dos.
+  function elegirSinEps(sinEps) {
+    actualizarCampo("sin_eps", sinEps);
+    if (sinEps) actualizarCampo("eps_id", "");
+  }
+
+  function quitarEps() {
+    actualizarCampo("eps_id", "");
+    listaEpsRef.current?.focus(); // la lista sigue a la vista; vuelve a aparecer "No tengo EPS"
+  }
+
+  function volverATenerEps() {
+    elegirSinEps(false);
+    // La lista aparece cuando React pinte el cambio.
+    requestAnimationFrame(() => listaEpsRef.current?.focus());
+  }
+
   function validarPaso1() {
     const errores = {
       numero_documento: validarNumeroDocumento(form.numero_documento, form.tipo_documento),
-      nombre: validarNombre(form.nombre),
+      primer_nombre: validarParteDelNombre(form.primer_nombre, { vacio: "Escriba su primer nombre." }),
+      segundo_nombre: validarParteDelNombre(form.segundo_nombre),
+      apellidos: validarParteDelNombre(form.apellidos, { vacio: "Escriba sus apellidos." }),
       telefono_whatsapp: validarTelefonoWhatsapp(form.telefono_whatsapp),
       correo: validarCorreo(form.correo),
     };
@@ -160,9 +188,10 @@ export default function RegistroPage() {
     }
     setCargando(true);
     try {
-      const { sin_eps: sinEps, ...campos } = form;
+      const { sin_eps: sinEps, primer_nombre: primero, segundo_nombre: segundo, apellidos, ...campos } = form;
       const datos = {
         ...campos,
+        nombre: unirNombre(primero, segundo, apellidos),
         correo: form.correo.trim() === "" ? null : form.correo,
         eps_id: sinEps ? null : form.eps_id, // null: particular, sin EPS
       };
@@ -258,18 +287,49 @@ export default function RegistroPage() {
               </div>
             </div>
 
+            <div className="campos-dobles">
+              <div className="field">
+                <label htmlFor="primer_nombre" className="obligatorio">Primer nombre</label>
+                <input
+                  id="primer_nombre"
+                  type="text"
+                  autoComplete="given-name"
+                  className={erroresCampo.primer_nombre ? "has-error" : ""}
+                  aria-invalid={Boolean(erroresCampo.primer_nombre)}
+                  value={form.primer_nombre}
+                  onChange={(e) => actualizarCampo("primer_nombre", e.target.value)}
+                />
+                {erroresCampo.primer_nombre && <p className="field__error">{erroresCampo.primer_nombre}</p>}
+              </div>
+              <div className="field">
+                <label htmlFor="segundo_nombre">
+                  Segundo nombre <span className="opcional">(opcional)</span>
+                </label>
+                <input
+                  id="segundo_nombre"
+                  type="text"
+                  autoComplete="additional-name"
+                  className={erroresCampo.segundo_nombre ? "has-error" : ""}
+                  aria-invalid={Boolean(erroresCampo.segundo_nombre)}
+                  value={form.segundo_nombre}
+                  onChange={(e) => actualizarCampo("segundo_nombre", e.target.value)}
+                />
+                {erroresCampo.segundo_nombre && <p className="field__error">{erroresCampo.segundo_nombre}</p>}
+              </div>
+            </div>
+
             <div className="field">
-              <label htmlFor="nombre" className="obligatorio">Nombre completo</label>
+              <label htmlFor="apellidos" className="obligatorio">Apellidos</label>
               <input
-                id="nombre"
+                id="apellidos"
                 type="text"
-                autoComplete="name"
-                className={erroresCampo.nombre ? "has-error" : ""}
-                aria-invalid={Boolean(erroresCampo.nombre)}
-                value={form.nombre}
-                onChange={(e) => actualizarCampo("nombre", e.target.value)}
+                autoComplete="family-name"
+                className={erroresCampo.apellidos ? "has-error" : ""}
+                aria-invalid={Boolean(erroresCampo.apellidos)}
+                value={form.apellidos}
+                onChange={(e) => actualizarCampo("apellidos", e.target.value)}
               />
-              {erroresCampo.nombre && <p className="field__error">{erroresCampo.nombre}</p>}
+              {erroresCampo.apellidos && <p className="field__error">{erroresCampo.apellidos}</p>}
             </div>
 
             <div className="field">
@@ -317,46 +377,56 @@ export default function RegistroPage() {
         <>
           <h1 className="sr-only">Su EPS y autorización</h1>
           <form onSubmit={enviarRegistro} noValidate>
-            <div className="field">
-              <label htmlFor="eps_id" className="obligatorio">Su EPS</label>
-              <select
-                id="eps_id"
-                className={erroresCampo.eps_id ? "has-error" : ""}
-                aria-invalid={Boolean(erroresCampo.eps_id)}
-                value={form.eps_id}
-                disabled={form.sin_eps}
-                onChange={(e) => actualizarCampo("eps_id", e.target.value)}
-              >
-                <option value="" disabled>
-                  {form.sin_eps ? "Sin EPS (atención particular)" : "Seleccione su EPS"}
-                </option>
-                {epsDisponibles.map((eps) => (
-                  <option key={eps.id} value={eps.id}>
-                    {eps.nombre}
+            {!form.sin_eps && (
+              <div className="field">
+                <label htmlFor="eps_id" className="obligatorio">Su EPS</label>
+                <select
+                  id="eps_id"
+                  ref={listaEpsRef}
+                  className={erroresCampo.eps_id ? "has-error" : ""}
+                  aria-invalid={Boolean(erroresCampo.eps_id)}
+                  value={form.eps_id}
+                  onChange={(e) => actualizarCampo("eps_id", e.target.value)}
+                >
+                  <option value="" disabled>
+                    Seleccione su EPS
                   </option>
-                ))}
-              </select>
-              {erroresCampo.eps_id && <p className="field__error">{erroresCampo.eps_id}</p>}
-              {!erroresCampo.eps_id && errorEps && <p className="field__error">{errorEps}</p>}
-            </div>
+                  {epsDisponibles.map((eps) => (
+                    <option key={eps.id} value={eps.id}>
+                      {eps.nombre}
+                    </option>
+                  ))}
+                </select>
+                {erroresCampo.eps_id && <p className="field__error">{erroresCampo.eps_id}</p>}
+                {!erroresCampo.eps_id && errorEps && <p className="field__error">{errorEps}</p>}
+                {form.eps_id && (
+                  <button type="button" className="registro-eps__cambiar" onClick={quitarEps}>
+                    Quitar la EPS elegida
+                  </button>
+                )}
+              </div>
+            )}
 
-            {/* A la vista, fuera de la lista: quien no tiene EPS no tendría por qué buscarlo adentro. */}
-            <div className="field field--checkbox">
-              <input
-                id="sin_eps"
-                type="checkbox"
-                checked={form.sin_eps}
-                onChange={(e) => {
-                  actualizarCampo("sin_eps", e.target.checked);
-                  if (e.target.checked) actualizarCampo("eps_id", "");
-                }}
-              />
-              <label htmlFor="sin_eps">No tengo EPS y soy atendido por médicos particulares</label>
-            </div>
+            {/* A la vista, fuera de la lista: quien no tiene EPS no tendría por qué buscarlo adentro.
+                Con una EPS elegida no se muestra (se puede quitar la EPS para volver a verla). */}
+            {!form.eps_id && (
+              <div className="field field--checkbox">
+                <input
+                  id="sin_eps"
+                  type="checkbox"
+                  checked={form.sin_eps}
+                  onChange={(e) => elegirSinEps(e.target.checked)}
+                />
+                <label htmlFor="sin_eps">No tengo EPS y soy atendido por médicos particulares</label>
+              </div>
+            )}
             {form.sin_eps && (
-              <p className="field__hint" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
-                Sus citas serán particulares: la consulta y los medicamentos tienen costo.
-              </p>
+              <div className="registro-eps__particular">
+                <p className="field__hint">Sus citas serán particulares: la consulta y los medicamentos tienen costo.</p>
+                <button type="button" className="registro-eps__cambiar" onClick={volverATenerEps}>
+                  Sí tengo EPS, elegirla
+                </button>
+              </div>
             )}
 
             <div className="field field--checkbox">
@@ -407,7 +477,7 @@ export default function RegistroPage() {
           <span className="registro-exito__check" aria-hidden="true">
             ✓
           </span>
-          <h1>Su cuenta está lista, {form.nombre.split(" ")[0]}</h1>
+          <h1>Su cuenta está lista, {form.primer_nombre.trim()}</h1>
           <p className="auth-card__lead">{resultado.mensaje}</p>
 
           <div className="registro-exito__datos">

@@ -205,7 +205,8 @@ describe("Registro", () => {
 
   async function llenarPaso1(usuario) {
     await usuario.type(screen.getByLabelText("Número de documento"), "1020304050");
-    await usuario.type(screen.getByLabelText("Nombre completo"), "Laura Gómez");
+    await usuario.type(screen.getByLabelText("Primer nombre"), "Laura");
+    await usuario.type(screen.getByLabelText("Apellidos"), "Gómez Ruiz");
     await usuario.type(screen.getByLabelText("Celular con WhatsApp"), "3001234567");
     await usuario.click(screen.getByRole("button", { name: "Continuar" }));
   }
@@ -231,12 +232,26 @@ describe("Registro", () => {
     const lista = await screen.findByLabelText("Su EPS");
     // La lista solo trae EPS; "No tengo EPS" es una casilla aparte.
     expect(within(lista).getAllByRole("option").map((o) => o.textContent)).toEqual(["Seleccione su EPS", "Sura"]);
-    await usuario.selectOptions(lista, "eps-1");
+    const sinEps = () => screen.queryByRole("checkbox", { name: "No tengo EPS y soy atendido por médicos particulares" });
 
-    await usuario.click(screen.getByRole("checkbox", { name: "No tengo EPS y soy atendido por médicos particulares" }));
-    expect(lista).toBeDisabled();
-    expect(lista).toHaveValue(""); // se quita la EPS que había elegido
+    // Con una EPS elegida, "No tengo EPS" no se muestra; quitándola vuelven las dos opciones.
+    await usuario.selectOptions(lista, "eps-1");
+    expect(sinEps()).not.toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Quitar la EPS elegida" }));
+    expect(screen.getByLabelText("Su EPS")).toHaveValue("");
+    expect(screen.getByLabelText("Su EPS")).toHaveFocus();
+
+    // Sin EPS: la lista no se muestra; con "Sí tengo EPS, elegirla" (o desmarcando) vuelve.
+    await usuario.click(sinEps());
+    expect(screen.queryByLabelText("Su EPS")).not.toBeInTheDocument();
     expect(screen.getByText(/Sus citas serán particulares/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Sí tengo EPS, elegirla" }));
+    await waitFor(() => expect(screen.getByLabelText("Su EPS")).toHaveFocus());
+    expect(sinEps()).not.toBeChecked();
+    await usuario.click(sinEps());
+    await usuario.click(sinEps());
+    expect(screen.getByLabelText("Su EPS")).toBeInTheDocument(); // desmarcar también la devuelve
+    await usuario.click(sinEps());
     await usuario.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos personales/ }));
     await usuario.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
 
@@ -262,7 +277,14 @@ describe("Registro", () => {
 
     await usuario.type(screen.getByLabelText("Correo electrónico (opcional)"), "malo@correo");
     await usuario.click(screen.getByRole("button", { name: "Continuar" }));
-    expect(screen.getByText("Escriba su nombre completo.")).toBeInTheDocument();
+    expect(screen.getByText("Escriba su primer nombre.")).toBeInTheDocument();
+    expect(screen.getByText("Escriba sus apellidos.")).toBeInTheDocument();
+    // El segundo nombre es opcional: vacío no se marca, pero si se escribe, se revisa.
+    await usuario.type(screen.getByLabelText("Segundo nombre (opcional)"), "J3");
+    await usuario.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(screen.getByText("Escriba solo letras, sin números ni símbolos.")).toBeInTheDocument();
+    await usuario.clear(screen.getByLabelText("Segundo nombre (opcional)"));
+    await usuario.type(screen.getByLabelText("Segundo nombre (opcional)"), "  María  ");
     expect(screen.getByText("Escriba un correo electrónico válido (por ejemplo, nombre@correo.com).")).toBeInTheDocument();
     await usuario.clear(screen.getByLabelText("Correo electrónico (opcional)"));
     expect(screen.queryByText("Escriba un correo electrónico válido (por ejemplo, nombre@correo.com).")).not.toBeInTheDocument();
@@ -278,11 +300,14 @@ describe("Registro", () => {
     await llenarPaso2(usuario);
     expect(await esperarTexto("Su cuenta está lista, Laura")).toBeInTheDocument();
     expect(screen.getByText("Activa")).toBeInTheDocument();
-    expect(llamadasA(llamadas, "POST", "/pacientes/registro")[0].cuerpo).toMatchObject({
+    const cuerpo = llamadasA(llamadas, "POST", "/pacientes/registro")[0].cuerpo;
+    expect(cuerpo).toMatchObject({
       numero_documento: "1020304050",
+      nombre: "Laura María Gómez Ruiz", // las tres casillas, unidas
       correo: null,
       acepto_tratamiento_datos: true,
     });
+    expect(cuerpo).not.toHaveProperty("primer_nombre");
 
     await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
     expect(await esperarTexto("Ingrese su número de documento")).toBeInTheDocument();
@@ -309,7 +334,8 @@ describe("Registro", () => {
     expect(await esperarTexto("Algo falló.")).toBeInTheDocument();
 
     await usuario.click(screen.getByRole("button", { name: "Volver al paso anterior" }));
-    expect(screen.getByLabelText("Nombre completo")).toHaveValue("Laura Gómez");
+    expect(screen.getByLabelText("Primer nombre")).toHaveValue("Laura");
+    expect(screen.getByLabelText("Apellidos")).toHaveValue("Gómez Ruiz");
   });
 
   it("la política de datos se cierra con Escape o con un clic afuera, no con un clic adentro", async () => {

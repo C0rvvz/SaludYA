@@ -30,7 +30,9 @@ import { franja, OTRO_ESPECIALISTA, OTRA_SEDE } from "./datos";
 import {
   validarCodigoOtp,
   validarCorreo,
+  unirNombre,
   validarNombre,
+  validarParteDelNombre,
   validarNumeroDocumento,
   validarTelefonoWhatsapp,
 } from "../src/utils/validaciones";
@@ -105,6 +107,15 @@ describe("validaciones (las mismas reglas del backend)", () => {
     expect(validarNombre(" ")).toMatch(/Escriba/);
     expect(validarNombre("A")).toMatch(/2 letras/);
     expect(validarNombre("Ana")).toBe("");
+    // Registro: primer nombre, segundo nombre (opcional) y apellidos.
+    expect(validarParteDelNombre(" ", { vacio: "Escriba sus apellidos." })).toBe("Escriba sus apellidos.");
+    expect(validarParteDelNombre("")).toBe(""); // el segundo nombre puede ir vacío
+    expect(validarParteDelNombre("A")).toMatch(/2 letras/);
+    expect(validarParteDelNombre("Ana3")).toMatch(/solo letras/);
+    for (const valido of ["María José", "De la Cruz", "O'Neill", "Núñez-Peña"]) {
+      expect(validarParteDelNombre(valido)).toBe("");
+    }
+    expect(unirNombre(" laura ", "", "gómez   ruiz")).toBe("laura gómez ruiz");
     expect(validarTelefonoWhatsapp("")).toMatch(/Escriba/);
     expect(validarTelefonoWhatsapp("300 123-4567")).toBe("");
     expect(validarTelefonoWhatsapp("2001234567")).toMatch(/celular colombiano/);

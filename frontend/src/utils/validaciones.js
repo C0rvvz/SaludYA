@@ -32,11 +32,34 @@ export function validarNumeroDocumento(valor, tipoDocumento) {
   return "";
 }
 
+// Letras (con tildes y ñ), espacios, guion y apóstrofo: "María José", "De la Cruz", "O'Neill".
+const PATRON_NOMBRE = /^[\p{L}' -]+$/u;
+
 export function validarNombre(valor) {
   const v = (valor ?? "").trim();
   if (!v) return "Escriba su nombre completo.";
   if (v.length < 2) return "El nombre debe tener al menos 2 letras.";
   return "";
+}
+
+/**
+ * Una parte del nombre en el registro: primer nombre, segundo nombre
+ * (opcional) o apellidos. `vacio`: el mensaje si es obligatoria y está vacía.
+ */
+export function validarParteDelNombre(valor, { vacio = null } = {}) {
+  const v = (valor ?? "").trim();
+  if (!v) return vacio ?? "";
+  if (v.length < 2) return "Escriba al menos 2 letras.";
+  if (!PATRON_NOMBRE.test(v)) return "Escriba solo letras, sin números ni símbolos.";
+  return "";
+}
+
+/** "  laura ", "", "gómez  ruiz" -> "laura gómez ruiz" (como lo guarda el backend). */
+export function unirNombre(...partes) {
+  return partes
+    .map((parte) => (parte ?? "").trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function validarTelefonoWhatsapp(valor) {
