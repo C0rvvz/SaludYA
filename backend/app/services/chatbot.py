@@ -23,10 +23,11 @@ from datetime import datetime, timedelta, timezone
 from openai.types.chat import ChatCompletionMessage
 from sqlalchemy.orm import Session
 
+from app.core import limite_intentos
 from app.core.config import settings
 from app.models.paciente import Paciente
 from app.services import herramientas_ia, ia, urgencias
-from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError
+from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError, DemasiadosIntentosError
 
 logger = logging.getLogger("saludya.chatbot")
 
@@ -40,7 +41,7 @@ _MAX_MENSAJES = 40
 # modelo que encadena funciones sin parar no deje la petición colgada.
 _MAX_PASOS = 5
 _RESPUESTA_SIN_CIERRE = (
-    "Disculpe, no pude completar su solicitud. ¿Puede escribirla de nuevo con otras palabras?"
+    "Disculpe, no fue posible completar su solicitud. Por favor, escríbala de nuevo con otras palabras."
 )
 
 
@@ -68,6 +69,8 @@ class RespuestaChat:
     # La cita que se le acaba de proponer y espera su "sí" (ver
     # EstadoConversacion.propuesta), para mostrarla como tarjeta.
     propuesta: dict | None = None
+    # Botones a otras pantallas (ofrecer_enlace): [{"texto", "ruta"}].
+    enlaces: list[dict] = field(default_factory=list)
 
 
 _conversaciones: dict[uuid.UUID, _Conversacion] = {}
@@ -188,7 +191,15 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
 
     if not conv.ocupada.acquire(blocking=False):
         raise ConversacionOcupadaError(
-            "Todavía estoy respondiendo su mensaje anterior. Espere un momento."
+            "Eli aún está respondiendo su mensaje anterior. Por favor, espere un momento."
+        )
+    # Después de revisar la urgencia: una urgencia nunca se frena.
+    try:
+        limite_intentos.MENSAJES_ELI.registrar(str(paciente.id))
+    except DemasiadosIntentosError:
+        conv.ocupada.release()
+        raise DemasiadosIntentosError(
+            "Ha enviado muchos mensajes seguidos. Por favor, espere unos minutos para seguir conversando con Eli."
         )
 
     try:
@@ -221,7 +232,8 @@ def responder(db: Session, paciente: Paciente, texto: str) -> RespuestaChat:
         eventos = conv.estado.eventos[eventos_antes:]
         estado = conv.estado
         propuesta = estado.propuesta if estado.propuesta_turno == estado.turno and not eventos else None
-        return RespuestaChat(texto=respuesta, eventos=eventos, propuesta=propuesta)
+        enlaces = [e for turno, e in estado.enlaces if turno == estado.turno]
+        return RespuestaChat(texto=respuesta, eventos=eventos, propuesta=propuesta, enlaces=enlaces)
     finally:
         conv.ultima_actividad = datetime.now(timezone.utc)
         conv.ocupada.release()

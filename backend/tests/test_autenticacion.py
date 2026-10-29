@@ -4,8 +4,12 @@ import time
 
 import pytest
 
+from app.core import security
 from app.core.config import settings
+from app.integrations.notificaciones import enviar_por_canal
+from app.integrations.whatsapp.client import enviar_mensaje_whatsapp
 from app.models import CodigoOTP, Paciente
+from app.models.cita import CanalContacto
 from app.services import otp_service
 from tests.conftest import encabezado
 
@@ -23,12 +27,11 @@ def _registro(fabrica, **cambios) -> dict:
     return datos | cambios
 
 
-def _ultimo_codigo(db, numero_documento: str) -> str:
-    paciente = db.query(Paciente).filter_by(numero_documento=numero_documento).one()
-    return db.query(CodigoOTP).filter_by(paciente_id=paciente.id).order_by(CodigoOTP.creado_en.desc()).first().codigo
+def _ultimo_codigo(codigos_otp, numero_documento: str) -> str:
+    return codigos_otp[numero_documento]
 
 
-def test_registro_e_ingreso_completo(cliente, fabrica, db):
+def test_registro_e_ingreso_completo(cliente, fabrica, db, codigos_otp):
     r = cliente.post("/pacientes/registro", json=_registro(fabrica))
     assert r.status_code == 201, r.text
     assert r.json()["telefono_whatsapp"] == "3001234567"  # sin espacios
@@ -42,7 +45,7 @@ def test_registro_e_ingreso_completo(cliente, fabrica, db):
     assert r.status_code == 201
     assert r.json()["telefono_enmascarado"] == "******4567"  # HU-02, criterio 4
 
-    codigo = _ultimo_codigo(db, "1098765432")
+    codigo = _ultimo_codigo(codigos_otp, "1098765432")
     r = cliente.post("/auth/paciente/otp/validar", json={"numero_documento": "1098765432", "codigo": codigo})
     assert r.status_code == 200, r.text
     token = r.json()["access_token"]
@@ -53,10 +56,10 @@ def test_registro_e_ingreso_completo(cliente, fabrica, db):
     assert r.json()["eps"] == fabrica.eps.nombre  # el encabezado muestra la EPS
 
 
-def test_codigo_incorrecto_no_da_acceso(cliente, fabrica, db):
+def test_codigo_incorrecto_no_da_acceso(cliente, fabrica, db, codigos_otp):
     paciente = fabrica.paciente()
     cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
-    codigo = _ultimo_codigo(db, paciente.numero_documento)
+    codigo = _ultimo_codigo(codigos_otp, paciente.numero_documento)
     incorrecto = "000000" if codigo != "000000" else "111111"
 
     r = cliente.post(
@@ -124,11 +127,11 @@ def _pedir_codigo(cliente, paciente):
     return r.json()["codigo_demo"]
 
 
-def test_modo_demostracion_devuelve_el_codigo(cliente, fabrica, db, monkeypatch):
+def test_modo_demostracion_devuelve_el_codigo(cliente, fabrica, db, monkeypatch, codigos_otp):
     monkeypatch.setattr(settings, "whatsapp_mode", "mock")
     monkeypatch.setattr(settings, "app_env", "development")
     paciente = fabrica.paciente()
-    assert _pedir_codigo(cliente, paciente) == _ultimo_codigo(db, paciente.numero_documento)
+    assert _pedir_codigo(cliente, paciente) == _ultimo_codigo(codigos_otp, paciente.numero_documento)
 
 
 @pytest.mark.parametrize("modo, entorno", [("real", "development"), ("mock", "production")])
@@ -148,7 +151,7 @@ def _validar(cliente, paciente, codigo):
     )
 
 
-def test_codigo_vencido(cliente, fabrica, db):
+def test_codigo_vencido(cliente, fabrica, db, codigos_otp):
     from datetime import datetime, timedelta, timezone
 
     paciente = fabrica.paciente()
@@ -157,17 +160,18 @@ def test_codigo_vencido(cliente, fabrica, db):
     otp.expira_en = datetime.now(timezone.utc) - timedelta(seconds=1)
     db.commit()
 
-    r = _validar(cliente, paciente, otp.codigo)
+    codigo = codigos_otp[paciente.numero_documento]
+    r = _validar(cliente, paciente, codigo)
     assert r.status_code == 400
     assert "venció" in r.json()["detail"]  # HU-02, criterio 2: código temporal
-    assert _validar(cliente, paciente, otp.codigo).status_code == 400  # ya no hay código pendiente
+    assert _validar(cliente, paciente, codigo).status_code == 400  # ya no hay código pendiente
 
 
-def test_tres_intentos_fallidos_invalidan_el_codigo(cliente, fabrica, db):
+def test_tres_intentos_fallidos_invalidan_el_codigo(cliente, fabrica, db, codigos_otp):
     paciente = fabrica.paciente()
     assert _validar(cliente, paciente, "123456").status_code == 400  # todavía no pidió código
     cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
-    codigo = _ultimo_codigo(db, paciente.numero_documento)
+    codigo = _ultimo_codigo(codigos_otp, paciente.numero_documento)
     incorrecto = "000000" if codigo != "000000" else "111111"
 
     assert _validar(cliente, paciente, incorrecto).status_code == 400
@@ -209,3 +213,28 @@ def test_documento_no_registrado_en_cada_paso(cliente, fabrica):
     assert cliente.post("/auth/paciente/otp/validar", json=datos | {"codigo": "123456"}).status_code == 404
     r = cliente.post("/pacientes/registro", json=_registro(fabrica, eps_id=str(fabrica.especialidad_id)))
     assert r.status_code == 404  # EPS inexistente
+
+
+def test_en_la_base_queda_la_huella_del_codigo_no_el_codigo(cliente, fabrica, db, codigos_otp):
+    """Quien lea la base no puede entrar con un código vigente."""
+    paciente = fabrica.paciente()
+    cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
+    codigo = codigos_otp[paciente.numero_documento]
+    guardado = db.query(CodigoOTP).filter_by(paciente_id=paciente.id).one().codigo_hash
+    assert len(guardado) == 64 and codigo not in guardado
+    assert guardado == security.huella_otp(paciente.id, codigo)
+    assert guardado != security.huella_otp(fabrica.paciente().id, codigo)  # atada al paciente
+    assert _validar(cliente, paciente, codigo).status_code == 200
+
+
+def test_fuera_de_desarrollo_el_log_no_guarda_los_mensajes_simulados(fabrica, monkeypatch, caplog):
+    paciente = fabrica.paciente()
+    monkeypatch.setattr(settings, "app_env", "production")
+    enviar_por_canal(paciente, CanalContacto.SMS, "Su código de SaludYA es 482913.")
+    enviar_mensaje_whatsapp(paciente.telefono_whatsapp, "Su cita de Psiquiatría es mañana.")
+    assert "482913" not in caplog.text and "Psiquiatría" not in caplog.text
+    assert "caracteres" in caplog.text
+
+    monkeypatch.setattr(settings, "app_env", "development")  # en desarrollo sí, para ver qué llegaría
+    enviar_por_canal(paciente, CanalContacto.SMS, "Su código de SaludYA es 482913.")
+    assert "482913" in caplog.text

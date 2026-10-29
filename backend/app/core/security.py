@@ -48,6 +48,21 @@ def crear_access_token(
     return token, expira
 
 
+# --- Código de ingreso del paciente (OTP) ---
+# En la base solo queda su huella: HMAC-SHA256 con la llave del servidor,
+# atada al paciente. Quien lea la base no puede usar un código vigente
+# (ni probar el millón de posibles sin la llave).
+
+
+def huella_otp(paciente_id: uuid.UUID, codigo: str) -> str:
+    return hmac.new(settings.jwt_secret.encode(), f"otp:{paciente_id}:{codigo}".encode(), hashlib.sha256).hexdigest()
+
+
+def codigo_otp_coincide(paciente_id: uuid.UUID, codigo: str, huella: str) -> bool:
+    # Comparación en tiempo constante, como con las contraseñas.
+    return hmac.compare_digest(huella_otp(paciente_id, codigo), huella)
+
+
 # --- Contraseñas del personal ---
 # scrypt (biblioteca estándar de Python): lento a propósito y con sal
 # aleatoria por contraseña, para que un robo de la base de datos no

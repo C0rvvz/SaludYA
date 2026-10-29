@@ -1154,13 +1154,17 @@
 }
 
 .admin .summary-row__label {
+  flex-shrink: 0;
+  max-width: 45%;
   color: var(--color-ink-soft);
 }
 
+/* Se parte entre palabras (un correo largo, donde haga falta), sin aplastar el rótulo. */
 .admin .summary-row__value {
+  min-width: 0;
   font-weight: 600;
   text-align: right;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Trazabilidad: quién hizo qué y cuándo, del más antiguo al más reciente */
@@ -2017,5 +2021,98 @@ blockquote.revision__motivo::after {
 
   .cifras {
     grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  }
+}
+
+/* --- Pestañas de una sección (Auditoría y seguridad) --- */
+.pestanas-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pestana-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 9px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.pestana-admin:hover {
+  border-color: var(--color-line-strong);
+}
+
+.pestana-admin.is-active {
+  border-color: var(--admin-oscuro);
+  background: var(--admin-oscuro);
+  color: #fff;
+}
+
+.pestana-admin__texto {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pestana-admin__detalle {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.pestana-admin.is-active .pestana-admin__detalle {
+  color: #c9d0d8;
+}
+
+/* --- "¿Qué significan Alta, Media e Informativa?": plegado no estorba --- */
+.leyenda-severidad {
+  align-self: flex-start;
+  max-width: 46rem;
+  font-size: 0.8125rem;
+}
+
+.leyenda-severidad summary {
+  width: fit-content;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.leyenda-severidad[open] summary {
+  margin-bottom: 8px;
+}
+
+.leyenda-severidad dl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface-2);
+}
+
+.leyenda-severidad__nivel {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.leyenda-severidad dd {
+  margin: 0;
+  color: var(--color-ink-soft);
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .leyenda-severidad__nivel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
   }
 }

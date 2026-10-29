@@ -13,11 +13,11 @@ describe("Navegación del paciente", () => {
     subir.mockClear();
     const [pestana] = screen.getAllByRole("link", { name: /Mis citas/ });
     await usuario.click(pestana);
-    expect(subir).toHaveBeenCalledWith({ top: 0 });
+    expect(subir).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
   });
 
   it("el logo lleva al inicio de SaludYA sin cerrar la sesión", async () => {
-    backendFalso({ "GET /citas": [], "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE] });
+    backendFalso({ "GET /citas": [], "GET /disponibilidad/primeras": FRANJAS, "GET /sedes": [SEDE] });
     const usuario = abrir("/mis-citas", { paciente: true });
     await screen.findByRole("heading", { name: "Mis citas" });
     await usuario.click(screen.getByRole("link", { name: "SaludYA, ir al inicio" }));

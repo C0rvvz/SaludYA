@@ -8,7 +8,9 @@ tarea de fondo) o cuando el administrador la pide desde "Especialistas":
 
 - Llegan 1 o 2 especialistas nuevos, de una EPS de la red (RED_EPS), con nombre, registro médico,
   especialidad (más médicos generales y pediatras, como en la realidad) y
-  un horario semanal realista: un turno por día (mañana o tarde), en una
+  un horario semanal realista. Solo de especialidades que ya tienen médicos
+  en la red: las que no tienen (p. ej. Oncología) siguen sin médicos hasta
+  que el personal agregue uno: un turno por día (mañana o tarde), en una
   o dos sedes, a veces el sábado en la mañana y a veces virtual.
 - A veces uno que había llegado por la IPS deja de atender en la red: se
   desactiva y sus citas ya agendadas se conservan. Los del catálogo
@@ -41,7 +43,7 @@ from app.services.especialistas_service import TurnoDatos
 from app.services.seguridad_service import nombre_personal
 
 CADA_DIAS = 10
-MAX_ACTIVOS = 40  # para que la red no crezca sin fin
+MAX_ACTIVOS = 120  # para que la red no crezca sin fin
 # EPS de la red en el área metropolitana de Medellín: los nuevos son médicos de una de ellas.
 RED_EPS = ["Sura", "Savia Salud", "Nueva EPS", "Sanitas", "Salud Total", "Coosalud"]
 
@@ -57,7 +59,11 @@ NOMBRES = [
     ("Dra.", "Valeria Arango Toro"), ("Dr.", "Camilo Agudelo"),
 ]
 PESO_ESPECIALIDAD = {"Médico general": 3, "Pediatría": 2}  # las demás pesan 1
-DURACION_ESPECIALIDAD = {"Cardiología": 30}  # las demás, 20 minutos
+DURACION_ESPECIALIDAD = {  # las demás, 20 minutos
+    "Cardiología": 30, "Neurología": 30, "Endocrinología": 30, "Gastroenterología": 30, "Medicina interna": 30,
+    "Nutrición y dietética": 30, "Neumología": 30, "Reumatología": 30,
+    "Psicología": 40, "Psiquiatría": 40, "Fisioterapia": 40,
+}
 BLOQUES = [(time(7, 0), time(12, 0)), (time(8, 0), time(12, 0)), (time(13, 0), time(17, 0)), (time(14, 0), time(18, 0))]
 SABADO = 5
 
@@ -82,7 +88,11 @@ def _turnos_al_azar(rng: random.Random, sedes: list[Sede], duracion: int) -> lis
 def _llegan_nuevos(db: Session, rng: random.Random, cuantos: int) -> list[Especialista]:
     existentes = {nombre.lower() for (nombre,) in db.query(Especialista.nombre).all()}
     libres = [(t, n) for t, n in NOMBRES if f"{t} {n}".lower() not in existentes]
-    especialidades = db.query(Especialidad).order_by(Especialidad.nombre).all()
+    con_medicos = db.query(Especialista.especialidad_id).filter(Especialista.activo.is_(True))
+    especialidades = (
+        db.query(Especialidad).filter(Especialidad.id.in_(con_medicos)).order_by(Especialidad.nombre).all()
+        or db.query(Especialidad).order_by(Especialidad.nombre).all()
+    )
     sedes = db.query(Sede).filter(Sede.activa.is_(True)).order_by(Sede.nombre).all()
     red = db.query(Eps).filter(Eps.nombre.in_(RED_EPS)).order_by(Eps.nombre).all() or db.query(Eps).all()
     nuevos = []

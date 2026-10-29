@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
+import useLlevarALaVista from "../hooks/useLlevarALaVista";
 import { IconoRecargar } from "../components/Iconos";
 import { listarEspecialidades } from "../api/catalogo";
 import { listarMisSolicitudes, radicarSolicitud } from "../api/solicitudes";
@@ -272,6 +273,7 @@ export default function SolicitudesPage() {
   const [recargando, setRecargando] = useState(false);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
+  const avisoRef = useLlevarALaVista(aviso);
   const [formulario, setFormulario] = useState(0); // al enviar, el formulario vuelve a empezar
 
   const cargar = useCallback(
@@ -309,7 +311,7 @@ export default function SolicitudesPage() {
         </div>
 
         {aviso && (
-          <div className="alert alert--success" role="status">
+          <div ref={avisoRef} className="alert alert--success llevar-a-la-vista" role="status">
             {aviso}
           </div>
         )}

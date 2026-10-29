@@ -19,6 +19,11 @@ que pasó:
   el modelo la vuelve a pedir, con los mismos datos, en un mensaje
   POSTERIOR del paciente.
 
+Lo que se hace en una pantalla (radicar una petición, pagar, ver la
+fórmula, aceptar un cupo de la lista de espera) Eli no lo hace por el
+paciente: ofrecer_enlace le pone un botón debajo del mensaje que lo lleva
+a esa pantalla. La ruta la arma el backend (DESTINOS), nunca el modelo.
+
 No se escribe ninguna consulta nueva: todo pasa por los repositorios
 y servicios que ya usan los endpoints.
 """
@@ -29,21 +34,31 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.cita import CanalContacto, Cita
 from app.models.disponibilidad import Disponibilidad
-from app.models.especialista import Modalidad
+from app.models.eps import Eps
+from app.models.especialidad import Especialidad
+from app.models.especialista import Especialista, Modalidad
+from app.models.lista_espera import EstadoSolicitud, Jornada
 from app.models.paciente import Paciente
+from app.models.sede import Sede
+from app.models.solicitud_cita import EstadoSolicitudCita, TipoSolicitud
 from app.repositories import (
     cita_repository,
     disponibilidad_repository,
     especialidad_repository,
+    especialista_repository,
+    lista_espera_repository,
     sede_repository,
+    solicitud_cita_repository,
 )
-from app.services import citas_service, comprobante_service, eps_service, ia
+from app.services import citas_service, comprobante_service, eps_service, ia, lista_espera_service, pagos_service
 from app.services.auditoria_service import Actor
 from app.services.exceptions import (
     CitaNoEncontradaError,
@@ -51,10 +66,11 @@ from app.services.exceptions import (
     DisponibilidadNoEncontradaError,
     FueraDeHorarioDeLlegadaError,
     HorarioYaNoDisponibleError,
+    ListaEsperaInvalidaError,
     MedicoDeOtraEpsError,
     ReprogramacionInvalidaError,
 )
-from app.utils.tiempo import DIAS_SEMANA, ahora_colombia, hoy_en_colombia
+from app.utils.tiempo import DIAS_SEMANA, ZONA_COLOMBIA, ahora_colombia, hoy_en_colombia
 
 # Tope de resultados por búsqueda: la lista completa podría tener
 # cientos de franjas, y todo lo que se devuelve viaja al modelo.
@@ -63,6 +79,31 @@ _MAX_HORARIOS = 8
 # solo gastarían tokens.
 _MAX_ALTERNATIVAS = 3
 _MAX_CITAS = 5
+# Botones a otras pantallas debajo de un mismo mensaje.
+_MAX_ENLACES = 2
+
+# Pantallas a las que Eli puede llevar al paciente: (texto del botón, ruta).
+DESTINOS = {
+    "agendar": ("Agendar una cita", "/panel"),
+    "mis_citas": ("Ver mis citas", "/mis-citas"),
+    "formula": ("Ver mi fórmula en Mis citas", "/mis-citas"),
+    "peticion": ("Solicitar petición", "/solicitudes?tipo=formal"),
+    "derecho_de_peticion": ("Radicar derecho de petición", "/solicitudes?tipo=derecho_peticion"),
+    "mis_peticiones": ("Ver mis peticiones", "/solicitudes"),
+    "lista_espera": ("Pedir aviso de cupo", "/lista-espera"),
+    "mi_lista_espera": ("Ver mi lista de espera", "/lista-espera"),
+}
+# Los que pueden llevar ya elegida la especialidad.
+_CON_ESPECIALIDAD = {"agendar", "peticion", "derecho_de_peticion", "lista_espera"}
+
+TIPO_PETICION = {TipoSolicitud.FORMAL: "Petición de cita", TipoSolicitud.DERECHO_PETICION: "Derecho de petición"}
+ESTADO_PETICION = {
+    EstadoSolicitudCita.PENDIENTE: "En revisión por el personal de SaludYA",
+    EstadoSolicitudCita.PENDIENTE_EPS: "En trámite con su EPS",
+    EstadoSolicitudCita.APROBADA: "Aprobada: ya tiene la cita asignada",
+    EstadoSolicitudCita.NEGADA: "No aprobada",
+}
+JORNADA = {Jornada.MANANA: "en la mañana", Jornada.TARDE: "en la tarde", Jornada.CUALQUIERA: "a cualquier hora"}
 
 
 @dataclass
@@ -99,6 +140,8 @@ class EstadoConversacion:
     # como tarjeta con "Agendar esa cita" / "Elegir otra fecha".
     propuesta: dict | None = None
     propuesta_turno: int = 0
+    # Botones a otras pantallas para el mensaje en curso: [(turno, {"texto", "ruta"})].
+    enlaces: list[tuple[int, dict]] = field(default_factory=list)
 
 
 class _ErrorParaElModelo(Exception):
@@ -158,10 +201,32 @@ def _resolver[T](pedido: str, opciones: list[T], nombre_de: Callable[[T], str], 
     )
 
 
+def pesos(valor: int) -> str:
+    """8000 -> "$8.000", como se escribe en Colombia."""
+    return f"${valor:,}".replace(",", ".")
+
+
+def _agregar_enlace(estado: EstadoConversacion, texto: str, ruta: str) -> None:
+    estado.enlaces = [(turno, e) for turno, e in estado.enlaces if turno == estado.turno]
+    if len(estado.enlaces) < _MAX_ENLACES and all(e["ruta"] != ruta for _, e in estado.enlaces):
+        estado.enlaces.append((estado.turno, {"texto": texto, "ruta": ruta}))
+
+
+def _valor_para_ia(db: Session, paciente: Paciente, especialista: Especialista) -> dict:
+    """Cuánto le cuesta al paciente la consulta con ese médico (eps_service), ya escrito."""
+    tipo, valor = eps_service.cobro(db, paciente, especialista)
+    cobro = {
+        "eps": f"copago de su EPS ({paciente.eps.nombre if paciente.eps else ''})",
+        "aliada": f"copago de EPS aliada ({especialista.eps.nombre if especialista.eps else ''})",
+    }.get(tipo, "consulta particular")
+    return {"valor_consulta": pesos(valor), "cobro": cobro}
+
+
 def _franja_para_ia(d: Disponibilidad) -> dict:
     return {
         "especialidad": d.especialista.especialidad.nombre,
         "profesional": d.especialista.nombre,
+        "eps_del_medico": d.especialista.eps.nombre if d.especialista.eps else "Particular (sin EPS)",
         "sede": d.sede.nombre,
         "ciudad": d.sede.ciudad,
         "modalidad": d.modalidad.value,
@@ -171,8 +236,14 @@ def _franja_para_ia(d: Disponibilidad) -> dict:
     }
 
 
-def _horario_para_ia(d: Disponibilidad) -> dict:
-    return {"disponibilidad_id": str(d.id), **_franja_para_ia(d)}
+def _horario_para_ia(db: Session, paciente: Paciente, d: Disponibilidad) -> dict:
+    return {"disponibilidad_id": str(d.id), **_franja_para_ia(d), **_valor_para_ia(db, paciente, d.especialista)}
+
+
+def _pago_de(cita: Cita) -> str | None:
+    if pagos_service.pago_aprobado(cita):
+        return "pagada"
+    return "pendiente de pago" if pagos_service.esta_pendiente(cita) else None
 
 
 def _cita_para_ia(cita: Cita) -> dict:
@@ -181,13 +252,20 @@ def _cita_para_ia(cita: Cita) -> dict:
         **_franja_para_ia(cita.disponibilidad),
         "recordatorio_por": cita.canal_recordatorio.value,
         "estado": citas_service.ESTADOS_VISIBLES[citas_service.estado_visible(cita)],
+        "valor_consulta": pesos(cita.valor),
+        "cobro": pagos_service.concepto(cita),
+        "pago": _pago_de(cita),
     }
 
 
-def _registrar_ofrecidos(estado: EstadoConversacion, horarios: list[Disponibilidad]) -> None:
+def _registrar_ofrecidos(
+    db: Session, paciente: Paciente, estado: EstadoConversacion, horarios: list[Disponibilidad]
+) -> None:
     for h in horarios:
         estado.horarios_ofrecidos[h.id] = _HorarioOfrecido(
-            datetime.combine(h.fecha, h.hora), _franja_para_ia(h), h.especialista.especialidad_id
+            datetime.combine(h.fecha, h.hora),
+            {**_franja_para_ia(h), **_valor_para_ia(db, paciente, h.especialista)},
+            h.especialista.especialidad_id,
         )
 
 
@@ -222,12 +300,23 @@ def _cita_por_numero(db: Session, paciente: Paciente, numero: str) -> Cita:
 
 
 def _buscar_especialidades(db: Session, _p: Paciente, _e: EstadoConversacion, _a: dict) -> dict:
-    return {"especialidades": [e.nombre for e in especialidad_repository.listar_especialidades(db)]}
+    todas = especialidad_repository.listar_con_medicos(db)
+    resultado = {"especialidades": [e["nombre"] for e in todas if e["medicos"]]}
+    if sin_medicos := [e["nombre"] for e in todas if not e["medicos"]]:
+        resultado["sin_medicos_por_ahora"] = sin_medicos
+        resultado["nota"] = (
+            "Las especialidades sin médicos por ahora no se pueden agendar. Si el paciente pide una, "
+            "díselo con claridad y ofrécele solicitar una petición (ofrecer_enlace, destino peticion)."
+        )
+    return resultado
 
 
 def _buscar_sedes(db: Session, _p: Paciente, _e: EstadoConversacion, _a: dict) -> dict:
     return {
-        "sedes": [{"nombre": s.nombre, "ciudad": s.ciudad} for s in sede_repository.listar_sedes(db)]
+        "sedes": [
+            {"nombre": s.nombre, "ciudad": s.ciudad, **({"direccion": s.direccion} if s.direccion else {})}
+            for s in sede_repository.listar_sedes(db)
+        ]
     }
 
 
@@ -239,6 +328,7 @@ class _BuscarHorariosArgs(BaseModel):
     ciudad: str | None = Field(default=None, max_length=80)
     fecha: date | None = None
     modalidad: Modalidad | None = None
+    incluir_particulares: bool | None = None
 
     @field_validator("especialidad", "sede", "ciudad")
     @classmethod
@@ -246,14 +336,61 @@ class _BuscarHorariosArgs(BaseModel):
         return valor if valor and valor.strip() else None
 
 
+def _sin_medicos(especialidad: Especialidad) -> dict | None:
+    """Si nadie la atiende por ahora, la respuesta para el modelo (con qué ofrecer en su lugar)."""
+    if any(e.activo for e in especialidad.especialistas):
+        return None
+    return {
+        "total": 0,
+        "horarios": [],
+        "nota": (
+            f"Por el momento no hay médicos de {especialidad.nombre} en SaludYA. Díselo con claridad "
+            "y ofrécele solicitar una petición (ofrecer_enlace, destino peticion, con la especialidad)."
+        ),
+    }
+
+
+def _resolver_lugar(db: Session, filtros: _BuscarHorariosArgs) -> tuple[Sede | None, str | None]:
+    """La sede y la ciudad que pidió, resueltas contra el catálogo (y que no se contradigan)."""
+    sedes = sede_repository.listar_sedes(db)
+    sede = _resolver(filtros.sede, sedes, lambda s: s.nombre, "sedes") if filtros.sede else None
+    ciudad = None
+    if filtros.ciudad:
+        ciudad = _resolver(filtros.ciudad, sorted({s.ciudad for s in sedes}), lambda c: c, "ciudades")
+        if sede is not None and sede.ciudad != ciudad:
+            raise _ErrorParaElModelo(
+                f"La {sede.nombre} queda en {sede.ciudad}, no en {ciudad}. Pregúntale al paciente cuál prefiere."
+            )
+    return sede, ciudad
+
+
+def _nota_de_particulares(db: Session, consulta: dict) -> dict:
+    """Que el modelo sepa que existen particulares, para ofrecerlos solo si hacen falta."""
+    con_particulares = disponibilidad_repository.buscar_disponibilidad(
+        db, **consulta, eps_ids=set(), incluir_particulares=True
+    )
+    if not con_particulares:
+        return {}
+    return {
+        "horarios_con_particulares": len(con_particulares),
+        "nota_particulares": (
+            f"Además hay {len(con_particulares)} horarios con médicos particulares (consulta particular de "
+            f"{pesos(eps_service.TARIFAS['particular'])}). Ofrécelos solo si el paciente los pide o si no hay "
+            "horarios con su EPS, y dile que cuestan más; para verlos, usa incluir_particulares."
+        ),
+    }
+
+
 def _buscar_horarios(
     db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict
 ) -> dict:
     filtros = _validar(_BuscarHorariosArgs, args, "buscar_horarios")
-    # Solo médicos de su EPS o de una aliada (a un particular, cualquiera): Eli no ofrece lo que no puede agendar.
+    # Solo médicos de su EPS o de una aliada (a un particular, cualquiera): Eli no ofrece lo que no
+    # puede agendar. Los particulares (cuestan más), solo si el paciente los pide.
     eps_ids = eps_service.eps_permitidas(db, paciente)
+    particulares = bool(filtros.incluir_particulares)
 
-    especialidad_id = None
+    especialidad = None
     if filtros.especialidad:
         especialidad = _resolver(
             filtros.especialidad,
@@ -261,39 +398,31 @@ def _buscar_horarios(
             lambda e: e.nombre,
             "especialidades",
         )
-        especialidad_id = especialidad.id
+        if (sin_medicos := _sin_medicos(especialidad)) is not None:
+            return sin_medicos
 
-    sedes = sede_repository.listar_sedes(db)
-    sede = None
-    if filtros.sede:
-        sede = _resolver(filtros.sede, sedes, lambda s: s.nombre, "sedes")
-
-    ciudad = None
-    if filtros.ciudad:
-        ciudades = sorted({s.ciudad for s in sedes})
-        ciudad = _resolver(filtros.ciudad, ciudades, lambda c: c, "ciudades")
-        if sede is not None and sede.ciudad != ciudad:
-            raise _ErrorParaElModelo(
-                f"La {sede.nombre} queda en {sede.ciudad}, no en {ciudad}. Pregúntale al paciente cuál prefiere."
-            )
-
+    sede, ciudad = _resolver_lugar(db, filtros)
     if filtros.fecha is not None and filtros.fecha < hoy_en_colombia():
         raise _ErrorParaElModelo(f"La fecha {filtros.fecha.isoformat()} ya pasó.")
 
     # El repositorio ya devuelve solo franjas libres que todavía no empiezan.
+    especialidad_id = especialidad.id if especialidad else None
+    consulta = {
+        "especialidad_id": especialidad_id,
+        "ciudad": ciudad,
+        "sede_id": sede.id if sede else None,
+        "modalidad": filtros.modalidad,
+        "fecha": filtros.fecha,
+    }
     horarios = disponibilidad_repository.buscar_disponibilidad(
-        db,
-        especialidad_id=especialidad_id,
-        ciudad=ciudad,
-        sede_id=sede.id if sede else None,
-        modalidad=filtros.modalidad,
-        fecha=filtros.fecha,
-        eps_ids=eps_ids,
+        db, **consulta, eps_ids=eps_ids, incluir_particulares=particulares
     )
     mostrados = horarios[:_MAX_HORARIOS]
-    resultado = {"total": len(horarios), "horarios": [_horario_para_ia(h) for h in mostrados]}
+    resultado = {"total": len(horarios), "horarios": [_horario_para_ia(db, paciente, h) for h in mostrados]}
     if len(horarios) > _MAX_HORARIOS:
         resultado["nota"] = f"Se muestran los primeros {_MAX_HORARIOS} de {len(horarios)}."
+    if eps_ids is not None and not particulares:
+        resultado |= _nota_de_particulares(db, consulta)
 
     # Sin cupo con todos los filtros: en vez de solo decir "no hay", se
     # ofrecen los horarios más cercanos de la misma especialidad en
@@ -302,16 +431,16 @@ def _buscar_horarios(
     hubo_otros_filtros = any([sede, ciudad, filtros.fecha, filtros.modalidad])
     if not horarios and hubo_otros_filtros:
         alternativas = disponibilidad_repository.buscar_disponibilidad(
-            db, especialidad_id=especialidad_id, eps_ids=eps_ids
+            db, especialidad_id=especialidad_id, eps_ids=eps_ids, incluir_particulares=particulares
         )[:_MAX_ALTERNATIVAS]
         mostrados = alternativas
-        resultado["alternativas"] = [_horario_para_ia(h) for h in alternativas]
+        resultado["alternativas"] = [_horario_para_ia(db, paciente, h) for h in alternativas]
         resultado["nota"] = (
             "No hay horarios con todos esos filtros. Las alternativas son los más cercanos "
             "de la misma especialidad; ofrécelas sin agendar ninguna hasta que el paciente elija."
         )
 
-    _registrar_ofrecidos(estado, mostrados)
+    _registrar_ofrecidos(db, paciente, estado, mostrados)
     return resultado
 
 
@@ -573,6 +702,265 @@ def _reprogramar_cita(
     }
 
 
+# --- Valores, peticiones, lista de espera y botones a otras pantallas ---
+
+
+def _nombres_aliadas(db: Session, eps_id: uuid.UUID) -> list[str]:
+    return sorted(e.nombre for e in db.query(Eps).filter(Eps.id.in_(eps_service.aliadas_de(db, eps_id))))
+
+
+def _valores_segun_el_medico(db: Session, paciente: Paciente) -> list[dict]:
+    tarifas = eps_service.TARIFAS
+    particular = {"con": "Médicos particulares (sin EPS)", "valor": pesos(tarifas["particular"]),
+                  "concepto": "consulta particular"}
+    if paciente.eps is None:
+        return [particular | {"con": "Cualquier médico de SaludYA (usted no tiene EPS registrada)"}]
+    valores = [{"con": f"Médicos de su EPS ({paciente.eps.nombre})", "valor": pesos(tarifas["eps"]),
+                "concepto": "copago"}]
+    if aliadas := _nombres_aliadas(db, paciente.eps_id):
+        valores.append({"con": f"Médicos de EPS aliadas a la suya ({', '.join(aliadas)})",
+                        "valor": pesos(tarifas["aliada"]), "concepto": "copago"})
+    return [*valores, particular]
+
+
+def _eps_de_la_red(db: Session) -> list[dict]:
+    """Qué EPS tienen médicos en SaludYA, cuántos y con cuáles comparten: para comparar sin recomendar ninguna."""
+    por_eps = (
+        db.query(Eps, func.count(Especialista.id))
+        .join(Especialista, Especialista.eps_id == Eps.id)
+        .filter(Especialista.activo.is_(True))
+        .group_by(Eps.id)
+        .order_by(Eps.nombre)
+        .all()
+    )
+    red = []
+    for eps, medicos in por_eps:
+        aliadas = _nombres_aliadas(db, eps.id)
+        red.append({"eps": eps.nombre, "medicos": medicos, **({"comparte_medicos_con": aliadas} if aliadas else {})})
+    return red
+
+
+def _consultar_valores(db: Session, paciente: Paciente, _e: EstadoConversacion, _a: dict) -> dict:
+    """Cuánto vale la consulta según el médico (eps_service.TARIFAS) y cómo se paga."""
+    tarifas = eps_service.TARIFAS
+    valores = _valores_segun_el_medico(db, paciente)
+    eps_de_la_red = _eps_de_la_red(db)
+    particulares = db.query(func.count(Especialista.id)).filter(
+        Especialista.activo.is_(True), Especialista.eps_id.is_(None)
+    ).scalar()
+    pendientes = [c for c in cita_repository.listar_por_paciente(db, paciente.id) if pagos_service.esta_pendiente(c)]
+    resultado = {
+        "su_eps": paciente.eps.nombre if paciente.eps else None,
+        "valores": valores,
+        "reglas": [
+            "El valor es el mismo para todas las especialidades y para todas las EPS: con los médicos de "
+            f"la propia EPS siempre es un copago de {pesos(tarifas['eps'])}.",
+            "La EPS del paciente es la que registró al crear su cuenta. SaludYA no recomienda ninguna EPS.",
+            "Con médicos de otras EPS que no son aliadas de la del paciente no se puede agendar.",
+            "El valor queda fijo al agendar y aparece en el comprobante.",
+            "La consulta se paga después de la cita: en línea desde 'Mis citas' (PSE o tarjeta) o en la sede.",
+            "Una cita cancelada no se paga.",
+        ],
+        "eps_con_medicos_en_saludya": eps_de_la_red,
+        "medicos_particulares": particulares,
+        "pagos_pendientes": [
+            {"numero_comprobante": c.numero_comprobante, "especialidad": c.disponibilidad.especialista.especialidad.nombre,
+             "fecha": c.disponibilidad.fecha.isoformat(), "valor": pesos(c.valor)}
+            for c in pendientes[:_MAX_CITAS]
+        ],
+    }
+    if pendientes:
+        resultado["nota"] = "Para pagar, ofrécele el botón con ofrecer_enlace (destino pagar_cita y su comprobante)."
+    return resultado
+
+
+def _consultar_peticiones(db: Session, paciente: Paciente, estado: EstadoConversacion, _a: dict) -> dict:
+    """HU-77: sus peticiones de cita y derechos de petición, con su estado (de la más reciente a la más antigua)."""
+    solicitudes = solicitud_cita_repository.del_paciente(db, paciente.id)
+    if not solicitudes:
+        return {"total": 0, "peticiones": [],
+                "nota": "No ha radicado peticiones. Si necesita una, ofrécele el botón (ofrecer_enlace, destino peticion)."}
+    _agregar_enlace(estado, *DESTINOS["mis_peticiones"])
+    peticiones = []
+    for s in solicitudes[:_MAX_CITAS]:
+        cita = s.cita
+        peticiones.append({
+            "numero_radicado": s.numero_radicado,
+            "tipo": TIPO_PETICION[s.tipo],
+            "especialidad": s.especialidad.nombre,
+            "estado": ESTADO_PETICION[s.estado],
+            "radicada_el": s.radicada_en.astimezone(ZONA_COLOMBIA).date().isoformat(),
+            "fecha_que_pidio": s.fecha_deseada.isoformat(),
+            # La respuesta del personal puede traer datos médicos (va cifrada): no se le manda al
+            # modelo. El paciente la lee en la pantalla de peticiones (el botón de abajo).
+            "tiene_respuesta_escrita": bool(s.respuesta),
+            "cita_asignada": {
+                "numero_comprobante": cita.numero_comprobante,
+                "profesional": cita.disponibilidad.especialista.nombre,
+                "sede": cita.disponibilidad.sede.nombre,
+                "fecha": cita.disponibilidad.fecha.isoformat(),
+                "hora": cita.disponibilidad.hora.strftime("%H:%M"),
+            } if cita else None,
+        })
+    resultado = {"total": len(solicitudes), "peticiones": peticiones}
+    if len(solicitudes) > _MAX_CITAS:
+        resultado["nota"] = f"Se muestran las {_MAX_CITAS} más recientes de {len(solicitudes)}."
+    return resultado
+
+
+def _consultar_lista_espera(db: Session, paciente: Paciente, estado: EstadoConversacion, _a: dict) -> dict:
+    """HU-19 y HU-31: en qué listas de espera está, en qué puesto y si tiene un cupo reservado."""
+    activas = [
+        s for s in lista_espera_service.mis_solicitudes(db, paciente)
+        if s["estado"] in (EstadoSolicitud.EN_ESPERA, EstadoSolicitud.CUPO_OFRECIDO)
+    ]
+    if not activas:
+        return {"total": 0, "listas": [],
+                "nota": "No está en ninguna lista de espera. Puedes inscribirlo con unirse_lista_espera si lo pide."}
+    _agregar_enlace(estado, *DESTINOS["mi_lista_espera"])
+    listas = []
+    for s in activas:
+        oferta = s["oferta"]
+        listas.append({
+            "especialidad": s["especialidad"],
+            "puesto": s["posicion"],
+            "personas_en_la_lista": s["total_en_lista"],
+            "sedes": s["sedes"],
+            "horario_preferido": JORNADA[s["jornada"]],
+            "cupo_reservado": {
+                "profesional": oferta["especialista"],
+                "sede": oferta["sede"],
+                "fecha": oferta["fecha"].isoformat(),
+                "hora": oferta["hora"].strftime("%H:%M"),
+                "reservado_hasta": oferta["expira_en"].astimezone(ZONA_COLOMBIA).strftime("%Y-%m-%d %H:%M"),
+            } if oferta else None,
+        })
+    resultado = {"total": len(listas), "listas": listas}
+    if any(lista["cupo_reservado"] for lista in listas):
+        resultado["nota"] = (
+            "Tiene un cupo reservado: se acepta o se rechaza en la pantalla de la lista de espera. "
+            "Debajo de tu mensaje ya aparece el botón para ir allí."
+        )
+    return resultado
+
+
+class _UnirseListaArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    especialidad: str = Field(min_length=1, max_length=80)
+    sede: str | None = Field(default=None, max_length=100)
+    jornada: Jornada
+    modalidad: Modalidad | None = None
+    canal: CanalContacto
+
+
+def _unirse_lista_espera(db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict) -> dict:
+    """HU-19: lo inscribe en la lista de espera, con confirmación (como al agendar)."""
+    datos = _validar(_UnirseListaArgs, args, "unirse_lista_espera")
+    especialidad = _resolver(
+        datos.especialidad, especialidad_repository.listar_especialidades(db), lambda e: e.nombre, "especialidades"
+    )
+    # Como en la pantalla: solo donde atienden médicos de su EPS o de una aliada (no particulares).
+    permitidas = eps_service.eps_permitidas(db, paciente)
+    medicos = [
+        e for e in especialista_repository.listar_especialistas(db, especialidad.id)
+        if permitidas is None or e.eps_id in permitidas
+    ]
+    sedes = sorted({s.id: s for e in medicos for s in e.sedes if s.activa}.values(), key=lambda s: s.nombre)
+    if not sedes:
+        de_su_eps = " que atiendan a afiliados de su EPS" if permitidas is not None else ""
+        raise _ErrorParaElModelo(
+            f"Por el momento no hay médicos de {especialidad.nombre}{de_su_eps}: no se puede inscribir en la "
+            "lista de espera. Ofrécele solicitar una petición (ofrecer_enlace, destino peticion)."
+        )
+    if datos.sede:
+        sedes = [_resolver(datos.sede, sedes, lambda s: s.nombre, f"sedes donde atiende {especialidad.nombre}")]
+    if lista_espera_repository.activa_de(db, paciente.id, especialidad.id):
+        raise _ErrorParaElModelo(
+            f"El paciente ya está en la lista de espera de {especialidad.nombre}. Usa consultar_lista_espera."
+        )
+
+    pendiente = _pedir_confirmacion(
+        estado,
+        ("lista_espera", especialidad.id, tuple(s.id for s in sedes), datos.jornada, datos.modalidad, datos.canal),
+        {
+            "resumen": {
+                "especialidad": especialidad.nombre,
+                "sedes": [s.nombre for s in sedes],
+                "horario_preferido": JORNADA[datos.jornada],
+                "modalidad": datos.modalidad.value if datos.modalidad else "presencial o virtual",
+                "aviso_por": datos.canal.value,
+            },
+            "instruccion": (
+                "Todavía NO está inscrito. Muéstrale este resumen y pregúntale si confirma. Solo si dice "
+                "que sí, vuelve a llamar unirse_lista_espera con los mismos datos."
+            ),
+        },
+    )
+    if pendiente is not None:
+        return pendiente
+
+    try:
+        solicitud = lista_espera_service.unirse(
+            db, paciente, especialidad.id, [s.id for s in sedes], datos.jornada, datos.modalidad, datos.canal
+        )
+    except ListaEsperaInvalidaError as e:
+        raise _ErrorParaElModelo(str(e))
+    salida = lista_espera_service.solicitud_out(db, solicitud)
+    _agregar_enlace(estado, *DESTINOS["mi_lista_espera"])
+    oferta = salida["oferta"]
+    return {
+        "mensaje": "Quedó inscrito en la lista de espera.",
+        "especialidad": especialidad.nombre,
+        "puesto": salida["posicion"],
+        "personas_en_la_lista": salida["total_en_lista"],
+        "aviso_por": datos.canal.value,
+        "cupo_reservado": {
+            "profesional": oferta["especialista"],
+            "sede": oferta["sede"],
+            "fecha": oferta["fecha"].isoformat(),
+            "hora": oferta["hora"].strftime("%H:%M"),
+            "reservado_hasta": oferta["expira_en"].astimezone(ZONA_COLOMBIA).strftime("%Y-%m-%d %H:%M"),
+        } if oferta else None,
+    }
+
+
+class _EnlaceArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    destino: Literal[
+        "agendar", "mis_citas", "formula", "peticion", "derecho_de_peticion",
+        "mis_peticiones", "lista_espera", "mi_lista_espera", "pagar_cita",
+    ]
+    especialidad: str | None = Field(default=None, max_length=80)
+    numero_comprobante: str | None = Field(default=None, max_length=20)
+
+
+def _ofrecer_enlace(db: Session, paciente: Paciente, estado: EstadoConversacion, args: dict) -> dict:
+    """Un botón debajo del mensaje que lleva a la pantalla de ese trámite (la ruta la arma el backend)."""
+    datos = _validar(_EnlaceArgs, args, "ofrecer_enlace")
+    if datos.destino == "pagar_cita":
+        if not datos.numero_comprobante:
+            raise _ErrorParaElModelo("Para pagar hace falta el número de comprobante de la cita (consultar_valores).")
+        cita = _cita_por_numero(db, paciente, datos.numero_comprobante)
+        if not pagos_service.esta_pendiente(cita):
+            raise _ErrorParaElModelo("Esa cita no tiene un pago pendiente.")
+        texto, ruta = f"Pagar {pesos(cita.valor)}", f"/pagar/{cita.id}"
+    else:
+        texto, ruta = DESTINOS[datos.destino]
+        if datos.especialidad and datos.destino in _CON_ESPECIALIDAD:
+            especialidad = _resolver(
+                datos.especialidad, especialidad_repository.listar_especialidades(db), lambda e: e.nombre,
+                "especialidades",
+            )
+            ruta = f"{ruta}{'&' if '?' in ruta else '?'}especialidad={especialidad.id}"
+    _agregar_enlace(estado, texto, ruta)
+    return {
+        "boton": texto,
+        "instruccion": f"Debajo de tu mensaje el paciente verá el botón «{texto}». Dile en una frase qué hará allí.",
+    }
+
+
 _Manejador = Callable[[Session, Paciente, EstadoConversacion, dict], dict]
 
 _MANEJADORES: dict[str, _Manejador] = {
@@ -586,6 +974,11 @@ _MANEJADORES: dict[str, _Manejador] = {
     "registrar_llegada": _registrar_llegada,
     "cancelar_cita": _cancelar_cita,
     "reprogramar_cita": _reprogramar_cita,
+    "consultar_valores": _consultar_valores,
+    "consultar_peticiones": _consultar_peticiones,
+    "consultar_lista_espera": _consultar_lista_espera,
+    "unirse_lista_espera": _unirse_lista_espera,
+    "ofrecer_enlace": _ofrecer_enlace,
 }
 
 

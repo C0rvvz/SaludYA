@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import useLlevarALaVista from "../../hooks/useLlevarALaVista";
 import { Chevron } from "../Iconos";
 import EpsMedico from "./EpsMedico";
 import FotoProfesional from "./FotoProfesional";
@@ -13,6 +15,10 @@ import { puedeAgendarCon } from "../../utils/eps";
  * médicos por su nombre: al tocar uno se pasa directo a sus horarios.
  * Solo cuentan los médicos de su EPS o de una aliada; los de otras EPS
  * aparecen en la búsqueda, en gris y sin poder elegirlos (utils/eps).
+ *
+ * Una especialidad sin médicos en la red (especialidad.medicos = 0) también
+ * se muestra: al elegirla, un aviso explica que por el momento nadie la
+ * atiende y ofrece solicitar una petición.
  */
 export default function PasoEspecialidad({ especialidades, franjas, elegida, onElegir, onContinuar, onPreguntarEli }) {
   const { paciente } = useAuth();
@@ -31,7 +37,10 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
   const termino = sinTildes(busqueda.trim());
   const visibles = termino ? resumen.filter((e) => sinTildes(e.nombre).includes(termino)) : resumen;
   const medicos = termino ? medicosConCupo.filter((g) => sinTildes(g.especialista.nombre).includes(termino)) : [];
-  const nombreElegida = resumen.find((e) => e.id === elegida)?.nombre;
+  const especialidadElegida = resumen.find((e) => e.id === elegida);
+  const nombreElegida = especialidadElegida?.nombre;
+  const sinMedicos = especialidadElegida?.medicos === 0;
+  const avisoRef = useLlevarALaVista(sinMedicos ? elegida : null);
 
   return (
     <>
@@ -120,7 +129,9 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
               <button
                 key={e.id}
                 type="button"
-                className={`tarjeta-especialidad ${e.id === elegida ? "is-elegida" : ""}`}
+                className={`tarjeta-especialidad ${e.id === elegida ? "is-elegida" : ""} ${
+                  e.medicos === 0 ? "tarjeta-especialidad--sin-medicos" : ""
+                }`}
                 aria-pressed={e.id === elegida}
                 onClick={() => onElegir(e.id)}
               >
@@ -128,31 +139,54 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
                   <span className="tarjeta-especialidad__nombre">{e.nombre}</span>
                   {e.id === elegida && <span aria-hidden="true">✓</span>}
                 </span>
-                <span className="tarjeta-especialidad__cuantos">
-                  {e.profesionales === 1 ? "1 profesional" : `${e.profesionales} profesionales`}
-                </span>
-                <span className={`tarjeta-especialidad__desde ${e.desde ? "" : "is-sin-cupo"}`}>
-                  {e.desde ?? "Sin cupos por ahora"}
-                </span>
+                {e.medicos === 0 ? (
+                  <span className="tarjeta-especialidad__desde is-sin-cupo">Sin médicos por el momento</span>
+                ) : (
+                  <>
+                    {e.profesionales > 0 && (
+                      <span className="tarjeta-especialidad__cuantos">
+                        {e.profesionales === 1 ? "1 profesional" : `${e.profesionales} profesionales`}
+                      </span>
+                    )}
+                    <span className={`tarjeta-especialidad__desde ${e.desde ? "" : "is-sin-cupo"}`}>
+                      {e.desde ?? "Sin cupos por ahora"}
+                    </span>
+                  </>
+                )}
               </button>
             ))}
           </div>
         )}
       </section>
 
-      <div className="agendar-continuar">
-        <button
-          type="button"
-          className="btn btn--primary btn--con-circulo-final"
-          disabled={!nombreElegida}
-          onClick={() => onContinuar(elegida)}
-        >
-          {nombreElegida ? `Continuar con ${nombreElegida}` : "Elija una especialidad"}
-          <span className="btn__circulo">
-            <Chevron />
-          </span>
-        </button>
-      </div>
+      {sinMedicos && (
+        <div ref={avisoRef} className="aviso-sin-medicos aviso-sin-medicos--agendar llevar-a-la-vista" role="status">
+          <p className="aviso-sin-medicos__titulo">Por el momento no hay médicos de {nombreElegida} en SaludYA.</p>
+          <p className="aviso-sin-medicos__detalle">
+            Cuando se vincule un especialista, podrá agendar aquí. Mientras tanto, puede solicitar una petición:
+            revisaremos su caso y le ayudaremos a conseguir la cita.
+          </p>
+          <Link className="btn btn--primary" to={`/solicitudes?tipo=formal&especialidad=${elegida}`}>
+            Solicitar petición
+          </Link>
+        </div>
+      )}
+
+      {!sinMedicos && (
+        <div className="agendar-continuar">
+          <button
+            type="button"
+            className="btn btn--primary btn--con-circulo-final"
+            disabled={!nombreElegida}
+            onClick={() => onContinuar(elegida)}
+          >
+            {nombreElegida ? `Continuar con ${nombreElegida}` : "Elija una especialidad"}
+            <span className="btn__circulo">
+              <Chevron />
+            </span>
+          </button>
+        </div>
+      )}
     </>
   );
 }

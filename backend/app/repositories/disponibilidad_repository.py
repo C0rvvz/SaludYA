@@ -82,10 +82,12 @@ def buscar_disponibilidad(
     fecha: date | None = None,
     hora: time | None = None,
     eps_ids: set[uuid.UUID] | None = None,
+    incluir_particulares: bool = False,
 ) -> list[Disponibilidad]:
     """
     Búsqueda combinada a través de TODOS los especialistas -- HU-11.
-    `eps_ids`: solo médicos de esas EPS (las que puede usar un paciente).
+    `eps_ids`: solo médicos de esas EPS (las que puede usar un paciente);
+    con `incluir_particulares`, también los médicos sin EPS.
 
     Criterio 1 (aplicar filtros): cada parámetro es opcional e
     independiente, se pueden combinar libremente.
@@ -122,9 +124,34 @@ def buscar_disponibilidad(
     if hora is not None:
         query = query.filter(Disponibilidad.hora == hora)
     if eps_ids is not None:
-        query = query.filter(Especialista.eps_id.in_(eps_ids))
+        de_sus_eps = Especialista.eps_id.in_(eps_ids)
+        query = query.filter(or_(de_sus_eps, Especialista.eps_id.is_(None)) if incluir_particulares else de_sus_eps)
 
     return query.order_by(Disponibilidad.fecha, Disponibilidad.hora).all()
+
+
+def primera_de_cada_especialista(db: Session) -> list[Disponibilidad]:
+    """
+    El primer horario libre de cada médico, del más cercano al más lejano.
+    Al inicio y al elegir la especialidad solo se muestra desde cuándo hay
+    cupo y con cuántos médicos: no hace falta traer todos los horarios
+    (con la red completa son miles, y en el celular pesan).
+    """
+    primeras = (
+        db.query(Disponibilidad)
+        .options(
+            joinedload(Disponibilidad.especialista).joinedload(Especialista.especialidad),
+            joinedload(Disponibilidad.sede),
+        )
+        .filter(
+            Disponibilidad.estado == EstadoDisponibilidad.DISPONIBLE,
+            _todavia_no_empieza(),
+        )
+        .distinct(Disponibilidad.especialista_id)
+        .order_by(Disponibilidad.especialista_id, Disponibilidad.fecha, Disponibilidad.hora)
+        .all()
+    )
+    return sorted(primeras, key=lambda d: (d.fecha, d.hora))
 
 
 def hay_franjas_despues_de(db: Session, fecha: date) -> bool:

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { iniciales } from "../utils/avatar";
+import { subirAlInicio } from "../utils/desplazamiento";
 import { EVENTO_ABRIR_ELI } from "../utils/eli";
 import AsistenteChat from "./AsistenteChat";
 import { IconoAgendar, IconoCarta, IconoChat, IconoEspera, IconoMisCitas, IconoSalir } from "./Iconos";
@@ -39,7 +40,7 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
   }, [abrirEli]);
 
   // Tocar una pestaña lleva arriba, aunque ya esté en esa página.
-  const subir = () => window.scrollTo({ top: 0 });
+  const subir = subirAlInicio;
   const clasePildora = ({ isActive }) => `menu-paciente__enlace ${isActive ? "is-active" : ""}`;
   const clasePestana = ({ isActive }) => `barra-paciente__pestana ${isActive ? "is-active" : ""}`;
   const nombre = paciente?.nombre ?? "";
@@ -88,7 +89,7 @@ export default function EncabezadoPaciente({ onCambioCitas }) {
           type="button"
           className={`barra-paciente__pestana ${eliAbierto ? "is-active" : ""}`}
           onClick={abrirEli}
-          aria-label="Eli, su guía de SaludYA"
+          aria-label="Eli, asistente virtual de SaludYA"
         >
           <span className="barra-paciente__icono">
             <IconoChat />

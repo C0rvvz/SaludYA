@@ -16,15 +16,25 @@ import "../styles/eli.css";
  *
  * El paciente escribe (o dicta) libremente, o toca una respuesta rápida,
  * y el resultado llega dentro del mismo chat: la cita que Eli propone se
- * ve como tarjeta con "Agendar esa cita", "Elegir otra fecha" y "Solicitar
- * petición"; la cita ya agendada (o cancelada, cambiada...) como
- * comprobante, y una urgencia como aviso destacado con botón para llamar.
+ * ve como tarjeta (con su valor) y "Agendar esa cita", "Elegir otra fecha"
+ * y "Solicitar petición"; la cita ya agendada (o cancelada, cambiada...)
+ * como comprobante, y una urgencia como aviso destacado con botón para
+ * llamar. Lo que se hace en otra pantalla (radicar una petición, pagar, la
+ * lista de espera) llega como botón que lleva allí (`enlaces`).
  * Pensado para adultos mayores: letra grande, mensajes cortos y
  * respuestas rápidas para tocar en vez de escribir.
  */
 
 // HU-33, criterio 1: sugerencias rápidas para empezar.
-const SUGERENCIAS_INICIALES = ["Solicitar una cita", "Ver mis citas"];
+const SUGERENCIAS_INICIALES = [
+  "Solicitar una cita",
+  "Ver mis citas",
+  "¿Cuánto vale mi consulta?",
+  "¿Cómo van mis peticiones?",
+];
+
+// Las rutas de los botones las arma el backend; aun así, solo se siguen las de SaludYA.
+const esRutaInterna = (ruta) => typeof ruta === "string" && ruta.startsWith("/") && !ruta.startsWith("//");
 
 // Lo que se le dice a Eli al tocar cada respuesta rápida de una propuesta.
 const AGENDAR_PROPUESTA = "Sí, agende esa cita";
@@ -101,20 +111,42 @@ function Propuesta({ propuesta: p }) {
             {formatearHora(p.hora)} · {p.sede} · {capitalizar(p.modalidad)}
           </p>
           <p className="eli-propuesta__detalle">{p.profesional}</p>
+          {p.valor_consulta && (
+            <p className="eli-propuesta__valor">
+              Valor de la consulta: <strong>{p.valor_consulta}</strong>
+              {p.cobro && <span> · {p.cobro}</span>}
+            </p>
+          )}
         </div>
         <span className="eli-propuesta__circulo" aria-hidden="true">
           <Chevron />
         </span>
       </div>
       <p className="eli-burbuja__nota">
-        ¿No le sirve? Elija <strong>otra fecha</strong> o solicite una <strong>petición</strong> para una cita a su
-        medida.
+        Si este horario no le conviene, puede elegir <strong>otra fecha</strong> o solicitar una{" "}
+        <strong>petición</strong> de cita.
       </p>
     </>
   );
 }
 
-function Mensaje({ mensaje }) {
+/** Botones a la pantalla de un trámite (radicar una petición, pagar, la lista de espera...). */
+function Enlaces({ enlaces, onIr }) {
+  const validos = (enlaces ?? []).filter((e) => esRutaInterna(e.ruta));
+  if (validos.length === 0) return null;
+  return (
+    <div className="eli-enlaces" role="group" aria-label="Ir a otra pantalla">
+      {validos.map((e) => (
+        <Link key={e.ruta} to={e.ruta} className="eli-rapida eli-rapida--enlace" onClick={onIr}>
+          {e.texto}
+          <Chevron />
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function Mensaje({ mensaje, onIr }) {
   if (mensaje.rol === "paciente") {
     return <div className="eli-burbuja eli-burbuja--paciente">{mensaje.texto}</div>;
   }
@@ -148,6 +180,7 @@ function Mensaje({ mensaje }) {
         {mensaje.propuesta && <Propuesta propuesta={mensaje.propuesta} />}
       </div>
       {mensaje.cita && <TarjetaCita cita={mensaje.cita} tipo={mensaje.tipo} />}
+      <Enlaces enlaces={mensaje.enlaces} onIr={onIr} />
     </>
   );
 }
@@ -170,7 +203,7 @@ function IconoEnviar() {
 }
 
 /**
- * Eli, la guía de SaludYA. Se abre y se cierra desde afuera (`abierto`,
+ * Eli, el asistente virtual de SaludYA. Se abre y se cierra desde afuera (`abierto`,
  * `onAbrir`, `onCerrar`): con su botón flotante en computador o con la
  * pestaña "Eli" de la barra inferior en celular (ver EncabezadoPaciente).
  *
@@ -236,7 +269,15 @@ export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCita
       const r = await enviarMensaje(limpio);
       setMensajes((prev) => [
         ...prev,
-        { id: nuevoId(), rol: "asistente", texto: r.respuesta, tipo: r.tipo, cita: r.cita, propuesta: r.propuesta },
+        {
+          id: nuevoId(),
+          rol: "asistente",
+          texto: r.respuesta,
+          tipo: r.tipo,
+          cita: r.cita,
+          propuesta: r.propuesta,
+          enlaces: r.enlaces,
+        },
       ]);
       if (r.cita) onCambioCitas?.();
     } catch (err) {
@@ -271,14 +312,14 @@ export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCita
       <div className="eli-lanzador">
         {/* Cada 12 s el botón vibra y aparece esta nube (decorativa: el botón ya dice qué hace). */}
         <p className="eli-lanzador__nube" aria-hidden="true">
-          ¿Necesita ayuda para agendar, solicitar una petición o con cualquier otro trámite?{" "}
-          <strong>Yo le ayudo.</strong>
+          ¿Necesita una cita, saber cuánto vale su consulta o cómo va su petición?{" "}
+          <strong>Consulte con Eli.</strong>
         </p>
         <button type="button" className="eli-lanzador__boton" onClick={onAbrir}>
           <EliAvatar tamano={46} />
           <span className="eli-lanzador__textos">
             <span className="eli-lanzador__titulo">Pregúntele a Eli</span>
-            <span className="eli-lanzador__subtitulo">Su guía de SaludYA</span>
+            <span className="eli-lanzador__subtitulo">Asistente virtual de SaludYA</span>
           </span>
         </button>
       </div>
@@ -298,13 +339,13 @@ export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCita
   const botonEnviar = !dictado.escuchando && (conTexto || !dictado.disponible);
 
   return (
-    <dialog open className="eli-panel" aria-label="Eli, su guía de SaludYA">
+    <dialog open className="eli-panel" aria-label="Eli, asistente virtual de SaludYA">
       <header className="eli-panel__cabeza">
         <EliAvatar tamano={52} />
         <div className="eli-panel__quien">
           <h2>Eli</h2>
           <p>
-            <span className="eli-panel__en-linea">● En línea</span> · Su guía de SaludYA
+            <span className="eli-panel__en-linea">● En línea</span> · Asistente virtual
           </p>
         </div>
         <button
@@ -336,12 +377,12 @@ export default function AsistenteChat({ abierto, onAbrir, onCerrar, onCambioCita
         {historialCargado && mensajes.length === 0 && (
           <div className="eli-burbuja eli-burbuja--eli">
             <p className="eli-burbuja__texto">
-              {`Hola, ${primerNombre}. Soy Eli, su guía de SaludYA.\nCuénteme qué necesita, por ejemplo: "Necesito una cita de dermatología para mañana".`}
+              {`Hola, ${primerNombre}. Soy Eli, el asistente virtual de SaludYA.\nPuedo agendar, cambiar o cancelar sus citas, informarle el valor de su consulta y consultar sus peticiones o su lista de espera.\n¿En qué puedo ayudarle hoy?`}
             </p>
           </div>
         )}
         {mensajes.map((m) => (
-          <Mensaje key={m.id} mensaje={m} />
+          <Mensaje key={m.id} mensaje={m} onIr={onCerrar} />
         ))}
         {esperando && (
           <div className="eli-burbuja eli-burbuja--eli eli-escribiendo">

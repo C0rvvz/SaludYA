@@ -16,9 +16,16 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import get_current_paciente
 from app.models.paciente import Paciente
-from app.schemas.chat import ChatRequest, ChatResponse, CitaChatOut, MensajeHistorialOut, PropuestaChatOut
+from app.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+    CitaChatOut,
+    EnlaceChatOut,
+    MensajeHistorialOut,
+    PropuestaChatOut,
+)
 from app.services import chatbot
-from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError
+from app.services.exceptions import AsistenteNoDisponibleError, ConversacionOcupadaError, DemasiadosIntentosError
 
 router = APIRouter(tags=["Asistente IA"])
 
@@ -33,25 +40,29 @@ def conversar(
         resultado = chatbot.responder(db, paciente, datos.mensaje)
     except ConversacionOcupadaError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except DemasiadosIntentosError as e:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
     except AsistenteNoDisponibleError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
     if resultado.urgencia:
         return ChatResponse(respuesta=resultado.texto, tipo="urgencia")
+    enlaces = [EnlaceChatOut.model_validate(e) for e in resultado.enlaces]
     if resultado.eventos:
         # Una sola acción de escritura por mensaje (ver chatbot.py): el
         # último evento es el resultado de este mensaje.
         tipo, cita = resultado.eventos[-1]
         return ChatResponse(
-            respuesta=resultado.texto, tipo=tipo, cita=CitaChatOut.model_validate(cita)
+            respuesta=resultado.texto, tipo=tipo, cita=CitaChatOut.model_validate(cita), enlaces=enlaces
         )
     if resultado.propuesta:
         return ChatResponse(
             respuesta=resultado.texto,
             tipo="mensaje",
             propuesta=PropuestaChatOut.model_validate(resultado.propuesta),
+            enlaces=enlaces,
         )
-    return ChatResponse(respuesta=resultado.texto, tipo="mensaje")
+    return ChatResponse(respuesta=resultado.texto, tipo="mensaje", enlaces=enlaces)
 
 
 @router.get("/chat", response_model=list[MensajeHistorialOut])

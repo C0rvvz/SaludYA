@@ -22,6 +22,7 @@ function rutas(paciente = SURENA) {
   return {
     "GET /auth/paciente/me": paciente,
     "GET /especialidades": [ESPECIALIDAD],
+    "GET /disponibilidad/primeras": HORARIOS,
     "GET /disponibilidad/buscar": HORARIOS,
   };
 }

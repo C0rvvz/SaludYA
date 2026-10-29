@@ -45,6 +45,18 @@ class PropuestaChatOut(BaseModel):
     modalidad: str
     fecha: date
     hora: time
+    # Lo que le cuesta la consulta con ese médico: "$8.000" y "copago de su EPS (Sura)".
+    valor_consulta: str | None = None
+    cobro: str | None = None
+
+
+class EnlaceChatOut(BaseModel):
+    """Un botón debajo del mensaje que lleva a la pantalla de un trámite
+    (radicar una petición, pagar, la lista de espera...). La ruta la arma
+    el backend (herramientas_ia.DESTINOS), nunca el modelo."""
+
+    texto: str
+    ruta: str
 
 
 class ChatResponse(BaseModel):
@@ -63,6 +75,7 @@ class ChatResponse(BaseModel):
     ]
     cita: CitaChatOut | None = None
     propuesta: PropuestaChatOut | None = None
+    enlaces: list[EnlaceChatOut] = []
 
 
 class MensajeHistorialOut(BaseModel):

@@ -50,6 +50,25 @@ const CITA = {
 };
 
 describe("Avisarme si hay cupo (lista de espera)", () => {
+  it("sin médicos de esa especialidad no hay sedes que elegir: lo dice y ofrece una petición", async () => {
+    backendFalso({
+      "GET /lista-espera": [],
+      "GET /especialidades": [{ id: "esp-9", nombre: "Oncología", medicos: 0 }],
+      "GET /especialistas": [],
+    });
+    const usuario = abrir("/lista-espera", { paciente: true });
+    await screen.findByRole("option", { name: "Oncología" });
+    await usuario.selectOptions(screen.getByLabelText("¿Qué especialidad necesita?"), "esp-9");
+
+    const aviso = (await esperarTexto("Por el momento no hay médicos de Oncología en SaludYA.")).closest("[role=status]");
+    expect(within(aviso).getByRole("link", { name: "Solicitar petición" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal&especialidad=esp-9"
+    );
+    expect(screen.queryByText("¿En qué sedes puede atenderse?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Avisarme cuando haya cupo" })).not.toBeInTheDocument();
+  });
+
   it("sin avisos, pide uno con sus preferencias", async () => {
     const llamadas = backendFalso({
       "GET /lista-espera": [],

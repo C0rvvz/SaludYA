@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AyudaApartado from "../components/AyudaApartado";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
+import useLlevarALaVista from "../hooks/useLlevarALaVista";
 import { IconoDeshacer, IconoRecargar } from "../components/Iconos";
 import Ventana from "../components/Ventana";
 import { listarEspecialidades, listarEspecialistas } from "../api/catalogo";
@@ -185,6 +186,7 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
   const [especialidades, setEspecialidades] = useState([]);
   const [especialidadId, setEspecialidadId] = useState(especialidadInicial ?? "");
   const [sedes, setSedes] = useState([]); // las de la especialidad elegida
+  const [sedesDe, setSedesDe] = useState(null); // la especialidad de esas sedes (ya consultada)
   const [sedeIds, setSedeIds] = useState([]);
   const [jornada, setJornada] = useState("cualquiera");
   const [modalidad, setModalidad] = useState("");
@@ -208,6 +210,7 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
         const unicas = new Map(suyos.flatMap((e) => e.sedes).map((s) => [s.id, s]));
         setSedes([...unicas.values()]);
         setSedeIds([...unicas.keys()]);
+        setSedesDe(especialidadId);
       })
       .catch((err) => setError(err.message));
   }, [especialidadId, paciente]);
@@ -239,6 +242,10 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
       setEnviando(false);
     }
   }
+
+  // Sin médicos (en la red o de su EPS) no hay sedes que elegir: se ofrece una petición.
+  const elegida = especialidades.find((e) => e.id === especialidadId);
+  const sinSedes = Boolean(especialidadId) && sedesDe === especialidadId && sedes.length === 0;
 
   const opciones = (nombre, lista, valorActual, cambiar) => (
     <div className="opciones-fila">
@@ -272,7 +279,21 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
         </select>
       </div>
 
-      {especialidadId && (
+      {sinSedes && (
+        <div className="aviso-sin-medicos" role="status">
+          <p className="aviso-sin-medicos__titulo">
+            {elegida?.medicos === 0 || !paciente?.eps_id
+              ? `Por el momento no hay médicos de ${elegida?.nombre ?? "esta especialidad"} en SaludYA.`
+              : `Por el momento no hay médicos de ${elegida?.nombre ?? "esta especialidad"} que atiendan a afiliados de su EPS.`}
+          </p>
+          <p>Puede solicitar una petición: revisaremos su caso y le ayudaremos a conseguir la cita.</p>
+          <Link className="btn btn--primary" to={`/solicitudes?tipo=formal&especialidad=${especialidadId}`}>
+            Solicitar petición
+          </Link>
+        </div>
+      )}
+
+      {especialidadId && !sinSedes && (
         <>
           <fieldset className="pregunta-paciente">
             <legend>¿En qué sedes puede atenderse?</legend>
@@ -303,13 +324,15 @@ function FormularioAviso({ titulo, especialidadInicial, onListo }) {
         </>
       )}
 
-      <button
-        className="btn btn--primary formulario-paciente__enviar"
-        type="submit"
-        disabled={enviando || !especialidadId || sedeIds.length === 0}
-      >
-        {enviando ? "Guardando…" : "Avisarme cuando haya cupo"}
-      </button>
+      {!sinSedes && (
+        <button
+          className="btn btn--primary formulario-paciente__enviar"
+          type="submit"
+          disabled={enviando || !especialidadId || sedeIds.length === 0}
+        >
+          {enviando ? "Guardando…" : "Avisarme cuando haya cupo"}
+        </button>
+      )}
     </form>
   );
 }
@@ -320,6 +343,7 @@ export default function ListaEsperaPage() {
   const [solicitudes, setSolicitudes] = useState(null);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
+  const avisoRef = useLlevarALaVista(aviso);
   const [ocupado, setOcupado] = useState(false);
   const [quitando, setQuitando] = useState(null); // el aviso que se va a quitar (ventana)
   const [errorVentana, setErrorVentana] = useState("");
@@ -393,7 +417,7 @@ export default function ListaEsperaPage() {
         </div>
 
         {aviso && (
-          <div className="alert alert--success" role="status">
+          <div ref={avisoRef} className="alert alert--success llevar-a-la-vista" role="status">
             {aviso}
           </div>
         )}

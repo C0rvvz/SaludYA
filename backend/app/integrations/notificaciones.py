@@ -10,7 +10,7 @@ el mensaje en los logs, igual que el resto del proyecto.
 
 import logging
 
-from app.integrations.whatsapp.client import enviar_mensaje_whatsapp
+from app.integrations.whatsapp.client import contenido_para_el_log, enviar_mensaje_whatsapp
 from app.models.cita import CanalContacto
 from app.models.paciente import Paciente
 
@@ -22,5 +22,5 @@ def enviar_por_canal(paciente: Paciente, canal: CanalContacto, mensaje: str) -> 
     if canal == CanalContacto.WHATSAPP:
         return enviar_mensaje_whatsapp(paciente.telefono_whatsapp, mensaje)
 
-    logger.info("[ENVÍO SIMULADO - %s] %s", canal.value, mensaje)
+    logger.info("[ENVÍO SIMULADO - %s] %s", canal.value, contenido_para_el_log(mensaje))
     return True

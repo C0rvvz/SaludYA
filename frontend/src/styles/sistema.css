@@ -1825,3 +1825,38 @@ summary:focus-visible {
     font-size: var(--text-lg);
   }
 }
+
+/* --- Lo que la página trae a la vista con suavidad (utils/desplazamiento.js):
+   queda debajo del encabezado fijo del paciente --- */
+.llevar-a-la-vista {
+  scroll-margin-top: 104px;
+}
+
+.admin .llevar-a-la-vista {
+  scroll-margin-top: 24px;
+}
+
+/* --- "Por el momento no hay médicos de …" (Agendar y lista de espera) --- */
+.aviso-sin-medicos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-warning-soft);
+  border-left: 4px solid var(--color-warning-ink);
+  border-radius: 14px;
+  background: var(--color-warning-soft);
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.aviso-sin-medicos p {
+  margin: 0;
+}
+
+.aviso-sin-medicos__titulo {
+  color: var(--color-warning-ink);
+  font-weight: 700;
+}

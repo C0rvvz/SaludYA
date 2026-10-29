@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cuandoEs,
   diasDelProfesional,
@@ -12,6 +12,7 @@ import {
   textoDesde,
 } from "../src/utils/agendar";
 import { iniciales } from "../src/utils/avatar";
+import { llevarALaVista, subirAlInicio } from "../src/utils/desplazamiento";
 import { CALIFICACIONES, ESTADO_CORTO, ESTADOS_ACTIVOS, enlaceComoLlegar, estrellas, horaDe } from "../src/utils/citas";
 import {
   capitalizar,
@@ -193,12 +194,48 @@ describe("mis citas", () => {
     expect(nombreCorto("Dr. Ruiz")).toBe("Dr. Ruiz");
     expect(nombreCorto("Laura Gómez Ruiz")).toBe("Laura Gómez Ruiz");
     expect(ESTADO_CORTO.pendiente_confirmar).toBe("Por confirmar");
+    expect(enlaceComoLlegar({ nombre: "Sede Laureles", ciudad: "Medellín" })).toBe(
+      "https://www.google.com/maps/search/?api=1&query=Laureles%2C%20Medell%C3%ADn"
+    );
+    // La sede de un municipio se busca por el municipio, sin repetirlo.
     expect(enlaceComoLlegar({ nombre: "Sede Envigado", ciudad: "Envigado" })).toBe(
-      "https://www.google.com/maps/search/?api=1&query=Envigado%2C%20Envigado"
+      "https://www.google.com/maps/search/?api=1&query=Envigado%2C%20Colombia"
     );
     // Con la dirección registrada, el mapa llega a la puerta.
     expect(enlaceComoLlegar({ nombre: "Sede Bello", ciudad: "Bello", direccion: "Cl. 50 # 49-20" })).toBe(
       "https://www.google.com/maps/search/?api=1&query=Cl.%2050%20%23%2049-20%2C%20Bello"
     );
+  });
+});
+
+describe("desplazamiento suave", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const elementoEn = (top) => {
+    const elemento = document.createElement("div");
+    elemento.getBoundingClientRect = () => ({ top });
+    elemento.scrollIntoView = vi.fn();
+    return elemento;
+  };
+
+  it("sube con suavidad, salvo que la persona pida menos movimiento", () => {
+    const subir = vi.spyOn(window, "scrollTo");
+    subirAlInicio();
+    expect(subir).toHaveBeenLastCalledWith({ top: 0, behavior: "smooth" });
+
+    vi.stubGlobal("matchMedia", (consulta) => ({ matches: consulta.includes("reduce") }));
+    subirAlInicio();
+    expect(subir).toHaveBeenLastCalledWith({ top: 0, behavior: "auto" });
+  });
+
+  it("lleva a la vista el detalle que quedó arriba, y no mueve nada si ya se ve", () => {
+    const arriba = elementoEn(-600); // la persona bajó por la lista
+    llevarALaVista(arriba);
+    expect(arriba.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+
+    const visible = elementoEn(120);
+    llevarALaVista(visible);
+    expect(visible.scrollIntoView).not.toHaveBeenCalled();
+    llevarALaVista(null); // sin detalle, nada
   });
 });

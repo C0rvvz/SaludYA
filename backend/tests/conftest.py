@@ -42,7 +42,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from app.core import limite_intentos  # noqa: E402
 from app.core.database import engine, get_db  # noqa: E402
 from app.core.security import TIPO_PACIENTE, TIPO_PERSONAL, crear_access_token, hash_password  # noqa: E402
-from app.services import seguridad_service  # noqa: E402
+from app.services import otp_service, seguridad_service  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Cita, Disponibilidad, Eps, Especialista, Paciente, Personal, Sesion  # noqa: E402
 from app.models.cita import CanalContacto, EstadoCita  # noqa: E402
@@ -151,7 +151,9 @@ class Fabrica:
         self.db = db
         self._franjas = itertools.count()
         # El catálogo de ejemplo (EPS, especialidades, sedes, especialistas) lo siembran las migraciones.
-        self.especialista = db.query(Especialista).order_by(Especialista.nombre).first()
+        # Siempre el mismo médico del catálogo inicial (Ortopedia, Sura): las pruebas no cambian
+        # cuando la red crece con médicos nuevos.
+        self.especialista = db.query(Especialista).filter(Especialista.nombre == "Dr. Andrés Salazar").one()
         # Los pacientes de ejemplo son de la EPS de ese médico: pueden agendar con él (eps_service).
         self.eps = self.especialista.eps
         self.especialidad_id = self.especialista.especialidad_id
@@ -232,3 +234,21 @@ class Fabrica:
 @pytest.fixture
 def fabrica(db) -> Fabrica:
     return Fabrica(db)
+
+
+@pytest.fixture
+def codigos_otp(monkeypatch) -> dict[str, str]:
+    """
+    Los códigos de ingreso enviados en la prueba, por número de documento. En
+    la base solo queda su huella (security.huella_otp): se toman al enviarlos.
+    """
+    enviados: dict[str, str] = {}
+    original = otp_service.generar_y_enviar_otp
+
+    def registrar(db, paciente):
+        otp, codigo = original(db, paciente)
+        enviados[paciente.numero_documento] = codigo
+        return otp, codigo
+
+    monkeypatch.setattr(otp_service, "generar_y_enviar_otp", registrar)
+    return enviados

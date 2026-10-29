@@ -5,8 +5,9 @@ import CitaAgendada from "../components/agendar/CitaAgendada";
 import PasoEspecialidad from "../components/agendar/PasoEspecialidad";
 import PasoHorario from "../components/agendar/PasoHorario";
 import PasosAgendar from "../components/agendar/PasosAgendar";
-import { buscarDisponibilidad, listarEspecialidades } from "../api/catalogo";
+import { buscarDisponibilidad, listarEspecialidades, primerCupoDeCadaMedico } from "../api/catalogo";
 import { confirmarCita } from "../api/citas";
+import { subirAlInicio } from "../utils/desplazamiento";
 import { abrirEli } from "../utils/eli";
 import "../styles/agendar.css";
 
@@ -26,7 +27,7 @@ export default function PanelPage() {
 
   const [especialidades, setEspecialidades] = useState([]);
   const [errorEspecialidades, setErrorEspecialidades] = useState("");
-  const [todas, setTodas] = useState([]); // horarios libres de todas las especialidades (paso 1)
+  const [todas, setTodas] = useState([]); // el primer horario libre de cada médico (paso 1)
   const [errorTodas, setErrorTodas] = useState("");
 
   const [especialidadId, setEspecialidadId] = useState(especialidadInicial);
@@ -38,7 +39,7 @@ export default function PanelPage() {
 
   const cargarTodas = useCallback(() => {
     setErrorTodas("");
-    buscarDisponibilidad()
+    primerCupoDeCadaMedico()
       .then(setTodas)
       .catch((err) => setErrorTodas(err.message));
   }, []);
@@ -71,8 +72,9 @@ export default function PanelPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cada paso (y, en el celular, cada vista del paso 2) se empieza a leer desde arriba.
   useEffect(() => {
-    window.scrollTo({ top: 0 });
+    subirAlInicio();
   }, [paso, vista]);
 
   function irAlPaso2(id, especialistaId = null) {
@@ -101,8 +103,8 @@ export default function PanelPage() {
     volverAlPaso1();
   }
 
-  const nombreEspecialidad =
-    especialidades.find((e) => e.id === especialidadId)?.nombre ?? franjas[0]?.especialista.especialidad.nombre ?? "";
+  const especialidad = especialidades.find((e) => e.id === especialidadId);
+  const nombreEspecialidad = especialidad?.nombre ?? franjas[0]?.especialista.especialidad.nombre ?? "";
 
   // "Atrás" del celular: de las horas a los médicos, y de los médicos a las especialidades.
   let atras = null;
@@ -149,6 +151,7 @@ export default function PanelPage() {
             key={especialidadId}
             especialidadId={especialidadId}
             especialidad={nombreEspecialidad}
+            sinMedicos={especialidad?.medicos === 0}
             franjas={franjas}
             especialistaInicial={especialistaInicial}
             vista={vista}

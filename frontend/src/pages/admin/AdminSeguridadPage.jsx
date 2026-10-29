@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cerrarSesionRemota, obtenerSeguridad } from "../../api/admin";
+import EncabezadoAuditoriaYSeguridad from "../../components/admin/AuditoriaYSeguridad";
 import { IconoBuscar } from "../../components/admin/IconosAdmin";
 import { CabezaTarjeta, Cifra } from "../../components/admin/Reportes";
 import FechaHora from "../../components/FechaHora";
 import { usePersonal } from "../../context/personal";
 import { formatearFechaHora } from "../../utils/formato";
+import { subirAlInicio } from "../../utils/desplazamiento";
 
 /**
- * Seguridad (solo administradores) — monitoreo tipo SIEM / SOC:
+ * Seguridad (pestaña de "Auditoría y seguridad", solo administradores) — monitoreo tipo SIEM / SOC:
  *   - Cifras del periodo: ingresos, intentos fallidos, bloqueos, intentos sin permiso.
  *   - Alertas: las arma el backend con reglas (fuerza bruta, varias cuentas
  *     desde una conexión, tokens alterados...), cada una con qué hacer.
@@ -24,6 +26,9 @@ const PERIODOS = [
   [720, "Últimos 30 días"],
 ];
 
+const DESCRIPCION =
+  "Monitoreo de los accesos al sistema. Las alertas se generan solas a partir de reglas; los eventos no pueden modificarse ni eliminarse.";
+
 const SEVERIDAD = {
   alta: ["Alta", "badge--error"],
   media: ["Media", "badge--warning"],
@@ -36,9 +41,41 @@ const GRUPOS_SEVERIDAD = [
   ["info", "Informativa", "var(--color-line-strong)"],
 ];
 
+// Qué significa cada nivel, para eventos y alertas (las reglas están en seguridad_service).
+const NIVELES = [
+  [
+    "alta",
+    "Puede ser un ataque o un riesgo para una cuenta: muchos intentos fallidos desde una conexión, una cuenta o un código bloqueados, un token alterado o un administrador nuevo. Revísela de inmediato y siga «Qué hacer».",
+  ],
+  [
+    "media",
+    "Algo fuera de lo normal que conviene revisar hoy: un intento fallido o sin permiso, un ingreso de madrugada o desde otra conexión, o una conexión frenada por exceso de intentos.",
+  ],
+  ["info", "Actividad normal que queda registrada, como los ingresos exitosos. No requiere acción."],
+];
+
 function Severidad({ valor }) {
   const [texto, clase] = SEVERIDAD[valor] ?? [valor, "badge--neutral"];
   return <span className={`badge ${clase}`}>{texto}</span>;
+}
+
+/** Recuadro plegable: no estorba, y quien no sepa qué significa cada nivel lo abre. */
+function LeyendaSeveridad() {
+  return (
+    <details className="leyenda-severidad">
+      <summary>¿Qué significan Alta, Media e Informativa?</summary>
+      <dl>
+        {NIVELES.map(([valor, texto]) => (
+          <div key={valor} className="leyenda-severidad__nivel">
+            <dt>
+              <Severidad valor={valor} />
+            </dt>
+            <dd>{texto}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
 }
 
 function Alertas({ alertas }) {
@@ -46,23 +83,26 @@ function Alertas({ alertas }) {
     return <p className="seguridad-vacio">Sin alertas en este periodo.</p>;
   }
   return (
-    <ul className="alertas-seguridad">
-      {alertas.map((a) => (
-        <li key={`${a.clave}-${a.titulo}`} className={`alerta-seguridad alerta-seguridad--${a.severidad}`}>
-          <div className="alerta-seguridad__cabeza">
-            <Severidad valor={a.severidad} />
-            <strong>{a.titulo}</strong>
-          </div>
-          <p>{a.descripcion}</p>
-          <p className="alerta-seguridad__accion">
-            <strong>Qué hacer:</strong> {a.recomendacion}
-          </p>
-          <p className="alerta-seguridad__meta">
-            {a.cantidad} {a.cantidad === 1 ? "vez" : "veces"} · última: {formatearFechaHora(a.ultima_vez)}
-          </p>
-        </li>
-      ))}
-    </ul>
+    <>
+      <LeyendaSeveridad />
+      <ul className="alertas-seguridad">
+        {alertas.map((a) => (
+          <li key={`${a.clave}-${a.titulo}`} className={`alerta-seguridad alerta-seguridad--${a.severidad}`}>
+            <div className="alerta-seguridad__cabeza">
+              <Severidad valor={a.severidad} />
+              <strong>{a.titulo}</strong>
+            </div>
+            <p>{a.descripcion}</p>
+            <p className="alerta-seguridad__accion">
+              <strong>Qué hacer:</strong> {a.recomendacion}
+            </p>
+            <p className="alerta-seguridad__meta">
+              {a.cantidad} {a.cantidad === 1 ? "vez" : "veces"} · última: {formatearFechaHora(a.ultima_vez)}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -202,6 +242,7 @@ function Eventos({ eventos }) {
           </button>
         ))}
       </div>
+      <LeyendaSeveridad />
 
       <div className="tabla-contenedor">
         <table className="tabla">
@@ -304,14 +345,7 @@ export default function AdminSeguridadPage() {
 
   return (
     <>
-      <div className="admin-encabezado">
-        <div>
-          <h1 className="admin-titulo">Seguridad</h1>
-          <p className="admin-subtitulo">
-            Monitoreo de los accesos al sistema. Las alertas se generan solas a partir de reglas; los eventos no
-            pueden modificarse ni eliminarse.
-          </p>
-        </div>
+      <EncabezadoAuditoriaYSeguridad descripcion={DESCRIPCION}>
         <div className="selector-periodo">
           <label htmlFor="periodo-seguridad">Periodo</label>
           <select id="periodo-seguridad" value={horas} onChange={(e) => setHoras(Number(e.target.value))}>
@@ -322,7 +356,7 @@ export default function AdminSeguridadPage() {
             ))}
           </select>
         </div>
-      </div>
+      </EncabezadoAuditoriaYSeguridad>
 
       {aviso && <div className="alert alert--success">{aviso}</div>}
       {error && <div className="alert alert--error">{error}</div>}
@@ -389,7 +423,7 @@ export default function AdminSeguridadPage() {
               onCerrar={(s) => {
                 setAviso("");
                 setPorCerrar(s);
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                subirAlInicio();
               }}
             />
           </section>

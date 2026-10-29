@@ -13,7 +13,7 @@ Trabajo universitario: plataforma web para agendar y gestionar citas médicas. E
 - Fórmula médica de cada cita atendida: diagnóstico, medicamentos y recomendaciones, para descargar; y las farmacias donde reclamarlos, con el QR del código (gratis en las aliadas) y "Cómo llegar".
 - Lista de espera con ofertas de cupos liberados (HU-19, HU-31, HU-32).
 - "Solicitar petición": pedir una cita a la medida cuando no hay horarios que sirvan.
-- Asistente conversacional con IA que detecta urgencias (HU-33).
+- Asistente conversacional con IA, Eli (HU-33): agenda, cambia y cancela citas, informa el valor de la consulta según el médico, consulta las peticiones y la lista de espera e inscribe en ella. Lo que se hace en otra pantalla (radicar una petición, pagar, ver la fórmula) lo ofrece como un botón que lleva allí. Detecta urgencias antes de llamar a la IA.
 - Calificar la atención de una cita atendida (HU-71).
 
 **Personal administrativo** (`/admin`)
@@ -154,7 +154,7 @@ En cada push a `main` y en cada pull request, [.github/workflows/ci.yml](.github
 
 ### Rendimiento
 
-- **Eli (RNF-18):** cada mensaje del paciente tiene un plazo total de 9 s (`IA_PRESUPUESTO_SEGUNDOS`), compartido entre todas las llamadas al modelo y sus respaldos; si se acaba, Eli avisa que se está demorando. El log registra cuánto tardó cada respuesta.
+- **Eli (RNF-18):** cada mensaje del paciente tiene un plazo total de 9 s (`IA_PRESUPUESTO_SEGUNDOS`), compartido entre todas las llamadas al modelo y sus respaldos; si se acaba, Eli avisa que está tardando más de lo normal. El log registra cuánto tardó cada respuesta.
 - **Búsquedas (RNF-20):** una prueba comprueba que buscar horarios responde en menos de 2 s con más de 4.000 horarios.
 - **PIN por WhatsApp (RNF-22):** se espera a Meta como máximo 4 s (`WHATSAPP_TIMEOUT_SEGUNDOS`); si no llega, se avisa y se puede pedir otro sin esperar el minuto.
 - **500 usuarios a la vez (RNF-21):** prueba de carga con pacientes que recorren "Agendar" (no deja datos):

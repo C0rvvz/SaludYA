@@ -34,7 +34,7 @@ function MensajeEli({ paso, codigoDemo, telefono, compacto = false }) {
   if (paso === "otp" && codigoDemo) {
     return (
       <output className={`burbuja burbuja--oscura eli-codigo ${compacto ? "eli-codigo--compacto" : ""}`}>
-        <span className="eli-codigo__intro">{compacto ? "Soy Eli. Este es su código:" : "Listo. Este es su código de acceso:"}</span>
+        <span className="eli-codigo__intro">{compacto ? "Soy Eli. Este es su código:" : "Este es su código de acceso:"}</span>
         <strong className="eli-codigo__digitos">{codigoDemo}</strong>
         <span className="eli-codigo__nota">Versión de demostración: en el servicio real, este código le llega por WhatsApp.</span>
       </output>
@@ -43,7 +43,7 @@ function MensajeEli({ paso, codigoDemo, telefono, compacto = false }) {
   if (paso === "otp") {
     return (
       <p className="burbuja">
-        Listo. Enviamos el código por WhatsApp a su celular terminado en <strong>{telefono?.slice(-4)}</strong>.
+        Enviamos el código por WhatsApp a su celular terminado en <strong>{telefono?.slice(-4)}</strong>.
       </p>
     );
   }
@@ -64,7 +64,7 @@ function EliIngreso(props) {
         <EliAvatar tamano={150} grande />
         <div>
           <p className="eli-registro__nombre">Eli</p>
-          <p className="eli-registro__rol">Su guía de SaludYA</p>
+          <p className="eli-registro__rol">Asistente virtual de SaludYA</p>
         </div>
       </div>
       <div className="eli-registro__burbujas">

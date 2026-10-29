@@ -703,9 +703,10 @@ html:has(.inicio) {
   line-height: 1.55;
 }
 
+/* Con la red completa son muchas: en el teléfono van de a dos por fila. */
 .inicio-sedes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, calc(50% - 6px)), 1fr));
   gap: 12px;
   margin: 28px 0 0;
   padding: 0;
@@ -716,7 +717,8 @@ html:has(.inicio) {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 20px 22px;
+  min-width: 0;
+  padding: 16px 18px;
   border: 1px solid #333a43;
   border-radius: 14px;
   background: #1d2228;

@@ -15,6 +15,7 @@ import SedesDeLaRed from "../../components/admin/SedesDeLaRed";
 import FotoProfesional from "../../components/agendar/FotoProfesional";
 import { formatearFechaHora, formatearSoloFecha } from "../../utils/formato";
 import { DIAS, DURACIONES, ORIGEN_ESPECIALISTA, origenSincronizacion, resumenHorario } from "../../utils/especialistas";
+import { subirAlInicio } from "../../utils/desplazamiento";
 
 /**
  * Especialistas (solo administradores) — RNF "el aplicativo mantendrá
@@ -374,7 +375,7 @@ export default function AdminEspecialistasPage() {
     setAviso("");
     setError("");
     setPanel({ tipo, especialista });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    subirAlInicio();
   }
 
   const todos = useMemo(() => datos?.especialistas ?? [], [datos]);

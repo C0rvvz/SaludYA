@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { buscarDisponibilidad, listarSedes } from "../api/catalogo";
+import { listarSedes, primerCupoDeCadaMedico } from "../api/catalogo";
 import CarruselCupos from "../components/inicio/CarruselCupos";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
@@ -72,7 +72,7 @@ export default function HomePage() {
 
   // Estos endpoints son públicos (no requieren sesión).
   useEffect(() => {
-    buscarDisponibilidad({})
+    primerCupoDeCadaMedico()
       .then((franjas) => setCupos(proximosCupos(franjas)))
       .catch(() => setCupos([]));
     listarSedes()

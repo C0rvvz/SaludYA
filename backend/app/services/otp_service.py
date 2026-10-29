@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.security import codigo_otp_coincide, huella_otp
 from app.integrations.whatsapp.client import enviar_mensaje_whatsapp
 from app.models.codigo_otp import CanalOTP, CodigoOTP, EstadoOTP
 from app.models.paciente import Paciente
@@ -36,7 +37,8 @@ def _generar_codigo() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:
+def generar_y_enviar_otp(db: Session, paciente: Paciente) -> tuple[CodigoOTP, str]:
+    """El código guardado (solo su huella) y el código, que solo viaja en el mensaje (y, en la demostración, a la pantalla)."""
     # --- Tiempo mínimo de espera entre envíos (60s, ya definido) ---
     # OJO: el enfriamiento se aplica según el tiempo transcurrido desde
     # que se CREÓ el último código, sin importar en qué estado quedó
@@ -62,7 +64,7 @@ def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:
     # --- HU-02, criterio 2: el código es temporal ---
     nuevo_otp = CodigoOTP(
         paciente_id=paciente.id,
-        codigo=codigo,
+        codigo_hash=huella_otp(paciente.id, codigo),
         canal=CanalOTP.WHATSAPP,
         estado=EstadoOTP.PENDIENTE,
         intentos_realizados=0,
@@ -88,7 +90,7 @@ def generar_y_enviar_otp(db: Session, paciente: Paciente) -> CodigoOTP:
     # RNF-22: cuánto tardó el envío del PIN queda en el log.
     logger.info("Código de verificación enviado en %.0f ms", (time.monotonic() - empezo) * 1000)
 
-    return nuevo_otp
+    return nuevo_otp, codigo
 
 
 def validar_otp(db: Session, paciente: Paciente, codigo_ingresado: str) -> CodigoOTP:
@@ -118,7 +120,7 @@ def validar_otp(db: Session, paciente: Paciente, codigo_ingresado: str) -> Codig
         db.commit()
         raise OtpExpiradoError("El código venció. Pida uno nuevo.")
 
-    if otp.codigo != codigo_ingresado:
+    if not codigo_otp_coincide(paciente.id, codigo_ingresado, otp.codigo_hash):
         otp.intentos_realizados += 1
 
         if otp.intentos_realizados >= settings.otp_max_intentos:

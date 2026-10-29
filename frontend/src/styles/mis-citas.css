@@ -362,9 +362,16 @@
   gap: 16px;
 }
 
+/* El rótulo no se aplasta ("Valor de / la / consulta") y el dato se parte entre palabras, nunca dentro de una. */
+.detalle-mi-cita .summary-row__label {
+  flex-shrink: 0;
+  max-width: 45%;
+}
+
 .detalle-mi-cita .summary-row__value {
+  min-width: 0;
   text-align: right;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* La dirección de la sede, debajo de su nombre */

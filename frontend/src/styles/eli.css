@@ -167,6 +167,16 @@
   font-size: var(--text-xs);
 }
 
+.eli-propuesta__valor {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+}
+
+.eli-propuesta__valor span {
+  color: var(--color-ink-soft);
+  font-size: var(--text-xs);
+}
+
 .eli-propuesta__circulo {
   display: flex;
   flex-shrink: 0;
@@ -232,8 +242,15 @@
   padding: 8px 0;
 }
 
+.eli-cita .summary-row__label {
+  flex-shrink: 0;
+  max-width: 45%;
+}
+
 .eli-cita .summary-row__value {
+  min-width: 0;
   text-align: right;
+  overflow-wrap: break-word;
 }
 
 .eli-aviso {
@@ -301,6 +318,26 @@
   border-color: var(--color-navy);
   background: var(--color-navy);
   color: #fff;
+}
+
+/* Botones a la pantalla de un trámite, debajo del mensaje de Eli */
+.eli-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.eli-rapida--enlace {
+  gap: 8px;
+  border-color: var(--color-navy);
+  color: var(--color-navy);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.eli-rapida--enlace svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* --- Campo para escribir o hablar --- */

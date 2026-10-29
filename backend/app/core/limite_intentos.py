@@ -29,7 +29,7 @@ def ip_de(request: Request) -> str:
 
 
 class LimiteIntentos:
-    """Como máximo `maximo` peticiones por IP en los últimos `ventana_segundos`."""
+    """Como máximo `maximo` peticiones por IP (o por la clave que se use) en los últimos `ventana_segundos`."""
 
     def __init__(self, maximo: int, ventana_segundos: int):
         self.maximo = maximo
@@ -60,8 +60,11 @@ class LimiteIntentos:
 IDENTIFICAR_PACIENTE = LimiteIntentos(maximo=10, ventana_segundos=10 * 60)
 INGRESO_PACIENTE = LimiteIntentos(maximo=30, ventana_segundos=10 * 60)
 INGRESO_PERSONAL = LimiteIntentos(maximo=10, ventana_segundos=15 * 60)
+# Mensajes a Eli por paciente (no por IP): agendar una cita toma unos 10. Que
+# nadie gaste el cupo de la IA de todos enviando mensajes sin parar.
+MENSAJES_ELI = LimiteIntentos(maximo=30, ventana_segundos=10 * 60)
 
-TODOS = (IDENTIFICAR_PACIENTE, INGRESO_PACIENTE, INGRESO_PERSONAL)
+TODOS = (IDENTIFICAR_PACIENTE, INGRESO_PACIENTE, INGRESO_PERSONAL, MENSAJES_ELI)
 
 
 def _ambito(request: Request) -> str:

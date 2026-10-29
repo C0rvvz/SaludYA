@@ -37,7 +37,7 @@ from app.repositories import (
     especialista_repository,
     sede_repository,
 )
-from app.schemas.especialidad import EspecialidadOut
+from app.schemas.especialidad import EspecialidadCatalogoOut
 from app.schemas.especialista import DisponibilidadBusquedaOut, DisponibilidadOut, EspecialistaOut
 from app.schemas.sede import SedeOut
 from app.services import eps_service
@@ -97,11 +97,12 @@ def _armar_especialista_out(db: Session, especialista) -> EspecialistaOut:
     )
 
 
-@router.get("/especialidades", response_model=list[EspecialidadOut])
+@router.get("/especialidades", response_model=list[EspecialidadCatalogoOut])
 def listar_especialidades(request: Request, db: Session = Depends(get_db)):
+    """Todas, con cuántos médicos activos tiene cada una (las que no tienen también se muestran)."""
     if guardada := _de_la_cache(request):
         return guardada
-    return _respuesta(db, request, list[EspecialidadOut], especialidad_repository.listar_especialidades(db))
+    return _respuesta(db, request, list[EspecialidadCatalogoOut], especialidad_repository.listar_con_medicos(db))
 
 
 @router.get("/sedes", response_model=list[SedeOut])
@@ -151,6 +152,19 @@ def listar_disponibilidad(
         db, especialista_id, sede_id=sede_id, modalidad=modalidad
     )
     return _respuesta(db, request, list[DisponibilidadOut], franjas)
+
+
+@router.get("/disponibilidad/primeras", response_model=list[DisponibilidadBusquedaOut])
+def primera_de_cada_medico(request: Request, db: Session = Depends(get_db)):
+    """
+    El primer horario libre de cada médico: lo que necesitan el inicio
+    ("Próximo cupo") y el paso 1 de "Agendar" (con cuántos médicos y desde
+    cuándo hay cupo en cada especialidad). Pesa una fracción de traer todos.
+    """
+    if guardada := _de_la_cache(request):
+        return guardada
+    franjas = disponibilidad_repository.primera_de_cada_especialista(db)
+    return _respuesta(db, request, list[DisponibilidadBusquedaOut], franjas)
 
 
 @router.get("/disponibilidad/buscar", response_model=list[DisponibilidadBusquedaOut])

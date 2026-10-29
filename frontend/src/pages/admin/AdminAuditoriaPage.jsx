@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarAuditoria } from "../../api/admin";
+import EncabezadoAuditoriaYSeguridad from "../../components/admin/AuditoriaYSeguridad";
 import { IconoBuscar } from "../../components/admin/IconosAdmin";
 import FechaHora from "../../components/FechaHora";
 
 /**
- * Auditoría — HU-80 a HU-85: qué acción se hizo (HU-82), quién la hizo
+ * Auditoría (pestaña de "Auditoría y seguridad") — HU-80 a HU-85: qué acción se hizo (HU-82), quién la hizo
  * (HU-81), sobre qué cita (HU-84), el estado antes y después (HU-83),
  * en orden cronológico (HU-80) y completo por cita (HU-85, al filtrar).
  * También los cambios a las cuentas del personal: quién (nombre, rol y
  * correo) creó, desactivó o cambió el rol de qué cuenta, y cuándo.
  */
+
+const DESCRIPCION =
+  "Registro de las acciones realizadas por pacientes, personal y sistema sobre las citas y las cuentas del personal. Los registros no pueden modificarse ni eliminarse.";
 
 const ACCIONES_CITAS = {
   agendar: "Agendar",
@@ -123,15 +127,7 @@ export default function AdminAuditoriaPage() {
 
   return (
     <>
-      <div className="admin-encabezado">
-        <div>
-          <h1 className="admin-titulo">Auditoría</h1>
-          <p className="admin-subtitulo">
-            Registro de las acciones realizadas por pacientes, personal y sistema sobre las citas y las cuentas del
-            personal. Los registros no pueden modificarse ni eliminarse.
-          </p>
-        </div>
-      </div>
+      <EncabezadoAuditoriaYSeguridad descripcion={DESCRIPCION} />
 
       <div className="filtros-admin filtros-admin--auditoria">
         <div className="field">

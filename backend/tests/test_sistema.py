@@ -15,7 +15,7 @@ import pytest
 from app.core import database, security
 from app.core.config import settings
 from app.main import app, lifespan
-from app.models import Especialista, Personal
+from app.models import Especialidad, Especialista, Personal
 from app.models.disponibilidad import Disponibilidad, EstadoDisponibilidad
 from app.routers import catalogo
 from app.scripts import crear_personal, generar_disponibilidad
@@ -36,6 +36,45 @@ def test_catalogo_publico(cliente, fabrica):
     assert filtrados
     assert all(e["especialidad"]["id"] == str(fabrica.especialidad_id) for e in filtrados)
     assert filtrados[0]["modalidades"]
+
+
+def test_la_red_crecio_y_algunas_especialidades_no_tienen_medicos(cliente):
+    sedes = {s["nombre"]: s["ciudad"] for s in cliente.get("/sedes").json()}
+    assert len(sedes) >= 11
+    assert sedes["Sede Bello"] == "Bello" and sedes["Sede Itagüí"] == "Itagüí"
+    assert {"Sede Manrique", "Sede Castilla", "Sede Prado", "Sede Robledo", "Sede Belén"} <= set(sedes)
+
+    especialidades = {e["nombre"]: e["medicos"] for e in cliente.get("/especialidades").json()}
+    assert len(especialidades) >= 27
+    for sin_medicos in ("Alergología", "Geriatría", "Hematología", "Infectología", "Nefrología", "Oncología"):
+        assert especialidades[sin_medicos] == 0, sin_medicos  # se muestran igual, con el aviso
+    assert especialidades["Psicología"] >= 2 and especialidades["Ginecología y obstetricia"] >= 2
+    assert especialidades["Médico general"] > especialidades["Cardiología"]
+
+
+def test_la_ips_no_les_trae_medicos_a_las_especialidades_que_no_tienen(db):
+    for semilla in range(6):
+        ips_simulada_service.sincronizar(db, None, random.Random(semilla))
+    vacias = db.query(Especialidad).filter(Especialidad.nombre.in_(["Oncología", "Geriatría", "Nefrología"])).all()
+    assert len(vacias) == 3
+    assert all(not e.especialistas for e in vacias)
+
+
+def test_el_primer_cupo_de_cada_medico(cliente, fabrica):
+    """El inicio y el paso 1 de "Agendar" no necesitan todos los horarios: solo el primero de cada médico."""
+    hoy = hoy_en_colombia()
+    otro = fabrica.otro_especialista
+    primero = fabrica.franja(fecha=hoy + timedelta(days=2), hora=time(9, 0))
+    fabrica.franja(fecha=hoy + timedelta(days=4), hora=time(8, 0))
+    fabrica.franja(fecha=hoy + timedelta(days=1), hora=time(7, 0), estado=EstadoDisponibilidad.RESERVADO)  # ocupada
+    del_otro = fabrica.franja(fecha=hoy + timedelta(days=3), hora=time(10, 0), especialista_id=otro.id,
+                              sede_id=otro.sedes[0].id)
+
+    primeras = cliente.get("/disponibilidad/primeras").json()
+    suyas = [f for f in primeras if f["especialista"]["id"] in (str(fabrica.especialista.id), str(otro.id))]
+    assert [f["id"] for f in suyas] == [str(primero.id), str(del_otro.id)]  # del más cercano al más lejano
+    assert len({f["especialista"]["id"] for f in primeras}) == len(primeras)  # una por médico
+    assert suyas[0]["sede"]["nombre"] and suyas[0]["especialista"]["especialidad"]["nombre"]
 
 
 def test_catalogo_de_eps_vigentes(cliente):
@@ -67,14 +106,19 @@ def test_disponibilidad_de_un_especialista_y_busqueda_combinada(cliente, fabrica
 
 
 def test_las_busquedas_responden_en_menos_de_2_segundos(cliente, db):
-    """RNF-20, con mucha más agenda que la real: 60 días hábiles de todos los especialistas."""
+    """
+    RNF-20, con mucha más agenda que la real: 60 días hábiles de todos los
+    especialistas. Las consultas que hace la página: el primer cupo de cada
+    médico (inicio y paso 1 de "Agendar") y los horarios de la especialidad
+    con más médicos (paso 2).
+    """
     for semilla in range(3):  # la red crece con especialistas que llegan por la IPS
         ips_simulada_service.sincronizar(db, None, random.Random(semilla))
     disponibilidad_service.generar_franjas(db, dias=60)
-    assert db.query(Disponibilidad).count() > 4000
+    assert db.query(Disponibilidad).count() > 20000
 
-    especialidad = db.query(Especialista).first().especialidad_id
-    for consulta in ("/disponibilidad/buscar", f"/disponibilidad/buscar?especialidad_id={especialidad}"):
+    especialidad = db.query(Especialidad).filter(Especialidad.nombre == "Médico general").one().id
+    for consulta in ("/disponibilidad/primeras", f"/disponibilidad/buscar?especialidad_id={especialidad}"):
         empezo = monotonic()
         r = cliente.get(consulta)
         assert r.status_code == 200 and r.json()

@@ -1,5 +1,6 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { usePersonal } from "../../context/personal";
+import { PESTANAS_AUDITORIA } from "../../utils/auditoriaYSeguridad";
 import { iniciales } from "../../utils/avatar";
 import { IconoSalir } from "../Iconos";
 import { IconoCandado } from "./IconosAdmin";
@@ -39,8 +40,13 @@ const SECCIONES = [
     reservada: true,
   },
   { to: "/admin/especialistas", texto: "Especialistas", ayuda: "Médicos, sedes y farmacias", permiso: "gestionar_especialistas" },
-  { to: "/admin/auditoria", texto: "Auditoría", ayuda: "Registro de actividad", permiso: "ver_auditoria" },
-  { to: "/admin/seguridad", texto: "Seguridad", ayuda: "Accesos y alertas", permiso: "seguridad" },
+  // Una sola entrada con dos pestañas (ver AuditoriaYSeguridad): lleva a la primera que el rol puede ver.
+  {
+    pestanas: PESTANAS_AUDITORIA,
+    texto: "Auditoría y seguridad",
+    ayuda: "Actividad, accesos y alertas",
+    permiso: ["ver_auditoria", "seguridad"],
+  },
   { to: "/admin/usuarios", texto: "Usuarios", ayuda: "Cuentas y roles del personal", permiso: "gestionar_usuarios" },
 ];
 
@@ -48,6 +54,11 @@ const SECCIONES = [
 export default function AdminLayout() {
   const { personal, cerrarSesion, tienePermiso } = usePersonal();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // Una sección con pestañas va a la primera permitida y queda marcada en cualquiera de ellas.
+  const destino = (s) => s.to ?? s.pestanas.find((p) => tienePermiso(p.permiso)).to;
+  const activa = (s, isActive) => isActive || Boolean(s.pestanas?.some((p) => pathname.startsWith(p.to)));
 
   function salir() {
     cerrarSesion();
@@ -90,9 +101,9 @@ export default function AdminLayout() {
           </span>
           {SECCIONES.filter((s) => tienePermiso(s.permiso)).map((s) => (
             <NavLink
-              key={s.to}
-              to={s.to}
-              className={({ isActive }) => `admin-nav__enlace ${isActive ? "is-active" : ""}`}
+              key={s.texto}
+              to={destino(s)}
+              className={({ isActive }) => `admin-nav__enlace ${activa(s, isActive) ? "is-active" : ""}`}
             >
               <span className={s.reservada ? "admin-nav__reservada" : undefined}>
                 {s.texto}

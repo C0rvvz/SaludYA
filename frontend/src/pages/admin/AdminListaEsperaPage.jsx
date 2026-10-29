@@ -14,6 +14,7 @@ import { iniciales } from "../../utils/avatar";
 import { CANALES } from "../../utils/citas";
 import { capitalizar, formatearDuracion, formatearFecha, formatearFechaLarga, formatearHora } from "../../utils/formato";
 import { hastaCuando } from "../../utils/agendar";
+import { subirAlInicio } from "../../utils/desplazamiento";
 
 /**
  * Lista de espera del personal — HU-61: en una sola lista, nombre y
@@ -211,7 +212,7 @@ export default function AdminListaEsperaPage() {
   function abrir(tipo, solicitud) {
     setAviso("");
     setPanel({ tipo, solicitud });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    subirAlInicio();
   }
 
   const todas = datos?.solicitudes ?? [];

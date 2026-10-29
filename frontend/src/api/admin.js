@@ -75,7 +75,7 @@ export function registrarResultadoAdmin(id, resultado) {
 }
 
 // --- Historia clínica (acceso restringido: Médico y Coordinación médica) ---
-// filtros: { buscar, especialidad_id, eps (id o "particular"), periodo ("7", "30", "90", "365", "todo"), pagina }
+// filtros: { buscar, especialidad_id, eps (id o "particular"), periodo (días: 7, 30, 90 o 365; sin límite: el historial completo), pagina }
 export function listarHistoriaClinica(filtros = {}) {
   return conPersonal(conFiltros("/admin/historia-clinica", filtros));
 }

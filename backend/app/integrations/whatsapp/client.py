@@ -44,10 +44,19 @@ def enviar_mensaje_whatsapp(telefono: str, mensaje: str) -> bool:
     return _enviar_mock(telefono, mensaje)
 
 
+def contenido_para_el_log(mensaje: str) -> str:
+    """
+    El mensaje simulado completo solo va al log en desarrollo (para ver qué
+    le llegaría al paciente). En la versión publicada, no: lleva códigos de
+    ingreso, citas y fórmulas, y los logs de la plataforma no son el lugar.
+    """
+    return mensaje if settings.app_env == "development" else f"({len(mensaje)} caracteres)"
+
+
 def _enviar_mock(telefono: str, mensaje: str) -> bool:
     logger.info(
         "[WHATSAPP MOCK] Simulando envío a %s******%s -> %s",
-        telefono[:3], telefono[-4:], mensaje,
+        telefono[:3], telefono[-4:], contenido_para_el_log(mensaje),
     )
     return True
 

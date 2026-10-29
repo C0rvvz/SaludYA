@@ -6,7 +6,7 @@ import { FRANJAS, OTRA_SEDE, SEDE } from "./datos";
 
 describe("Inicio (rediseño 2a)", () => {
   it("muestra los próximos cupos reales, los accesos y las secciones del menú", async () => {
-    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE, OTRA_SEDE] });
+    backendFalso({ "GET /disponibilidad/primeras": FRANJAS, "GET /sedes": [SEDE, OTRA_SEDE] });
     abrir("/");
     expect(screen.getByRole("heading", { name: "Su cita médica, sin filas ni llamadas." })).toBeInTheDocument();
 
@@ -33,7 +33,7 @@ describe("Inicio (rediseño 2a)", () => {
 
   it("los controles del carrusel cambian el cupo y avanza solo, salvo con el cursor encima", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [] });
+    backendFalso({ "GET /disponibilidad/primeras": FRANJAS, "GET /sedes": [] });
     const usuario = abrir("/");
     const carrusel = await screen.findByRole("region", { name: "Próximos cupos disponibles" });
     const activa = () => within(carrusel).getByRole("group", { hidden: false }).textContent;
@@ -58,7 +58,7 @@ describe("Inicio (rediseño 2a)", () => {
   });
 
   it("la cabecera queda fija: al bajar se vuelve compacta y al volver arriba, completa", async () => {
-    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE] });
+    backendFalso({ "GET /disponibilidad/primeras": FRANJAS, "GET /sedes": [SEDE] });
     abrir("/");
     const cabecera = screen.getByRole("banner");
     expect(cabecera).not.toHaveClass("is-desplazada");
@@ -78,7 +78,7 @@ describe("Inicio (rediseño 2a)", () => {
   });
 
   it("el logo lleva hasta arriba del inicio, también desde una sección", async () => {
-    backendFalso({ "GET /disponibilidad/buscar": FRANJAS, "GET /sedes": [SEDE] });
+    backendFalso({ "GET /disponibilidad/primeras": FRANJAS, "GET /sedes": [SEDE] });
     const subir = vi.spyOn(window, "scrollTo");
     const usuario = abrir("/#sedes");
     await usuario.click(screen.getByRole("link", { name: "SaludYA, ir al inicio" }));
@@ -87,13 +87,13 @@ describe("Inicio (rediseño 2a)", () => {
   });
 
   it("con sesión, agendar lleva directo a buscar cita", async () => {
-    backendFalso({ "GET /disponibilidad/buscar": [], "GET /sedes": [] });
+    backendFalso({ "GET /disponibilidad/primeras": [], "GET /sedes": [] });
     abrir("/", { paciente: true });
     await waitFor(() => expect(screen.getByRole("link", { name: "Agendar cita" })).toHaveAttribute("href", "/panel"));
   });
 
   it("sin horarios (o sin backend) no anuncia ningún cupo", async () => {
-    const llamadas = backendFalso({ "GET /disponibilidad/buscar": error(500, "caído"), "GET /sedes": error(500, "caído") });
+    const llamadas = backendFalso({ "GET /disponibilidad/primeras": error(500, "caído"), "GET /sedes": error(500, "caído") });
     abrir("/");
     await waitFor(() => expect(llamadas).toHaveLength(2));
     expect(screen.queryByText("Disponible")).not.toBeInTheDocument();
@@ -124,7 +124,7 @@ describe("Iniciar sesión con código por WhatsApp", () => {
     "POST /auth/paciente/otp/reenviar": { telefono_enmascarado: "******4567", codigo_demo: "654321" },
     "POST /auth/paciente/otp/validar": ({ cuerpo }) =>
       cuerpo.codigo === "123456" ? { access_token: "token-nuevo" } : error(400, "El código no es correcto."),
-    "GET /disponibilidad/buscar": [],
+    "GET /disponibilidad/primeras": [],
     "GET /especialidades": [],
     "GET /sedes": [],
   };

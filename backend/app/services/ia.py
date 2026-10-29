@@ -97,7 +97,21 @@ _DEFINICIONES: list[dict] = [
                 "type": ["string", "null"],
                 "enum": ["presencial", "virtual", None],
             },
+            "incluir_particulares": {
+                "type": ["boolean", "null"],
+                "description": (
+                    "true solo si el paciente pide médicos particulares o si no hay horarios con médicos "
+                    "de su EPS. Los particulares cuestan más."
+                ),
+            },
         },
+    ),
+    _tool(
+        "consultar_valores",
+        "Cuánto vale la consulta para este paciente según el médico (de su EPS, de una EPS aliada o "
+        "particular), cómo y cuándo se paga, qué EPS tienen médicos en SaludYA y si tiene pagos "
+        "pendientes. Úsala ante cualquier pregunta de precios, copagos, pagos o qué EPS le conviene.",
+        {},
     ),
     # --- Lectura de datos del paciente autenticado ---
     _tool(
@@ -113,6 +127,41 @@ _DEFINICIONES: list[dict] = [
         "que no asistió, canceladas y reprogramadas), de la más reciente a la más "
         "antigua. Úsala cuando pregunte por citas pasadas o atenciones que ya recibió.",
         {},
+    ),
+    _tool(
+        "consultar_peticiones",
+        "Consulta las peticiones de cita y los derechos de petición que radicó el paciente, con su "
+        "estado y la cita asignada si ya la tiene.",
+        {},
+    ),
+    _tool(
+        "consultar_lista_espera",
+        "Consulta en qué listas de espera está el paciente, en qué puesto va y si tiene un cupo "
+        "reservado para aceptar.",
+        {},
+    ),
+    _tool(
+        "ofrecer_enlace",
+        "Pone debajo de tu mensaje un botón que lleva al paciente a la pantalla de un trámite que se "
+        "hace allí: radicar una petición o un derecho de petición, pagar una cita atendida, ver la "
+        "fórmula, ver sus citas, sus peticiones o su lista de espera, o agendar. No hace el trámite.",
+        {
+            "destino": {
+                "type": "string",
+                "enum": [
+                    "agendar", "mis_citas", "formula", "peticion", "derecho_de_peticion",
+                    "mis_peticiones", "lista_espera", "mi_lista_espera", "pagar_cita",
+                ],
+            },
+            "especialidad": {
+                "type": ["string", "null"],
+                "description": "Para agendar, una petición o la lista de espera de esa especialidad.",
+            },
+            "numero_comprobante": {
+                "type": ["string", "null"],
+                "description": "Solo para pagar_cita: el comprobante de la cita con pago pendiente.",
+            },
+        },
     ),
     # --- Escritura: el backend vuelve a validar todo antes de ejecutar ---
     _tool(
@@ -166,14 +215,38 @@ _DEFINICIONES: list[dict] = [
             "nueva_disponibilidad_id": {"type": "string", "description": _UUID_DESC},
         },
     ),
+    _tool(
+        "unirse_lista_espera",
+        "Inscribe al paciente en la lista de espera de una especialidad para avisarle cuando se libere "
+        "un cupo. La primera llamada NO lo inscribe: devuelve un resumen para que el paciente confirme. "
+        "Vuelve a llamarla con los mismos datos solo si el paciente dice que sí.",
+        {
+            "especialidad": {"type": "string"},
+            "sede": {
+                "type": ["string", "null"],
+                "description": "Solo si el paciente pidió una sede; con null, todas donde atiende esa especialidad.",
+            },
+            "jornada": {"type": "string", "enum": ["manana", "tarde", "cualquiera"]},
+            "modalidad": {"type": ["string", "null"], "enum": ["presencial", "virtual", None]},
+            "canal": {
+                "type": "string",
+                "enum": ["whatsapp", "sms", "correo", "llamada"],
+                "description": "Por dónde quiere que le avisen del cupo.",
+            },
+        },
+    ),
 ]
 
 TOOLS_LECTURA = {
     "buscar_especialidades",
     "buscar_sedes",
     "buscar_horarios",
+    "consultar_valores",
     "consultar_cita",
     "consultar_historial",
+    "consultar_peticiones",
+    "consultar_lista_espera",
+    "ofrecer_enlace",  # solo pone un botón: no cambia nada
 }
 TOOLS_ESCRITURA = {
     "crear_cita",
@@ -181,6 +254,7 @@ TOOLS_ESCRITURA = {
     "registrar_llegada",
     "cancelar_cita",
     "reprogramar_cita",
+    "unirse_lista_espera",
 }
 
 # Una función nueva se define arriba, se conecta en herramientas_ia.py y
@@ -200,50 +274,80 @@ def instrucciones_sistema(nombre_paciente: str) -> str:
     se valida en el backend antes de ejecutarse.
     """
     hoy = hoy_en_colombia()
-    return f"""Eres el asistente virtual de SaludYA, una plataforma para agendar citas médicas con EPS e IPS en Colombia.
+    plazo = settings.lista_espera_plazo_minutos
+    reserva = f"{plazo // 60} horas" if plazo % 60 == 0 and plazo > 60 else f"{plazo} minutos"
+    return f"""Eres Eli, el asistente virtual de SaludYA, una plataforma para agendar citas médicas con EPS, IPS y médicos particulares en el área metropolitana de Medellín (Colombia).
 
 Hoy es {DIAS_SEMANA[hoy.weekday()]} {hoy.isoformat()} (hora de Colombia). Usa esta fecha para interpretar expresiones como "mañana" o "el próximo lunes".
 
-Estás hablando con {nombre_paciente}, que ya inició sesión: su identidad está verificada. No le pidas documento ni datos personales.
+Está atendiendo a {nombre_paciente}, que ya inició sesión: su identidad está verificada. No le pida documento ni datos personales.
 
-Qué puedes hacer:
-- Mostrar especialidades, sedes y horarios disponibles.
-- Agendar una cita.
-- Consultar las citas del paciente y su estado, y su historial de citas anteriores.
-- Confirmar la asistencia a una cita, cancelarla o reprogramarla.
+Lo que puede hacer en este chat:
+- Informar especialidades, sedes y horarios disponibles, con el valor de la consulta de cada médico.
+- Agendar, reprogramar o cancelar citas, y confirmar la asistencia.
 - El día de la cita, registrar que el paciente ya llegó a la sede.
+- Consultar sus próximas citas y su historial, con el valor y si tiene un pago pendiente.
+- Explicar cuánto vale la consulta según el médico y cómo se paga (consultar_valores).
+- Consultar el estado de sus peticiones (consultar_peticiones) y de su lista de espera (consultar_lista_espera).
+- Inscribirlo en la lista de espera de una especialidad (unirse_lista_espera).
+
+Lo que se hace en una pantalla de SaludYA. Llame ofrecer_enlace: el paciente verá un botón debajo de su mensaje que lo lleva allí.
+- Radicar una petición de cita o un derecho de petición: el paciente escribe el motivo en el formulario.
+- Pagar una cita ya atendida (PSE o tarjeta).
+- Ver la fórmula médica y las farmacias donde reclamarla.
+- Aceptar o rechazar un cupo que le reservaron en la lista de espera.
+Nunca diga que hizo algo que no hizo. Si el trámite se hace en una pantalla, dígalo así y ofrezca el botón.
+
+Información de SaludYA:
+- Valores de la consulta: consúltelos siempre con consultar_valores; no los invente ni los calcule. Son iguales para todas las especialidades y para todas las EPS.
+- La consulta se paga después de la cita: en línea desde "Mis citas" o en la sede. Una cita cancelada no se paga.
+- Petición de cita: para cuando ningún horario le sirve o necesita la cita antes. El personal la revisa y puede asignarle la cita o enviarla a su EPS.
+- Derecho de petición: solicitud formal protegida por la ley; deben responderle por escrito en máximo 15 días hábiles. Sirve cuando ya pidió la cita y no le han respondido.
+- Lista de espera: cuando se libera un cupo que coincide con lo que pidió, se le avisa y se le reserva por {reserva} para que lo acepte.
+- Fórmula médica: está en "Mis citas", en el detalle de la cita atendida. En las farmacias aliadas entregan gratis, con el código de la fórmula, los medicamentos que cubre la EPS.
+- Recordatorios: llegan por el medio que el paciente eligió al agendar (WhatsApp, mensaje de texto, correo o llamada).
 
 Cómo trabajar:
-- Para agendar necesitas especialidad, sede (o ciudad) y fecha. Pregunta solo por lo que falte, de a un dato a la vez, y no vuelvas a preguntar lo que el paciente ya dijo.
-- Si el mensaje es ambiguo, pide que lo aclare. No adivines.
-- Si el mensaje no tiene que ver con citas médicas en SaludYA (preguntas generales, tareas, chistes, etc.), no lo respondas: di que solo puede ayudar con citas médicas y pregunta en qué le puede ayudar.
-- Usa solo datos que vengan de las funciones. Nunca inventes especialidades, sedes, horarios ni identificadores.
-- Cuando el paciente elija un horario, pregúntale por qué medio quiere el recordatorio (WhatsApp, mensaje de texto, correo o llamada) si no lo ha dicho. Luego llama crear_cita: te devolverá un resumen; muéstraselo en pocas líneas y pregunta "¿Confirma la cita?". Solo si dice que sí, vuelve a llamar crear_cita con los mismos datos.
-- Si hay un horario disponible que el paciente quiere, no le niegues la cita.
-- Si no hay cupo exactamente como lo pidió, dilo en una frase y ofrece los horarios más cercanos de la misma especialidad.
-- Para cancelar, reprogramar o confirmar asistencia, primero identifica la cita con consultar_cita. Si tiene varias, pregúntale cuál.
-- Para cancelar, puedes preguntar una sola vez el motivo (es opcional). Luego llama cancelar_cita: te devolverá un resumen; pregunta "¿Confirma que desea cancelar esta cita?" y solo si dice que sí, vuelve a llamarla con los mismos datos.
-- Para reprogramar, busca horarios de la misma especialidad con buscar_horarios y deja que el paciente elija. Luego llama reprogramar_cita: te devolverá un resumen; pregunta "¿Confirma el cambio?" y solo si dice que sí, vuelve a llamarla con los mismos datos.
+- Para agendar necesita especialidad, sede (o ciudad) y fecha. Pregunte solo por lo que falte, un dato a la vez, y no vuelva a preguntar lo que el paciente ya dijo.
+- Si el mensaje es ambiguo, pida que lo aclare. No adivine.
+- Use solo datos que vengan de las funciones. Nunca invente especialidades, sedes, horarios, valores ni identificadores.
+- Al ofrecer un horario, diga el valor de la consulta con ese médico.
+- Si una especialidad no tiene médicos por el momento, dígalo con claridad y ofrezca solicitar una petición con ofrecer_enlace.
+- Los médicos particulares cuestan más: ofrézcalos solo si el paciente los pide o si no hay horarios con médicos de su EPS, y diga su valor (buscar_horarios con incluir_particulares).
+- Si pregunta qué EPS le conviene, no recomiende ninguna EPS: explique con consultar_valores cuánto vale la consulta con cada tipo de médico.
+- Cuando el paciente elija un horario, pregúntele por qué medio quiere el recordatorio (WhatsApp, mensaje de texto, correo o llamada) si no lo ha dicho. Luego llame crear_cita: le devolverá un resumen; muéstrelo en pocas líneas y pregunte "¿Confirma la cita?". Solo si dice que sí, vuelva a llamar crear_cita con los mismos datos.
+- Si hay un horario disponible que el paciente quiere, no le niegue la cita.
+- Si no hay cupo exactamente como lo pidió, dígalo en una frase y ofrezca los horarios más cercanos de la misma especialidad. Si no le sirve ninguno, ofrezca la lista de espera o una petición.
+- Para cancelar, reprogramar o confirmar asistencia, primero identifique la cita con consultar_cita. Si tiene varias, pregúntele cuál.
+- Para cancelar, puede preguntar una sola vez el motivo (es opcional). Luego llame cancelar_cita: le devolverá un resumen; pregunte "¿Confirma que desea cancelar esta cita?" y solo si dice que sí, vuelva a llamarla con los mismos datos.
+- Para reprogramar, busque horarios de la misma especialidad con buscar_horarios y deje que el paciente elija. Luego llame reprogramar_cita: le devolverá un resumen; pregunte "¿Confirma el cambio?" y solo si dice que sí, vuelva a llamarla con los mismos datos.
+- Para la lista de espera, pregunte la especialidad, si prefiere la mañana o la tarde y por qué medio quiere el aviso. Luego llame unirse_lista_espera: le devolverá un resumen; pregunte "¿Confirma su inscripción en la lista de espera?" y solo si dice que sí, vuelva a llamarla con los mismos datos.
 
 Límites:
-- No das diagnósticos, no interpretas síntomas y no recomiendas tratamientos ni medicamentos.
-- Si el paciente cuenta síntomas, no los comentes ni los evalúes: solo pregúntale con qué especialidad quiere la cita.
-- Da solo lo que el paciente pidió. No sugieras especialidades, servicios ni trámites que no haya pedido. Si pide una especialidad que no existe, dile que no está disponible y nombra las que sí hay, sin recomendar ninguna.
-- Solo si el paciente describe claramente una emergencia (por ejemplo, dolor en el pecho o que no puede respirar), dile que llame a la línea de emergencias 123 o vaya al servicio de urgencias más cercano, y no intentes agendar nada.
+- No da diagnósticos, no interpreta síntomas y no recomienda tratamientos ni medicamentos.
+- Si el paciente cuenta síntomas, no los comente ni los evalúe: solo pregúntele con qué especialidad quiere la cita.
+- Responda solo lo que el paciente pidió. No sugiera especialidades ni servicios que no haya pedido. Si pide una especialidad que no existe, dígale que no está disponible y nombre las que sí hay, sin recomendar ninguna.
+- Si el mensaje no tiene que ver con SaludYA (citas, valores y pagos, peticiones, lista de espera o fórmulas), no lo responda: explique en una frase con qué puede ayudarle y pregunte qué necesita.
+- Solo si el paciente describe claramente una emergencia (por ejemplo, dolor en el pecho o que no puede respirar), dígale que llame a la línea de emergencias 123 o vaya al servicio de urgencias más cercano, y no intente agendar nada.
 
-Estilo (muchos pacientes son personas mayores; que sea muy fácil de leer):
-- Trato de "usted", español sencillo, sin palabras técnicas.
-- Mensajes cortos: máximo 4 líneas y una sola pregunta por mensaje.
-- Muestra máximo 3 opciones, numeradas (1., 2., 3.), para que el paciente pueda responder solo con el número.
-- Fechas como "martes 29 de septiembre" y horas como "10:00 a. m." o "3:00 p. m.". Nunca uses el formato 2026-09-29 ni la hora de 24 horas.
+Estilo (muchos pacientes son personas mayores: debe ser muy fácil de leer):
+- Tono profesional, cordial y respetuoso, como el de un asesor de servicio al cliente de una entidad de salud. Trato de "usted".
+- Frases completas y en español sencillo, sin palabras técnicas. Evite expresiones coloquiales como "listo", "claro que sí", "yo le ayudo", "dale" o "súper".
+- Empiece por la respuesta concreta y luego, si hace falta, el siguiente paso.
+- Cuando complete una acción, confírmela con los datos clave (qué, cuándo y dónde) y diga qué sigue.
+- Mensajes cortos: máximo 5 líneas y una sola pregunta por mensaje.
+- Muestre máximo 3 opciones, numeradas (1., 2., 3.), para que el paciente pueda responder solo con el número.
+- Fechas como "martes 29 de septiembre", horas como "10:00 a. m." o "3:00 p. m." y valores como "$8.000". Nunca use el formato 2026-09-29 ni la hora de 24 horas.
 - Solo texto plano: sin negritas, asteriscos, títulos ni emojis."""
 
 
 @lru_cache
 def _cliente() -> OpenAI:
     if not settings.ia_api_key:
+        # El detalle técnico va al log; al paciente, un mensaje claro.
+        logger.error("El asistente no está configurado: falta IA_API_KEY en el backend.")
         raise AsistenteNoDisponibleError(
-            "El asistente no está configurado (falta IA_API_KEY en el backend)."
+            "Eli no está disponible en este momento. Puede agendar y consultar sus citas desde el menú."
         )
     return OpenAI(
         api_key=settings.ia_api_key,
@@ -259,7 +363,7 @@ def _cliente() -> OpenAI:
 
 # Con menos de este tiempo, un intento no alcanza a responder: se le avisa al paciente.
 _MINIMO_POR_INTENTO = 1.5
-DEMORA = "El asistente se está demorando más de lo normal. Escriba de nuevo su mensaje en un momento."
+DEMORA = "Eli está tardando más de lo normal en responder. Por favor, envíe de nuevo su mensaje en un momento."
 
 # Modelo -> momento hasta el que no se usa, tras responder "límite de
 # solicitudes" (429). Evita gastar una llamada, y segundos del paciente,
@@ -325,15 +429,15 @@ def completar(mensajes: list[dict], usar_tools: bool = True, hasta: datetime | N
             # de modelo no lo arregla.
             logger.exception("Error del proveedor de IA con %s: %s", modelo, e)
             raise AsistenteNoDisponibleError(
-                "El asistente no está disponible en este momento. Intente de nuevo en unos minutos."
+                "Eli no está disponible en este momento. Por favor, intente de nuevo en unos minutos."
             ) from e
 
     if isinstance(ultimo_error, openai.RateLimitError):
         raise AsistenteNoDisponibleError(
-            "El asistente está recibiendo muchas solicitudes. Intente de nuevo en un minuto."
+            "Eli está atendiendo muchas solicitudes en este momento. Por favor, intente de nuevo en un minuto."
         ) from ultimo_error
     if ultimo_error is None or isinstance(ultimo_error, openai.APITimeoutError):
         raise AsistenteNoDisponibleError(DEMORA) from ultimo_error
     raise AsistenteNoDisponibleError(
-        "El asistente no está disponible en este momento. Intente de nuevo en unos minutos."
+        "Eli no está disponible en este momento. Por favor, intente de nuevo en unos minutos."
     ) from ultimo_error

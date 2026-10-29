@@ -13,6 +13,7 @@ import FechaHora from "../../components/FechaHora";
 import { iniciales } from "../../utils/avatar";
 import { CANALES } from "../../utils/citas";
 import { formatearFecha, formatearFechaHora, formatearHora, ocultarEnlaces } from "../../utils/formato";
+import { subirAlInicio } from "../../utils/desplazamiento";
 
 /**
  * Recordatorios — HU-67: en un solo apartado, la lista de pacientes con
@@ -239,7 +240,7 @@ export default function AdminRecordatoriosPage() {
   function abrir(paciente, programado = null) {
     setAviso("");
     setSeleccionado({ paciente, programado });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    subirAlInicio();
   }
 
   async function accion(fn, mensaje) {

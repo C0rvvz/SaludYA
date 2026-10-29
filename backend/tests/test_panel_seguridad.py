@@ -108,11 +108,11 @@ def test_token_de_paciente_o_alterado_en_el_panel_del_personal(cliente, fabrica)
     assert "token_invalido" in _claves(panel)
 
 
-def test_ingreso_del_paciente_con_el_documento_enmascarado(cliente, fabrica, db):
+def test_ingreso_del_paciente_con_el_documento_enmascarado(cliente, fabrica, db, codigos_otp):
     admin, paciente = fabrica.personal(), fabrica.paciente()
     cliente.post("/auth/paciente/identificar", json={"numero_documento": "99887766554"})
     cliente.post("/auth/paciente/otp/enviar", json={"numero_documento": paciente.numero_documento})
-    codigo = db.query(CodigoOTP).filter_by(paciente_id=paciente.id).order_by(CodigoOTP.creado_en.desc()).first().codigo
+    codigo = codigos_otp[paciente.numero_documento]
     incorrecto = "000000" if codigo != "000000" else "111111"
     datos = {"numero_documento": paciente.numero_documento}
     for _ in range(3):

@@ -7,6 +7,7 @@ import { ESPECIALIDAD, FRANJAS, SEDE, citaPasada, miCita } from "./datos";
 const CATALOGO = {
   "GET /especialidades": [ESPECIALIDAD],
   "GET /sedes": [SEDE],
+  "GET /disponibilidad/primeras": FRANJAS, // paso 1: el primer cupo de cada médico
   "GET /disponibilidad/buscar": FRANJAS,
 };
 
@@ -32,14 +33,15 @@ describe("Agendar cita", () => {
     const cardiologia = await screen.findByRole("button", { name: /Cardiología/ });
     expect(cardiologia).toHaveTextContent("1 profesional");
     expect(screen.getByRole("button", { name: "Elija una especialidad" })).toBeDisabled();
-    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({});
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/primeras")).toHaveLength(1);
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")).toHaveLength(0); // no trae todos los horarios
     await usuario.click(cardiologia);
     expect(cardiologia).toHaveAttribute("aria-pressed", "true");
     await usuario.click(screen.getByRole("button", { name: "Continuar con Cardiología" }));
 
     // Paso 2: busca los horarios de esa especialidad (HU-11) y elige al primero con cupo.
     expect(await esperarTexto("Elija médico, día y hora")).toBeInTheDocument();
-    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[1].query).toEqual({ especialidad_id: "esp-1" });
+    expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")[0].query).toEqual({ especialidad_id: "esp-1" });
     expect(screen.getByRole("button", { name: /Dr. Carlos Ramírez/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Confirmar cita" })).toBeDisabled();
 
@@ -119,7 +121,7 @@ describe("Agendar cita", () => {
 
     expect(await esperarTexto(/otra persona lo reservó/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Confirmar cita" })).toBeDisabled();
-    await waitFor(() => expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")).toHaveLength(3));
+    await waitFor(() => expect(llamadasA(llamadas, "GET", "/disponibilidad/buscar")).toHaveLength(2));
   });
 
   it("otros errores al confirmar se muestran tal cual", async () => {
@@ -152,7 +154,7 @@ describe("Agendar cita", () => {
   });
 
   it("sin horarios libres: lo dice y ofrece el aviso de cupo o la petición", async () => {
-    backendFalso({ ...CATALOGO, "GET /disponibilidad/buscar": [] });
+    backendFalso({ ...CATALOGO, "GET /disponibilidad/primeras": [], "GET /disponibilidad/buscar": [] });
     const usuario = abrir("/panel", { paciente: true });
     const cardiologia = await screen.findByRole("button", { name: /Cardiología/ });
     expect(cardiologia).toHaveTextContent("Sin cupos por ahora");
@@ -171,9 +173,51 @@ describe("Agendar cita", () => {
     );
   });
 
+  it("una especialidad sin médicos en la red: lo avisa y ofrece una petición", async () => {
+    const ONCOLOGIA = { id: "esp-9", nombre: "Oncología", medicos: 0 };
+    backendFalso({ ...CATALOGO, "GET /especialidades": [{ ...ESPECIALIDAD, medicos: 2 }, ONCOLOGIA] });
+    const usuario = abrir("/panel", { paciente: true });
+
+    const oncologia = await screen.findByRole("button", { name: /Oncología/ });
+    expect(oncologia).toHaveTextContent("Sin médicos por el momento");
+    expect(screen.getByRole("button", { name: /Cardiología/ })).toHaveTextContent("1 profesional");
+    await usuario.click(oncologia);
+
+    const aviso = screen.getByRole("status");
+    expect(aviso).toHaveTextContent("Por el momento no hay médicos de Oncología en SaludYA.");
+    expect(within(aviso).getByRole("link", { name: "Solicitar petición" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal&especialidad=esp-9"
+    );
+    expect(screen.queryByRole("button", { name: /Continuar con/ })).not.toBeInTheDocument();
+
+    // Con otra especialidad vuelve el botón para seguir.
+    await usuario.click(screen.getByRole("button", { name: /Cardiología/ }));
+    expect(screen.queryByText(/no hay médicos de/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continuar con Cardiología" })).toBeEnabled();
+  });
+
+  it("si llega directo a una especialidad sin médicos, también lo dice", async () => {
+    backendFalso({
+      ...CATALOGO,
+      "GET /especialidades": [{ id: "esp-9", nombre: "Oncología", medicos: 0 }],
+      "GET /disponibilidad/buscar": [],
+    });
+    abrir("/panel?especialidad=esp-9", { paciente: true });
+    const aviso = (await screen.findByRole("heading", { name: "Por el momento no hay médicos de Oncología en SaludYA" })).closest(
+      "section"
+    );
+    expect(within(aviso).getByRole("link", { name: "Solicitar petición" })).toHaveAttribute(
+      "href",
+      "/solicitudes?tipo=formal&especialidad=esp-9"
+    );
+    expect(within(aviso).queryByRole("link", { name: "Avisarme cuando haya cupo" })).not.toBeInTheDocument();
+  });
+
   it("errores al cargar las especialidades o los horarios", async () => {
     const llamadas = backendFalso({
       "GET /especialidades": error(500, "Sin catálogo"),
+      "GET /disponibilidad/primeras": error(500, "Sin horarios"),
       "GET /disponibilidad/buscar": error(500, "Sin horarios"),
     });
     const usuario = abrir("/panel", { paciente: true });
@@ -194,7 +238,7 @@ describe("Agendar cita", () => {
     expect(screen.queryByRole("button", { name: "¿No sabe cuál? Pregúntele a Eli" })).not.toBeInTheDocument();
     await usuario.type(screen.getByLabelText("Buscar una especialidad o un médico"), "zzz");
     await usuario.click(screen.getByRole("button", { name: "pregúntele a Eli" }));
-    expect(await screen.findByRole("dialog", { name: /Eli, su guía de SaludYA/ })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: /Eli, asistente virtual de SaludYA/ })).toBeInTheDocument();
   });
 
   it("cerrar sesión", async () => {
@@ -549,9 +593,9 @@ describe("Asistente conversacional (HU-33)", () => {
     ]);
 
     await usuario.click(screen.getByRole("button", { name: "Nueva conversación" }));
-    expect(await esperarTexto(/Soy Eli, su guía de SaludYA/)).toBeInTheDocument();
+    expect(await esperarTexto(/Soy Eli, el asistente virtual de SaludYA/)).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Cerrar a Eli" }));
-    expect(screen.queryByRole("dialog", { name: /Eli, su guía de SaludYA/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /Eli, asistente virtual de SaludYA/ })).not.toBeInTheDocument();
   });
 
   it("la cita que Eli propone se ve como tarjeta, con 'Agendar esa cita', 'Elegir otra fecha' y la petición", async () => {
@@ -567,6 +611,8 @@ describe("Asistente conversacional (HU-33)", () => {
       modalidad: "presencial",
       fecha: "2026-10-26",
       hora: "14:30:00",
+      valor_consulta: "$8.000",
+      cobro: "copago de su EPS (Sura)",
     };
     const respuestas = [
       { respuesta: "Le recomiendo Cardiología. ¿Confirma la cita?", tipo: "mensaje", cita: null, propuesta: PROPUESTA },
@@ -581,9 +627,10 @@ describe("Asistente conversacional (HU-33)", () => {
 
     expect(await esperarTexto(/Cardiología · Lun 26 oct/)).toBeInTheDocument();
     expect(screen.getByText(/2:30 p. m. · Sede Poblado · Presencial/)).toBeInTheDocument();
+    expect(screen.getByText(/Valor de la consulta:/)).toHaveTextContent("Valor de la consulta: $8.000 · copago de su EPS (Sura)");
     // Con la propuesta, las respuestas rápidas son las del diseño (no "Sí, confirmo").
     expect(screen.queryByRole("button", { name: "Sí, confirmo" })).not.toBeInTheDocument();
-    const eli = screen.getByRole("dialog", { name: "Eli, su guía de SaludYA" });
+    const eli = screen.getByRole("dialog", { name: "Eli, asistente virtual de SaludYA" });
     expect(within(eli).getByRole("link", { name: "Solicitar petición" })).toHaveAttribute(
       "href",
       "/solicitudes?tipo=formal&especialidad=esp-1"
@@ -639,6 +686,37 @@ describe("Asistente conversacional (HU-33)", () => {
       ultimo.onend();
     });
     expect(screen.getByText(/permita el uso del micrófono/)).toBeInTheDocument();
+  });
+
+  it("saluda con lo que puede hacer y lleva con un botón a la pantalla de cada trámite", async () => {
+    const llamadas = backendFalso({
+      ...CATALOGO,
+      "POST /chat": {
+        respuesta: "Tiene una petición en revisión. Puede ver el detalle con el botón de abajo.",
+        tipo: "mensaje",
+        cita: null,
+        propuesta: null,
+        enlaces: [
+          { texto: "Ver mis peticiones", ruta: "/solicitudes" },
+          { texto: "Sitio externo", ruta: "//otro.sitio/pagar" }, // nunca se sigue una ruta fuera de SaludYA
+        ],
+      },
+      "GET /solicitudes": [],
+      "GET /especialidades": [ESPECIALIDAD],
+    });
+    const usuario = abrir("/panel", { paciente: true });
+    expect(screen.queryByText(/Yo le ayudo/)).not.toBeInTheDocument();
+    await usuario.click(await screen.findByRole("button", { name: /^Pregúntele a Eli/ }));
+    expect(await esperarTexto(/Puedo agendar, cambiar o cancelar sus citas, informarle el valor de su consulta/)).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("button", { name: "¿Cómo van mis peticiones?" }));
+    const grupo = await screen.findByRole("group", { name: "Ir a otra pantalla" });
+    expect(within(grupo).getAllByRole("link")).toHaveLength(1);
+    expect(llamadasA(llamadas, "POST", "/chat")[0].cuerpo.mensaje).toBe("¿Cómo van mis peticiones?");
+
+    await usuario.click(within(grupo).getByRole("link", { name: "Ver mis peticiones" }));
+    expect(await screen.findByRole("heading", { name: "Solicitar petición" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /Eli/ })).not.toBeInTheDocument(); // se cierra al ir allí
   });
 
   it("una urgencia se muestra destacada con botones para llamar", async () => {

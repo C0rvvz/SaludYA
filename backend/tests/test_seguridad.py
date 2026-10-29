@@ -47,17 +47,14 @@ def test_una_sesion_nueva_cierra_la_anterior(cliente, fabrica, db):
     assert sesiones[0].ip == "testclient"  # registro de accesos: desde dónde
 
 
-def test_sesion_unica_del_paciente(cliente, fabrica, db, monkeypatch):
-    from app.models import CodigoOTP
-
+def test_sesion_unica_del_paciente(cliente, fabrica, db, monkeypatch, codigos_otp):
     monkeypatch.setattr(settings, "otp_reenvio_segundos", 0)
     paciente = fabrica.paciente()
     documento = {"numero_documento": paciente.numero_documento}
 
     def ingresar() -> str:
         cliente.post("/auth/paciente/otp/enviar", json=documento)
-        codigo = db.query(CodigoOTP).filter_by(paciente_id=paciente.id).order_by(CodigoOTP.creado_en.desc()).first()
-        r = cliente.post("/auth/paciente/otp/validar", json=documento | {"codigo": codigo.codigo})
+        r = cliente.post("/auth/paciente/otp/validar", json=documento | {"codigo": codigos_otp[paciente.numero_documento]})
         assert r.status_code == 200, r.text
         return r.json()["access_token"]
 

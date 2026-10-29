@@ -60,13 +60,15 @@ export const ESTADO_CORTO = {
 
 /**
  * Enlace a Google Maps para llegar a la sede. Las sedes todavía no tienen
- * dirección: se busca por el barrio o municipio ("Poblado, Medellín").
+ * dirección: se busca por el barrio o municipio ("Poblado, Medellín"; la
+ * de un municipio, por el municipio: "Bello, Colombia", no "Bello, Bello").
  */
 export function enlaceComoLlegar(sede) {
+  const barrio = sede.nombre.replace(/^Sede\s+/i, "");
   // Con la dirección exacta de la sede (si el personal la registró), el mapa llega a la puerta.
-  const lugar = sede.direccion
-    ? `${sede.direccion}, ${sede.ciudad}`
-    : `${sede.nombre.replace(/^Sede\s+/i, "")}, ${sede.ciudad}`;
+  let lugar = `${barrio}, ${sede.ciudad}`;
+  if (sede.direccion) lugar = `${sede.direccion}, ${sede.ciudad}`;
+  else if (barrio.toLowerCase() === sede.ciudad.toLowerCase()) lugar = `${sede.ciudad}, Colombia`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
 }
 

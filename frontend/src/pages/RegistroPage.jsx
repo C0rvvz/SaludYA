@@ -58,7 +58,7 @@ function EliRegistro({ paso }) {
         <EliAvatar tamano={150} grande />
         <div>
           <p className="eli-registro__nombre">Eli</p>
-          <p className="eli-registro__rol">Su guía de SaludYA</p>
+          <p className="eli-registro__rol">Asistente virtual de SaludYA</p>
         </div>
       </div>
       <div className="eli-registro__burbujas">

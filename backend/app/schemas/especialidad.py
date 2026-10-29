@@ -10,3 +10,8 @@ class EspecialidadOut(BaseModel):
 
     id: uuid.UUID
     nombre: str
+
+
+class EspecialidadCatalogoOut(EspecialidadOut):
+    # Médicos activos en la red: con 0, el paciente ve que por el momento no hay quien lo atienda.
+    medicos: int

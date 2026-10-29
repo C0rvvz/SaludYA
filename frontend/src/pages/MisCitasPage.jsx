@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import EncabezadoPaciente from "../components/EncabezadoPaciente";
@@ -17,7 +17,9 @@ import {
   registrarLlegada,
   reprogramarCita,
 } from "../api/citas";
+import useLlevarALaVista from "../hooks/useLlevarALaVista";
 import { ESTADOS_ACTIVOS } from "../utils/citas";
+import { llevarALaVista, subirAlInicio } from "../utils/desplazamiento";
 import { formatearFechaLarga, formatearPesos } from "../utils/formato";
 import { conceptoPendiente } from "../utils/pagos";
 import "../styles/mis-citas.css";
@@ -37,7 +39,13 @@ import "../styles/mis-citas.css";
  * lado. Celular: arriba la próxima cita destacada; al tocar una cita, su
  * detalle ocupa la pantalla. Reprogramar es una pantalla propia; cancelar
  * y calificar, ventanas sobre la página.
+ *
+ * Al ver una cita que está muy abajo en la lista, la página sube con
+ * suavidad hasta su detalle; igual con el aviso de cada acción.
  */
+
+// Después de que React pinte el cambio (p. ej. el detalle que reemplaza a la lista en el celular).
+const despuesDePintar = (fn) => (window.requestAnimationFrame ?? ((f) => f()))(fn);
 
 const PESTANAS = [
   {
@@ -79,6 +87,8 @@ export default function MisCitasPage() {
   const [errorVentana, setErrorVentana] = useState("");
   const [aviso, setAviso] = useState(null); // { tipo, texto }
   const [procesandoId, setProcesandoId] = useState(null);
+  const detalleRef = useRef(null);
+  const avisoRef = useLlevarALaVista(aviso);
 
   // `seguir`: después de una acción, se muestra esa cita en la pestaña donde quedó.
   const cargar = useCallback(
@@ -123,8 +133,12 @@ export default function MisCitasPage() {
     setSeleccionId(cita.id);
     setDetalleEnCelular(true);
     setAviso(null);
-    // En el celular el detalle reemplaza a la lista: se empieza a leer desde arriba.
-    if (window.matchMedia?.("(max-width: 1099px)").matches) window.scrollTo({ top: 0 });
+    // En el celular el detalle reemplaza a la lista: se empieza a leer desde arriba. En el
+    // computador va al lado de la lista: si quedó arriba, fuera de la vista, se sube hasta él.
+    despuesDePintar(() => {
+      if (window.matchMedia?.("(max-width: 1099px)").matches) subirAlInicio();
+      else llevarALaVista(detalleRef.current);
+    });
   }
 
   function verPorNumero(numero) {
@@ -166,6 +180,7 @@ export default function MisCitasPage() {
     } else if (tipo === "reprogramar") {
       setSeleccionId(cita.id);
       setReprogramando(true);
+      despuesDePintar(subirAlInicio);
     } else {
       setErrorVentana("");
       setVentana({ tipo, cita });
@@ -214,7 +229,10 @@ export default function MisCitasPage() {
           <ReprogramarCita
             cita={citaAReprogramar}
             onConfirmar={(franja) => reprogramar(citaAReprogramar, franja)}
-            onVolver={() => setReprogramando(false)}
+            onVolver={() => {
+              setReprogramando(false);
+              despuesDePintar(subirAlInicio);
+            }}
           />
         </div>
       </div>
@@ -322,7 +340,11 @@ export default function MisCitasPage() {
         </div>
 
         {aviso && (
-          <div className={`alert alert--${aviso.tipo}`} role={aviso.tipo === "error" ? "alert" : "status"}>
+          <div
+            ref={avisoRef}
+            className={`alert alert--${aviso.tipo} llevar-a-la-vista`}
+            role={aviso.tipo === "error" ? "alert" : "status"}
+          >
             {aviso.texto}
           </div>
         )}
@@ -331,7 +353,7 @@ export default function MisCitasPage() {
         <div className={`mis-citas__cuerpo ${elegida ? "con-detalle" : ""}`}>
           <div className="mis-citas__lista">{lista}</div>
           {elegida && (
-            <div className="mis-citas__detalle">
+            <div className="mis-citas__detalle llevar-a-la-vista" ref={detalleRef}>
               <DetalleCita
                 cita={elegida}
                 ocupado={procesandoId === elegida.id}
@@ -341,7 +363,7 @@ export default function MisCitasPage() {
                 onAbrirNumero={verPorNumero}
                 onVolver={() => {
                   setDetalleEnCelular(false);
-                  window.scrollTo({ top: 0 });
+                  despuesDePintar(subirAlInicio);
                 }}
               />
             </div>

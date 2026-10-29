@@ -28,7 +28,6 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_paciente, sesion_del_paciente
 from app.core.limite_intentos import exigir_humano, ip_de, limitar
 from app.core.security import TIPO_PACIENTE, crear_access_token
-from app.models.codigo_otp import CodigoOTP
 from app.models.paciente import EstadoAfiliacion, Paciente
 from app.models.sesion import Sesion
 from app.schemas.auth import (
@@ -71,8 +70,8 @@ def _registrar_fallo(
     )
 
 
-def _codigo_demo(otp: CodigoOTP) -> str | None:
-    return otp.codigo if settings.codigo_otp_en_pantalla else None
+def _codigo_demo(codigo: str) -> str | None:
+    return codigo if settings.codigo_otp_en_pantalla else None
 
 
 def _enmascarar_telefono(telefono: str) -> str:
@@ -109,7 +108,7 @@ def identificar_paciente(datos: IdentificarPacienteRequest, request: Request, db
 )
 def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
     try:
-        paciente, otp = auth_service.iniciar_envio_otp(db, datos.numero_documento)
+        paciente, codigo = auth_service.iniciar_envio_otp(db, datos.numero_documento)
     except PacienteNoRegistradoError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ReenvioMuyProntoError as e:
@@ -122,7 +121,7 @@ def enviar_otp(datos: EnviarOTPRequest, db: Session = Depends(get_db)):
         telefono_enmascarado=_enmascarar_telefono(paciente.telefono_whatsapp),
         expira_en_minutos=settings.otp_expire_minutes,
         mensaje="Le enviamos un código de verificación por WhatsApp.",
-        codigo_demo=_codigo_demo(otp),
+        codigo_demo=_codigo_demo(codigo),
     )
 
 
@@ -174,7 +173,7 @@ def validar_otp(datos: ValidarOTPRequest, request: Request, db: Session = Depend
 )
 def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
     try:
-        paciente, otp = auth_service.reenviar_otp(db, datos.numero_documento)
+        paciente, codigo = auth_service.reenviar_otp(db, datos.numero_documento)
     except PacienteNoRegistradoError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ReenvioMuyProntoError as e:
@@ -188,7 +187,7 @@ def reenviar_otp(datos: ReenviarOTPRequest, db: Session = Depends(get_db)):
         telefono_enmascarado=_enmascarar_telefono(paciente.telefono_whatsapp),
         expira_en_minutos=settings.otp_expire_minutes,
         mensaje="Le enviamos un nuevo código de verificación.",
-        codigo_demo=_codigo_demo(otp),
+        codigo_demo=_codigo_demo(codigo),
     )
 
 

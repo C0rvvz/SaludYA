@@ -5,6 +5,7 @@ import PasosAgendar from "../components/agendar/PasosAgendar";
 import FormularioPse from "../components/pagos/FormularioPse";
 import FormularioTarjeta from "../components/pagos/FormularioTarjeta";
 import { resumenDelPago } from "../api/pagos";
+import { subirAlInicio } from "../utils/desplazamiento";
 import { formatearDiaMes, formatearPesos } from "../utils/formato";
 import { PASOS_PAGO } from "../utils/pagos";
 import "../styles/pagos.css";
@@ -40,7 +41,7 @@ export default function PagarCitaPage() {
 
   function irAPaso(numero) {
     setPaso(numero);
-    window.scrollTo({ top: 0 });
+    subirAlInicio();
   }
 
   function continuar() {

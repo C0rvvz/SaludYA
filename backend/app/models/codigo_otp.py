@@ -9,6 +9,9 @@ Reglas de negocio ya definidas por ti:
 Estos valores se leerán desde settings cuando construyamos el
 servicio de OTP (próxima parte) — aquí solo modelamos los campos
 donde se registran (código, expiración, intentos consumidos).
+
+Del código solo se guarda su huella (security.huella_otp), nunca el
+código: quien lea la base no puede usarlo para entrar.
 """
 
 import enum
@@ -43,7 +46,7 @@ class CodigoOTP(Base):
         UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
     )
 
-    codigo: Mapped[str] = mapped_column(String(6), nullable=False)
+    codigo_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     canal: Mapped[CanalOTP] = mapped_column(
         SAEnum(CanalOTP, name="canal_otp", values_callable=lambda x: [e.value for e in x]), default=CanalOTP.WHATSAPP, nullable=False
     )

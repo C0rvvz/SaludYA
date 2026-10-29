@@ -34,6 +34,9 @@ const unicasPorId = (lista) => [...new Map(lista.map((x) => [x.id, x])).values()
  * la especialidad, sin volver a consultar (HU-11). Al confirmar, el
  * servidor revisa que el horario siga libre (HU-16).
  *
+ * Si la especialidad no tiene médicos en la red (`sinMedicos`), se dice así
+ * y se ofrece solicitar una petición (la lista de espera necesita sedes).
+ *
  * Cada médico lleva su EPS y el valor de la consulta, en tres grupos:
  * los de su EPS y aliadas (copago), los particulares (se pueden agendar,
  * pero cuestan más) y los de otras EPS (en gris, sin poder elegirlos).
@@ -41,6 +44,7 @@ const unicasPorId = (lista) => [...new Map(lista.map((x) => [x.id, x])).values()
 export default function PasoHorario({
   especialidadId,
   especialidad,
+  sinMedicos = false,
   franjas,
   especialistaInicial,
   vista,
@@ -171,6 +175,29 @@ export default function PasoHorario({
       </button>
     </div>
   );
+
+  if (sinMedicos) {
+    return (
+      <>
+        {encabezado}
+        <section className="card agendar-sin-cupos">
+          <h2>Por el momento no hay médicos de {especialidad} en SaludYA</h2>
+          <p>
+            Cuando se vincule un especialista, podrá agendar aquí. Mientras tanto, puede solicitar una petición:
+            revisaremos su caso y le ayudaremos a conseguir la cita.
+          </p>
+          <div className="acciones-admin">
+            <Link className="btn btn--primary" to={enlaceCarta}>
+              Solicitar petición
+            </Link>
+            <button type="button" className="btn btn--outline" onClick={onCambiarEspecialidad}>
+              Elegir otra especialidad
+            </button>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   if (!hayAgendables) {
     return (

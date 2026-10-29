@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { abrir, backendFalso, error, esperarTexto, llamadasA } from "./backendFalso";
-import { PERSONAL } from "./datos";
+import { PERSONAL, TODOS_LOS_PERMISOS } from "./datos";
 
 function panel(cambios = {}) {
   return {
@@ -59,7 +59,59 @@ function panel(cambios = {}) {
   };
 }
 
+describe("Auditoría y seguridad: una sola entrada del menú, con dos pestañas", () => {
+  it("el menú tiene una sola entrada, marcada en las dos pestañas, y se pasa de una a otra", async () => {
+    backendFalso({ "GET /admin/auditoria": [], "GET /admin/seguridad": () => panel() });
+    const usuario = abrir("/admin/auditoria", { personal: true });
+    expect(await screen.findByRole("heading", { name: "Auditoría y seguridad", level: 1 })).toBeInTheDocument();
+
+    const menu = screen.getByRole("navigation", { name: "Secciones de administración" });
+    const entrada = within(menu).getByRole("link", { name: /Auditoría y seguridad/ });
+    expect(entrada).toHaveClass("is-active");
+    expect(within(menu).queryByRole("link", { name: /^Seguridad/ })).not.toBeInTheDocument();
+
+    const pestanas = screen.getByRole("navigation", { name: "Auditoría y seguridad" });
+    expect(within(pestanas).getByRole("link", { name: /^Auditoría/ })).toHaveAttribute("aria-current", "page");
+    // Cada pestaña muestra lo mismo que antes: aquí, los filtros de la auditoría.
+    expect(screen.getByLabelText("Responsable")).toBeInTheDocument();
+
+    await usuario.click(within(pestanas).getByRole("link", { name: /^Seguridad/ }));
+    expect(await screen.findByRole("heading", { name: "Resumen del periodo" })).toBeInTheDocument();
+    const ahora = screen.getByRole("navigation", { name: "Auditoría y seguridad" }); // las de la otra pestaña
+    expect(within(ahora).getByRole("link", { name: /^Seguridad/ })).toHaveAttribute("aria-current", "page");
+    expect(within(menu).getByRole("link", { name: /Auditoría y seguridad/ })).toHaveClass("is-active");
+  });
+
+  it("con permiso para una sola, no muestra pestañas y el menú lleva a esa", async () => {
+    const soloSeguridad = { ...PERSONAL, permisos: TODOS_LOS_PERMISOS.filter((p) => p !== "ver_auditoria") };
+    backendFalso({ "GET /admin/auth/me": soloSeguridad, "GET /admin/seguridad": () => panel() });
+    abrir("/admin/seguridad", { personal: true });
+    expect(await screen.findByRole("heading", { name: "Resumen del periodo" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Auditoría y seguridad" })).not.toBeInTheDocument();
+    const menu = screen.getByRole("navigation", { name: "Secciones de administración" });
+    expect(within(menu).getByRole("link", { name: /Auditoría y seguridad/ })).toHaveAttribute("href", "/admin/seguridad");
+  });
+});
+
 describe("Seguridad", () => {
+  it("un recuadro plegado explica qué significa Alta, Media e Informativa", async () => {
+    backendFalso({ "GET /admin/seguridad": () => panel() });
+    const usuario = abrir("/admin/seguridad", { personal: true });
+    const alertas = (await screen.findByRole("heading", { name: "Alertas" })).closest("section");
+    const leyenda = within(alertas).getByText("¿Qué significan Alta, Media e Informativa?").closest("details");
+    expect(leyenda).not.toHaveAttribute("open"); // plegado: no estorba
+
+    await usuario.click(within(leyenda).getByText("¿Qué significan Alta, Media e Informativa?"));
+    expect(leyenda).toHaveAttribute("open");
+    expect(within(leyenda).getByText(/Revísela de inmediato/)).toBeInTheDocument();
+    expect(within(leyenda).getByText(/conviene revisar hoy/)).toBeInTheDocument();
+    expect(within(leyenda).getByText(/No requiere acción/)).toBeInTheDocument();
+    // También junto a los filtros de los eventos.
+    const eventos = screen.getByRole("heading", { name: "Eventos de seguridad" }).closest("section");
+    expect(within(eventos).getByText("¿Qué significan Alta, Media e Informativa?")).toBeInTheDocument();
+  });
+
+
   it("muestra cifras, alertas con qué hacer, eventos y controles; cambia de periodo", async () => {
     const llamadas = backendFalso({ "GET /admin/seguridad": () => panel() });
     const usuario = abrir("/admin/seguridad", { personal: true });

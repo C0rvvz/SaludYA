@@ -1,5 +1,5 @@
 /**
- * Eli, la guía de SaludYA (el nombre viene de Elizabeth Blackwell, la
+ * Eli, el asistente virtual de SaludYA (el nombre viene de Elizabeth Blackwell, la
  * primera médica graduada en Estados Unidos): una doctora con gorro y cruz
  * azul. `tamano` en píxeles; `grande` le pone el borde blanco ancho y la
  * sombra del registro.
