@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, conFiltros } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
@@ -9,6 +9,7 @@ import { Chevron } from "../Iconos";
 import { CANALES } from "../../utils/citas";
 import { capitalizar, formatearFecha, formatearHora } from "../../utils/formato";
 import { agruparPorEspecialista, diaCorto, dondeAtiende } from "../../utils/agendar";
+import { despuesDePintar, llevarALaVista } from "../../utils/desplazamiento";
 import { conceptoDelValor, puedeAgendarCon, relacionConMedico, valorConMedico } from "../../utils/eps";
 
 const MODALIDADES = [
@@ -27,8 +28,10 @@ const unicasPorId = (lista) => [...new Map(lista.map((x) => [x.id, x])).values()
  * Paso 2 de "Agendar": médico, día y hora (HU-10 a HU-16).
  *
  * Computador: tres columnas (filtros y médicos · días y horas · resumen
- * "Su cita" con el canal del recordatorio). Celular: primero la lista de
- * médicos y, al elegir uno, sus días y horas (`vista` = "medico" | "hora").
+ * "Su cita" con el canal del recordatorio). Si elige un médico de abajo en
+ * la lista, la página sube con suavidad hasta sus días y horas. Celular:
+ * primero la lista de médicos y, al elegir uno, sus días y horas (`vista` =
+ * "medico" | "hora").
  *
  * Los filtros (ciudad, modalidad y sede) se aplican sobre los horarios de
  * la especialidad, sin volver a consultar (HU-11). Al confirmar, el
@@ -60,6 +63,7 @@ export default function PasoHorario({
   const [canal, setCanal] = useState("whatsapp");
   const [confirmando, setConfirmando] = useState(false);
   const [error, setError] = useState("");
+  const horasRef = useRef(null);
 
   // Las ciudades y sedes que se ofrecen son solo aquellas donde la especialidad tiene cupos.
   const sedes = useMemo(() => unicasPorId(franjas.map((f) => f.sede)), [franjas]);
@@ -100,6 +104,8 @@ export default function PasoHorario({
     setEspecialistaId(id);
     setFranjaId(null);
     setError("");
+    // En el celular sus horas están en otra vista ("Ver su disponibilidad"), que ya empieza arriba.
+    if (!window.matchMedia?.("(max-width: 1099px)").matches) despuesDePintar(() => llevarALaVista(horasRef.current));
   }
 
   async function confirmar() {
@@ -339,7 +345,7 @@ export default function PasoHorario({
           )}
         </div>
 
-        <section className="card agendar-horas" aria-labelledby="titulo-horas">
+        <section ref={horasRef} className="card agendar-horas llevar-a-la-vista" aria-labelledby="titulo-horas">
           {grupo ? (
             <>
               <div className="agendar-horas__medico solo-movil">

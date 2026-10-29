@@ -271,8 +271,32 @@
   gap: 12px;
 }
 
+/* El botón de avanzar (o el aviso de "no hay médicos") queda fijo abajo de la
+   pantalla, como en el celular: con la lista larga de especialidades no hay
+   que bajar a buscarlo ni la página salta hasta él. */
+.agendar-continuar,
+.aviso-sin-medicos--agendar {
+  position: sticky;
+  bottom: 24px;
+  z-index: 5;
+}
+
 .agendar-continuar {
   display: flex;
+}
+
+.agendar-continuar .btn,
+.aviso-sin-medicos--agendar {
+  box-shadow: 0 12px 32px -12px rgba(14, 31, 57, 0.45);
+}
+
+/* A la izquierda, como el contenido: el botón de Eli ocupa la esquina derecha. */
+.agendar-continuar .btn {
+  width: min(100%, 440px);
+}
+
+.aviso-sin-medicos--agendar {
+  max-width: 640px;
 }
 
 .agendar-vacio {
@@ -1071,8 +1095,9 @@
     margin-bottom: 4px;
   }
 
-  /* El botón de avanzar queda siempre a la mano, encima de las pestañas. */
+  /* En el celular, encima de las pestañas de abajo. */
   .agendar-continuar,
+  .aviso-sin-medicos--agendar,
   .agendar-medicos > .btn.solo-movil {
     position: sticky;
     bottom: calc(86px + env(safe-area-inset-bottom));
@@ -1083,12 +1108,8 @@
     width: 100%;
   }
 
-  /* "No hay médicos de …" ocupa el lugar del botón de avanzar: a la mano, sin saltos. */
   .aviso-sin-medicos--agendar {
-    position: sticky;
-    bottom: calc(86px + env(safe-area-inset-bottom));
-    z-index: 5;
-    box-shadow: 0 12px 32px -12px rgba(14, 31, 57, 0.35);
+    max-width: none;
   }
 
   .agendar-horario {

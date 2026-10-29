@@ -4,6 +4,9 @@
  * (accesibilidad: "Reducir movimiento").
  */
 
+/** Después de que React pinte el cambio (p. ej. el detalle que reemplaza a la lista en el celular). */
+export const despuesDePintar = (fn) => (window.requestAnimationFrame ?? ((f) => f()))(fn);
+
 const movimiento = () => (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
 /** Sube al inicio de la página. */

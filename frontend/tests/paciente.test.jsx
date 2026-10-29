@@ -91,6 +91,21 @@ describe("Agendar cita", () => {
     expect(screen.getByRole("button", { name: /Dr. Carlos Ramírez/ })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("al elegir un médico de abajo en la lista, la página sube con suavidad hasta sus horarios", async () => {
+    backendFalso(CATALOGO);
+    const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });
+    await screen.findByRole("button", { name: /Dra. Ana Gómez/ });
+    // La persona bajó por la lista: los horarios quedaron arriba, fuera de la pantalla.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+      return { top: this.classList.contains("agendar-horas") ? -900 : 0 };
+    });
+    const subir = vi.spyOn(Element.prototype, "scrollIntoView");
+
+    await usuario.click(screen.getByRole("button", { name: /Dra. Ana Gómez/ }));
+    await waitFor(() => expect(subir).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }));
+    expect(subir.mock.contexts.at(-1)).toHaveClass("agendar-horas");
+  });
+
   it("los filtros de ciudad, modalidad y sede cambian los médicos y horarios", async () => {
     backendFalso(CATALOGO);
     const usuario = abrir("/panel?especialidad=esp-1", { paciente: true });

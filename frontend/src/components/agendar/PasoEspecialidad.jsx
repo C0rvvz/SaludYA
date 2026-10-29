@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import useLlevarALaVista from "../../hooks/useLlevarALaVista";
 import { Chevron } from "../Iconos";
 import EpsMedico from "./EpsMedico";
 import FotoProfesional from "./FotoProfesional";
@@ -19,6 +18,9 @@ import { puedeAgendarCon } from "../../utils/eps";
  * Una especialidad sin médicos en la red (especialidad.medicos = 0) también
  * se muestra: al elegirla, un aviso explica que por el momento nadie la
  * atiende y ofrece solicitar una petición.
+ *
+ * "Continuar con …" (o ese aviso) queda fijo abajo de la pantalla, en el
+ * computador y en el celular: se ve apenas se elige, sin mover la página.
  */
 export default function PasoEspecialidad({ especialidades, franjas, elegida, onElegir, onContinuar, onPreguntarEli }) {
   const { paciente } = useAuth();
@@ -40,7 +42,6 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
   const especialidadElegida = resumen.find((e) => e.id === elegida);
   const nombreElegida = especialidadElegida?.nombre;
   const sinMedicos = especialidadElegida?.medicos === 0;
-  const avisoRef = useLlevarALaVista(sinMedicos ? elegida : null);
 
   return (
     <>
@@ -160,7 +161,7 @@ export default function PasoEspecialidad({ especialidades, franjas, elegida, onE
       </section>
 
       {sinMedicos && (
-        <div ref={avisoRef} className="aviso-sin-medicos aviso-sin-medicos--agendar llevar-a-la-vista" role="status">
+        <div className="aviso-sin-medicos aviso-sin-medicos--agendar" role="status">
           <p className="aviso-sin-medicos__titulo">Por el momento no hay médicos de {nombreElegida} en SaludYA.</p>
           <p className="aviso-sin-medicos__detalle">
             Cuando se vincule un especialista, podrá agendar aquí. Mientras tanto, puede solicitar una petición:

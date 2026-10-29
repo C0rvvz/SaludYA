@@ -19,7 +19,7 @@ import {
 } from "../api/citas";
 import useLlevarALaVista from "../hooks/useLlevarALaVista";
 import { ESTADOS_ACTIVOS } from "../utils/citas";
-import { llevarALaVista, subirAlInicio } from "../utils/desplazamiento";
+import { despuesDePintar, llevarALaVista, subirAlInicio } from "../utils/desplazamiento";
 import { formatearFechaLarga, formatearPesos } from "../utils/formato";
 import { conceptoPendiente } from "../utils/pagos";
 import "../styles/mis-citas.css";
@@ -44,8 +44,6 @@ import "../styles/mis-citas.css";
  * suavidad hasta su detalle; igual con el aviso de cada acción.
  */
 
-// Después de que React pinte el cambio (p. ej. el detalle que reemplaza a la lista en el celular).
-const despuesDePintar = (fn) => (window.requestAnimationFrame ?? ((f) => f()))(fn);
 
 const PESTANAS = [
   {
